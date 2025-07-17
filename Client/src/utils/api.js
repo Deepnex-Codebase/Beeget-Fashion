@@ -4,7 +4,7 @@ import axios from 'axios';
 const api = axios.create({
   // baseURL: 'https://begget-fashion-backend.onrender.com/api',
   // baseURL: 'https://begget-fashion-backend.onrender.com/api',
-  baseURL: 'import.meta.env.VITE_BASE_URL',
+  baseURL: import.meta.env.VITE_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
