@@ -199,12 +199,16 @@ const Shipping = () => {
             Our customer service team is here to help with any questions about shipping, returns, or exchanges.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button as={Link} to="/contact" size="lg">
-              Contact Us
-            </Button>
-            <Button as={Link} to="/faq" variant="secondary" size="lg">
-              View FAQ
-            </Button>
+            <Link to="/contact">
+              <Button size="lg">
+                Contact Us
+              </Button>
+            </Link>
+            <Link to="/faq">
+              <Button variant="secondary" size="lg">
+                View FAQ
+              </Button>
+            </Link>
           </div>
         </motion.section>
       </div>

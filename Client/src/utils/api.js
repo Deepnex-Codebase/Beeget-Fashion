@@ -3,8 +3,8 @@ import axios from 'axios';
 // Create a real API instance with axios
 const api = axios.create({
   // baseURL: 'https://begget-fashion-backend.onrender.com/api',
-  baseURL: import.meta.env.VITE_BASE_URL,
-  // baseURL: 'http://localhost:8000/api',
+  // baseURL: import.meta.env.VITE_BASE_URL,
+  baseURL: 'http://localhost:8000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

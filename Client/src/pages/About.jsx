@@ -178,12 +178,16 @@ const About = () => {
           {ctaDescription}
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button as={Link} to={ctaPrimaryButton.link} size="lg">
-            {ctaPrimaryButton.text}
-          </Button>
-          <Button as={Link} to={ctaSecondaryButton.link} variant="secondary" size="lg">
-            {ctaSecondaryButton.text}
-          </Button>
+          <Link to={ctaPrimaryButton.link}>
+            <Button size="lg">
+              {ctaPrimaryButton.text}
+            </Button>
+          </Link>
+          <Link to={ctaSecondaryButton.link}>
+            <Button variant="secondary" size="lg">
+              {ctaSecondaryButton.text}
+            </Button>
+          </Link>
         </div>
       </motion.section>
       </>

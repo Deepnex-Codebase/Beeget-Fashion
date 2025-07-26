@@ -251,9 +251,11 @@ const FAQ = () => {
           Our customer service team is here to help with any questions you may have.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button as={Link} to="/contact" size="lg">
-            Contact Us
-          </Button>
+          <Link to="/contact">
+            <Button size="lg">
+              Contact Us
+            </Button>
+          </Link>
           <Button as="a" href="mailto:support@beegetfashion.com" variant="secondary" size="lg">
             Email Support
           </Button>

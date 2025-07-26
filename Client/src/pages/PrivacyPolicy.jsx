@@ -190,9 +190,11 @@ const PrivacyPolicy = () => {
         <p className="text-gray-600 mb-6">
           Have questions about our privacy practices? We're here to help.
         </p>
-        <Button as={Link} to="/contact" size="lg">
-          Contact Us
-        </Button>
+        <Link to="/contact">
+          <Button size="lg">
+            Contact Us
+          </Button>
+        </Link>
       </motion.div>
     </div>
   )

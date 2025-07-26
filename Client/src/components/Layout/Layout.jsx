@@ -15,7 +15,7 @@ const Layout = ({ hideHeader, children }) => {
     if (!isAdminPage) {
       setNotification({
         type: 'info',
-        message: 'Welcome to Beeget Fashion! Free shipping on orders over $50.',
+        message: 'Welcome to Beeget Fashion! Free shipping on orders over ₹50.',
         duration: 5000 // Auto-dismiss after 5 seconds
       })
     }

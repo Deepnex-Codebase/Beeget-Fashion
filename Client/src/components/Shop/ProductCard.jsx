@@ -101,28 +101,7 @@ const ProductCard = ({ product }) => {
             </div>
           )}
           
-          {/* Quick action buttons */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-between">
-            <button 
-              onClick={handleAddToCart}
-              className="p-2 bg-white rounded-full shadow-md hover:bg-java-500 hover:text-white transition-colors"
-              aria-label="Add to cart"
-            >
-              <ShoppingBagIcon className="h-5 w-5" />
-            </button>
-            
-            <button 
-              onClick={handleWishlistToggle}
-              className={`p-2 bg-white rounded-full shadow-md transition-colors ${inWishlist ? 'text-red-500' : 'hover:bg-red-500 hover:text-white'}`}
-              aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-            >
-              {inWishlist ? (
-                <HeartSolidIcon className="h-5 w-5" />
-              ) : (
-                <HeartIcon className="h-5 w-5" />
-              )}
-            </button>
-          </div>
+         
         </div>
         
         {/* Product Info */}

@@ -11,12 +11,16 @@ const NotFound = () => {
           The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button as={Link} to="/" size="lg">
-            Go to Homepage
-          </Button>
-          <Button as={Link} to="/shop" variant="secondary" size="lg">
-            Browse Products
-          </Button>
+          <Link to="/">
+            <Button size="lg">
+              Go to Homepage
+            </Button>
+          </Link>
+          <Link to="/shop">
+            <Button variant="secondary" size="lg">
+              Browse Products
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
