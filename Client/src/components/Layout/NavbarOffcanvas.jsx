@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import AuthContext from '../../contexts/AuthContext'
 
 const NavbarOffcanvas = ({ isOpen, onClose }) => {
-  const { isAuthenticated, isAdmin, user, logout } = useContext(AuthContext)
+  const { isAuthenticated, isAdmin, isSubAdmin, user, logout } = useContext(AuthContext)
   const navigate = useNavigate()
   
   // Close navbar when pressing escape key
@@ -65,12 +65,12 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
           )}
         </NavLink>
         
-        <NavLink to="/about" className={({ isActive }) => `flex flex-col items-center px-3 py-1 relative ${isActive ? 'text-java-600' : 'text-gray-600'}`}>
+        <NavLink to="/plus-size" className={({ isActive }) => `flex flex-col items-center px-3 py-1 relative ${isActive ? 'text-java-600' : 'text-gray-600'}`}>
           {({ isActive }) => (
             <>
               <span className={`absolute -top-2 w-10 h-1 rounded-full bg-java-600 ${isActive ? 'opacity-100' : 'opacity-0'}`}></span>
-              <InformationCircleIcon className="h-6 w-6" />
-              <span className="text-xs mt-1">About</span>
+              <ShoppingBagIcon className="h-6 w-6" />
+              <span className="text-xs mt-1">Plus Size</span>
             </>
           )}
         </NavLink>
@@ -201,6 +201,86 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                     </NavLink>
                   </motion.div>
                   
+                  {/* Plus Size Section */}
+                  <motion.div
+                    variants={{
+                      hidden: { x: -20, opacity: 0 },
+                      visible: { x: 0, opacity: 1 }
+                    }}
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <NavLink 
+                      to="/plus-size" 
+                      className={({ isActive }) => 
+                        `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                      }
+                      onClick={onClose}
+                    >
+                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      Plus Size
+                    </NavLink>
+                  </motion.div>
+                  
+                  {/* New Arrivals Section */}
+                  <motion.div
+                    variants={{
+                      hidden: { x: -20, opacity: 0 },
+                      visible: { x: 0, opacity: 1 }
+                    }}
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <NavLink 
+                      to="/new-arrivals" 
+                      className={({ isActive }) => 
+                        `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                      }
+                      onClick={onClose}
+                    >
+                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      New Arrivals
+                    </NavLink>
+                  </motion.div>
+                  
+                  {/* Collection Section */}
+                  <motion.div
+                    variants={{
+                      hidden: { x: -20, opacity: 0 },
+                      visible: { x: 0, opacity: 1 }
+                    }}
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <NavLink 
+                      to="/collections" 
+                      className={({ isActive }) => 
+                        `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                      }
+                      onClick={onClose}
+                    >
+                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      Collection
+                    </NavLink>
+                  </motion.div>
+                  
+                  {/* Best Seller Section */}
+                  <motion.div
+                    variants={{
+                      hidden: { x: -20, opacity: 0 },
+                      visible: { x: 0, opacity: 1 }
+                    }}
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <NavLink 
+                      to="/best-seller" 
+                      className={({ isActive }) => 
+                        `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                      }
+                      onClick={onClose}
+                    >
+                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      Best Seller
+                    </NavLink>
+                  </motion.div>
+                  
                   <motion.div
                     variants={{
                       hidden: { x: -20, opacity: 0 },
@@ -242,24 +322,27 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                   </motion.h3>
                   
                   {!isAuthenticated ? (
-                    <motion.div
-                      variants={{
-                        hidden: { x: -20, opacity: 0 },
-                        visible: { x: 0, opacity: 1 }
-                      }}
-                      whileHover={{ scale: 1.03 }}
-                    >
-                      <NavLink 
-                        to="/login" 
-                        className={({ isActive }) => 
-                          `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
-                        }
-                        onClick={onClose}
+                    <>
+                      <motion.div
+                        variants={{
+                          hidden: { x: -20, opacity: 0 },
+                          visible: { x: 0, opacity: 1 }
+                        }}
+                        whileHover={{ scale: 1.03 }}
                       >
-                        <UserIcon className="h-5 w-5 mr-3" />
-                        Login / Register
-                      </NavLink>
-                    </motion.div>
+                        <NavLink 
+                          to="/login" 
+                          className={({ isActive }) => 
+                            `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                          }
+                          onClick={onClose}
+                        >
+                          <UserIcon className="h-5 w-5 mr-3" />
+                          Login / Register
+                        </NavLink>
+                      </motion.div>
+                      
+                    </>
                   ) : (
                     <motion.div 
                       className="space-y-2"
@@ -372,6 +455,28 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                           >
                             <UserIcon className="h-5 w-5 mr-3" />
                             Admin Dashboard
+                          </NavLink>
+                        </motion.div>
+                      )}
+                      
+                      {/* SubAdmin Dashboard Link */}
+                      {isSubAdmin && !isAdmin && (
+                        <motion.div
+                          variants={{
+                            hidden: { x: -20, opacity: 0 },
+                            visible: { x: 0, opacity: 1 }
+                          }}
+                          whileHover={{ scale: 1.03 }}
+                        >
+                          <NavLink 
+                            to="/subadmin/dashboard" 
+                            className={({ isActive }) => 
+                              `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                            }
+                            onClick={onClose}
+                          >
+                            <UserIcon className="h-5 w-5 mr-3" />
+                            SubAdmin Dashboard
                           </NavLink>
                         </motion.div>
                       )}

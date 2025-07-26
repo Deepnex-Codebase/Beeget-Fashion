@@ -15,24 +15,47 @@ export const AuthProvider = ({ children }) => {
       setLoading(true)
       setError(null)
       
+      // Get guest session ID if available
+      const guestSessionId = localStorage.getItem('guestSessionId')
+      
       // Call the login API endpoint
-      const response = await api.post('/auth/login', { email, password })
+      const response = await api.post('/auth/login', { 
+        email, 
+        password,
+        guestSessionId // Pass guest session ID to link guest orders
+      })
       
       if (response.data.success) {
         // Extract data from response
         const { token, user } = response.data.data
+        // Ensure user object has department and permissions (fallback to empty if missing)
+        let permissions = user.permissions || [];
+        // Make sure permissions is an array for subadmins
+        if (user.roles?.includes('subadmin') || user.role === 'subadmin') {
+          // Ensure permissions is an array
+          if (!Array.isArray(permissions)) {
+            permissions = [];
+          }
+          console.log('Subadmin logged in with permissions:', permissions);
+        }
         
+        const userWithPerms = {
+          ...user,
+          department: user.department || '',
+          permissions: permissions
+        }
         // Create tokens object
         const tokensObj = { accessToken: token }
-        
         // Save token and user data
         api.setAuthToken(tokensObj)
-        setUser(user)
+        setUser(userWithPerms)
         setTokens(tokensObj)
-        
         // Save to localStorage - store tokens as JSON object
         localStorage.setItem('tokens', JSON.stringify(tokensObj))
-        localStorage.setItem('user', JSON.stringify(user))
+        localStorage.setItem('user', JSON.stringify(userWithPerms))
+        
+        // Clear guest session ID as it's no longer needed
+        localStorage.removeItem('guestSessionId')
         
         console.log('Login successful')
         return { success: true, message: 'Login successful' }
@@ -85,8 +108,17 @@ export const AuthProvider = ({ children }) => {
       setLoading(true)
       setError(null)
       
+      // Get guest session ID if available
+      const guestSessionId = localStorage.getItem('guestSessionId')
+      
+      // Add guest session ID to userData
+      const userDataWithGuestSession = {
+        ...userData,
+        guestSessionId // Pass guest session ID to link guest orders
+      }
+      
       // Call the register API endpoint
-      const response = await api.post('/auth/register', userData)
+      const response = await api.post('/auth/register', userDataWithGuestSession)
       
       if (response.data.success) {
         console.log('Registration successful')
@@ -150,14 +182,35 @@ export const AuthProvider = ({ children }) => {
           setTokens(parsedTokens)
           
           // Parse user data
-          const parsedUser = JSON.parse(storedUser)
+          let parsedUser = JSON.parse(storedUser)
+          // Ensure subadmin has department if not set
+          if ((parsedUser.roles?.includes('subadmin') || parsedUser.role === 'subadmin')) {
+            if (!parsedUser.department) parsedUser.department = 'all';
+            // Ensure permissions is an array
+          if (!parsedUser.permissions || !Array.isArray(parsedUser.permissions)) {
+            parsedUser.permissions = [];
+          }
+            console.log('Subadmin loaded from localStorage with permissions:', parsedUser.permissions);
+          }
           setUser(parsedUser)
           
           // Validate token by making a request to get user profile
           const response = await api.get('/auth/profile')
           if (response.data.success) {
             // Update user data with latest from server
-            setUser(response.data.data.user)
+            let userData = response.data.data.user;
+            // Ensure subadmin has department if not set
+            if ((userData.roles?.includes('subadmin') || userData.role === 'subadmin')) {
+              if (!userData.department) userData.department = 'all';
+              // Ensure permissions is an array
+              if (!userData.permissions || !Array.isArray(userData.permissions)) {
+                userData.permissions = [];
+              }
+              console.log('Subadmin profile updated from server with permissions:', userData.permissions);
+            }
+            setUser(userData)
+            // Save updated user data to localStorage
+            localStorage.setItem('user', JSON.stringify(userData))
             console.log('Token validated and user profile updated')
           }
         } catch (error) {
@@ -240,14 +293,30 @@ export const AuthProvider = ({ children }) => {
       if (response.data.success) {
         // Update user data in state with the latest from server
         const userData = response.data.data.user
-        setUser(userData)
+        // Ensure user object has department and permissions (fallback to empty if missing)
+        let permissions = userData.permissions || [];
+        // Make sure permissions is an array for subadmins
+        if (userData.roles?.includes('subadmin') || userData.role === 'subadmin') {
+          // Ensure permissions is an array
+          if (!Array.isArray(permissions)) {
+            permissions = [];
+          }
+          console.log('Subadmin profile loaded with permissions:', permissions);
+        }
+        
+        const userWithPerms = {
+          ...userData,
+          department: userData.department || '',
+          permissions: permissions
+        }
+        setUser(userWithPerms)
         
         // Update localStorage
-        localStorage.setItem('user', JSON.stringify(userData))
+        localStorage.setItem('user', JSON.stringify(userWithPerms))
         
         return { 
           success: true, 
-          data: userData
+          data: userWithPerms
         }
       } else {
         // This shouldn't happen as API should throw error on failure
@@ -371,10 +440,57 @@ export const AuthProvider = ({ children }) => {
   const isSubAdmin = user?.roles?.includes('subadmin') || user?.role === 'subadmin' || isAdmin || false
   console.log(isSubAdmin )
   // Check if user has specific permission
-  const hasPermission = (permission) => {
-    if (isAdmin) return true // Admin has all permissions
-    if (!isSubAdmin) return false // Only subadmins can have specific permissions
-    return user?.permissions?.includes(permission) || false
+  const hasPermission = (permission, department = null) => {
+    console.log('Checking permission:', permission);
+    console.log('Checking department:', department);
+    console.log('User:', user);
+    console.log('Is Admin:', isAdmin);
+    console.log('Is SubAdmin:', isSubAdmin);
+    console.log('User Permissions:', user?.permissions);
+    console.log('User Department:', user?.department);
+    
+    if (isAdmin) {
+      console.log('User is admin, granting permission');
+      return true; // Admin has all permissions
+    }
+    
+    if (!isSubAdmin) {
+      console.log('User is not subadmin, denying permission');
+      return false; // Only subadmins can have specific permissions
+    }
+    
+    // Ensure permissions is an array
+    const userPermissions = Array.isArray(user?.permissions) ? user?.permissions : [];
+    console.log('User Permissions (ensured array):', userPermissions);
+    
+    // Check department if specified
+    if (department && department !== 'all') {
+      // Fix department check to be case-insensitive and handle null/undefined
+      const userDept = user?.department || '';
+      const departmentMatch = 
+        userDept.toLowerCase() === department.toLowerCase() || 
+        userDept.toLowerCase() === 'all';
+      
+      console.log('Department match:', departmentMatch);
+      if (!departmentMatch) {
+        console.log(`Department mismatch: required ${department}, user has ${user?.department}`);
+        return false;
+      }
+    }
+    
+    // Check for all_permissions first (grants access to everything)
+    if (userPermissions.includes('all_permissions')) {
+      console.log('User has all_permissions, granting access');
+      return true;
+    }
+    
+    // Check for specific permission (case-insensitive)
+    const hasSpecificPermission = userPermissions.some(p => 
+      p.toLowerCase() === permission.toLowerCase()
+    );
+    console.log('Has specific permission:', hasSpecificPermission);
+    
+    return hasSpecificPermission;
   }
   
   // Forgot password function - using real API

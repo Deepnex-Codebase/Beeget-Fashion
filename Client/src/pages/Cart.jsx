@@ -94,11 +94,9 @@ const Cart = () => {
               <Link to="/shop">
                 <Button>Continue Shopping</Button>
               </Link>
-              {isAuthenticated && (
-                <Link to="/account/wishlist">
-                  <Button variant="secondary">View Wishlist</Button>
-                </Link>
-              )}
+              <Link to={isAuthenticated ? "/account/wishlist" : "/login?redirect=account/wishlist"}>
+                <Button variant="secondary">View Wishlist</Button>
+              </Link>
             </div>
           </motion.div>
         </div>
@@ -318,12 +316,24 @@ const Cart = () => {
               
               {/* Checkout Button */}
               <div className="mt-6">
-                <Link to={isAuthenticated ? '/checkout' : '/login?redirect=checkout'}>
+                <Link to="/checkout">
                   <Button fullWidth>
-                    {isAuthenticated ? 'Proceed to Checkout' : 'Login to Checkout'}
+                    Proceed to Checkout
                   </Button>
                 </Link>
               </div>
+              
+              {/* Guest Orders Link */}
+              {!isAuthenticated && (
+                <div className="mt-3">
+                  <Link to="/guest-orders" className="text-sm text-teal hover:text-teal-dark flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    View Your Guest Orders
+                  </Link>
+                </div>
+              )}
               
               {/* Payment Methods */}
               {/* <div className="mt-6">

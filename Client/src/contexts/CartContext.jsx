@@ -33,44 +33,76 @@ export const CartProvider = ({ children }) => {
     }
   }, []) // Run only once on component mount
   
-  // Then, fetch cart from backend if user is authenticated
+  // Then, fetch cart from backend if user is authenticated or has a guest session
   useEffect(() => {
     const fetchCartFromBackend = async () => {
       console.log('Authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated')
-      if (!isAuthenticated) {
-        console.log('Not fetching cart because user is not authenticated')
-        return
-      }
-      
-      // Check if token exists in localStorage
-      const tokens = localStorage.getItem('tokens')
-      console.log('Tokens in localStorage:', tokens ? 'Present' : 'Not present')
       
       try {
         setLoading(true)
-        console.log('Attempting to fetch cart from backend...')
-        const response = await axios.get('/cart')
-        console.log('Cart fetch successful:', response.data)
-        if (response.data.success) {
-          // Transform backend cart format to frontend format
-          const backendCart = response.data.data.items.map(item => ({
-            id: item.productId._id,
-            _id: item._id, // Store the cart item ID for future operations
-            name: item.productDetails?.title || item.productId.title,
-            title: item.productDetails?.title || item.productId.title,
-            price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-            slug: item.productDetails?.slug || item.productId.slug,
-            image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-            quantity: item.quantity,
-            size: item.size || null,
-            color: item.color || null,
-            gstRate: item.gstRate || 0, // Add GST rate from product
-            variantSku: item.variantSku || variantSku, // Ensure variantSku is set
-            addedAt: new Date().toISOString()
-          }))
-          setCart(backendCart)
-          // Update localStorage with backend cart
-          localStorage.setItem('cart', JSON.stringify(backendCart))
+        
+        if (isAuthenticated) {
+          // Fetch cart for authenticated user
+          console.log('Attempting to fetch cart from backend for authenticated user...')
+          const response = await axios.get('/cart')
+          console.log('Cart fetch successful:', response.data)
+          if (response.data.success) {
+            // Transform backend cart format to frontend format
+            const backendCart = response.data.data.items.map(item => ({
+              id: item.productId._id,
+              _id: item._id, // Store the cart item ID for future operations
+              name: item.productDetails?.title || item.productId.title,
+              title: item.productDetails?.title || item.productId.title,
+              price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+              slug: item.productDetails?.slug || item.productId.slug,
+              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+              quantity: item.quantity,
+              size: item.size || null,
+              color: item.color || null,
+              gstRate: item.gstRate || 0, // Add GST rate from product
+              variantSku: item.variantSku, // Ensure variantSku is set
+              addedAt: new Date().toISOString()
+            }))
+            setCart(backendCart)
+            // Update localStorage with backend cart
+            localStorage.setItem('cart', JSON.stringify(backendCart))
+          }
+        } else {
+          // Check if we have a guest session ID
+          const guestSessionId = localStorage.getItem('guestSessionId')
+          
+          if (guestSessionId) {
+            // Fetch cart for guest user
+            console.log('Attempting to fetch cart from backend for guest user...')
+            const response = await axios.get(`/cart/guest/${guestSessionId}`)
+            console.log('Guest cart fetch successful:', response.data)
+            if (response.data.success) {
+              // Transform backend cart format to frontend format
+              const backendCart = response.data.data.items.map(item => ({
+                id: item.productId._id,
+                _id: item._id, // Store the cart item ID for future operations
+                name: item.productDetails?.title || item.productId.title,
+                title: item.productDetails?.title || item.productId.title,
+                price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+                slug: item.productDetails?.slug || item.productId.slug,
+                image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+                quantity: item.quantity,
+                size: item.size || null,
+                color: item.color || null,
+                gstRate: item.gstRate || 0, // Add GST rate from product
+                variantSku: item.variantSku, // Ensure variantSku is set
+                addedAt: new Date().toISOString()
+              }))
+              setCart(backendCart)
+              // Update localStorage with backend cart
+              localStorage.setItem('cart', JSON.stringify(backendCart))
+            }
+          } else {
+            // Create a new guest session ID
+            const newGuestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15)
+            localStorage.setItem('guestSessionId', newGuestSessionId)
+            console.log('Created new guest session ID:', newGuestSessionId)
+          }
         }
       } catch (err) {
         console.error('Error fetching cart from backend:', err)
@@ -172,12 +204,78 @@ export const CartProvider = ({ children }) => {
           localStorage.setItem('cart', JSON.stringify(backendCart))
         }
       } else {
-        // For non-authenticated users, use localStorage only
-        const newCart = [...cart, productToAdd]
+        // For guest users, check if we have a guest session ID
+        const guestSessionId = localStorage.getItem('guestSessionId')
         
-        // Update state and localStorage in one place
-        setCart(newCart)
-        localStorage.setItem('cart', JSON.stringify(newCart))
+        if (!guestSessionId) {
+          // Create a new guest session ID if not exists
+          const newGuestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15)
+          localStorage.setItem('guestSessionId', newGuestSessionId)
+          
+          // Add to guest cart in backend
+          const response = await axios.post(`/cart/guest/${newGuestSessionId}`, {
+            productId: product.id || product._id,
+            quantity,
+            size,
+            color,
+            variantSku: variantSku // Add variantSku to backend request
+          })
+          
+          if (response.data.success) {
+            // Transform backend cart format to frontend format
+            const backendCart = response.data.data.items.map(item => ({
+              id: item.productId._id,
+              _id: item._id, // Store the cart item ID for future operations
+              name: item.productDetails?.title || item.productId.title,
+              title: item.productDetails?.title || item.productId.title,
+              price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+              slug: item.productDetails?.slug || item.productId.slug,
+              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+              quantity: item.quantity,
+              size: item.size || null,
+              color: item.color || null,
+              gstRate: item.gstRate || 0, // Add GST rate from product
+              variantSku: item.variantSku || variantSku, // Ensure variantSku is set
+              addedAt: new Date().toISOString()
+            }))
+            
+            // Update state and localStorage in one place
+            setCart(backendCart)
+            localStorage.setItem('cart', JSON.stringify(backendCart))
+          }
+        } else {
+          // Add to existing guest cart in backend
+          const response = await axios.post(`/cart/guest/${guestSessionId}`, {
+            productId: product.id || product._id,
+            quantity,
+            size,
+            color,
+            variantSku: variantSku // Add variantSku to backend request
+          })
+          
+          if (response.data.success) {
+            // Transform backend cart format to frontend format
+            const backendCart = response.data.data.items.map(item => ({
+              id: item.productId._id,
+              _id: item._id, // Store the cart item ID for future operations
+              name: item.productDetails?.title || item.productId.title,
+              title: item.productDetails?.title || item.productId.title,
+              price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+              slug: item.productDetails?.slug || item.productId.slug,
+              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+              quantity: item.quantity,
+              size: item.size || null,
+              color: item.color || null,
+              gstRate: item.gstRate || 0, // Add GST rate from product
+              variantSku: item.variantSku || variantSku, // Ensure variantSku is set
+              addedAt: new Date().toISOString()
+            }))
+            
+            // Update state and localStorage in one place
+            setCart(backendCart)
+            localStorage.setItem('cart', JSON.stringify(backendCart))
+          }
+        }
       }
       
       toast.success('Added to cart!', {
@@ -261,26 +359,76 @@ export const CartProvider = ({ children }) => {
           throw new Error('Cart item not found')
         }
       } else {
-        // For non-authenticated users, use localStorage only
-        // Fix the filter logic to correctly remove items
-        const filteredCart = cart.filter(item => 
-          !((item.id === itemId || item._id === itemId) && 
-            (!size || item.size === size) && 
-            (!color || item.color === color))
-        )
+        // For guest users, check if we have a guest session ID
+        const guestSessionId = localStorage.getItem('guestSessionId')
         
-        // Update state and localStorage in one place
-        setCart(filteredCart)
-        localStorage.setItem('cart', JSON.stringify(filteredCart))
-        
-        toast.success('Item removed from cart!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true
-        })
+        if (guestSessionId) {
+          // First find the cart item that matches the criteria
+          const cartItem = cart.find(item => 
+            (item.id === itemId || item._id === itemId) && 
+            (size ? item.size === size : true) && 
+            (color ? item.color === color : true)
+          )
+          
+          if (cartItem) {
+            // For backend, we need the cart item ID, not the product ID
+            const response = await axios.delete(`/cart/guest/${guestSessionId}/${cartItem._id}`)
+            
+            if (response.data.success) {
+              // Transform backend cart format to frontend format
+              const backendCart = response.data.data.items.map(item => ({
+                id: item.productId._id,
+                _id: item._id, // Store the cart item ID for future operations
+                name: item.productDetails?.title || item.productId.title,
+                title: item.productDetails?.title || item.productId.title,
+                price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+                slug: item.productDetails?.slug || item.productId.slug,
+                image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+                quantity: item.quantity,
+                size: item.size || null,
+                color: item.color || null,
+                gstRate: item.gstRate || 0, // Add GST rate from product
+                addedAt: new Date().toISOString()
+              }))
+              
+              // Update state and localStorage in one place
+              setCart(backendCart)
+              localStorage.setItem('cart', JSON.stringify(backendCart))
+              
+              toast.success('Item removed from cart!', {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true
+              })
+            }
+          } else {
+            throw new Error('Cart item not found')
+          }
+        } else {
+          // Fallback to localStorage if no guest session ID
+          // Fix the filter logic to correctly remove items
+          const filteredCart = cart.filter(item => 
+            !((item.id === itemId || item._id === itemId) && 
+              (!size || item.size === size) && 
+              (!color || item.color === color))
+          )
+          
+          // Update state and localStorage in one place
+          setCart(filteredCart)
+          localStorage.setItem('cart', JSON.stringify(filteredCart))
+          
+          toast.success('Item removed from cart!', {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true
+          })
+        }
       }
     } catch (error) {
       console.error('Error removing from cart:', error)
@@ -367,28 +515,78 @@ export const CartProvider = ({ children }) => {
           throw new Error('Cart item not found')
         }
       } else {
-        // For non-authenticated users, use localStorage only
-        const updatedCart = cart.map(item => {
-          if ((item.id === itemId || item._id === itemId) && 
-              (size ? item.size === size : true) && 
-              (color ? item.color === color : true)) {
-            return { ...item, quantity }
+        // For guest users, check if we have a guest session ID
+        const guestSessionId = localStorage.getItem('guestSessionId')
+        
+        if (guestSessionId) {
+          // First find the cart item that matches the criteria
+          const cartItem = cart.find(item => 
+            (item.id === itemId || item._id === itemId) && 
+            (size ? item.size === size : true) && 
+            (color ? item.color === color : true)
+          )
+          
+          if (cartItem) {
+            // For backend, we need the cart item ID, not the product ID
+            const response = await axios.patch(`/cart/guest/${guestSessionId}/${cartItem._id}`, { quantity })
+            
+            if (response.data.success) {
+              // Transform backend cart format to frontend format
+              const backendCart = response.data.data.items.map(item => ({
+                id: item.productId._id,
+                _id: item._id, // Store the cart item ID for future operations
+                name: item.productDetails?.title || item.productId.title,
+                title: item.productDetails?.title || item.productId.title,
+                price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+                slug: item.productDetails?.slug || item.productId.slug,
+                image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+                quantity: item.quantity,
+                size: item.size || null,
+                color: item.color || null,
+                gstRate: item.gstRate || 0, // Add GST rate from product
+                addedAt: new Date().toISOString()
+              }))
+              
+              // Update state and localStorage in one place
+              setCart(backendCart)
+              localStorage.setItem('cart', JSON.stringify(backendCart))
+              
+              toast.success('Cart updated!', {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true
+              })
+            }
+          } else {
+            throw new Error('Cart item not found')
           }
-          return item
-        })
-        
-        // Update state and localStorage in one place
-        setCart(updatedCart)
-        localStorage.setItem('cart', JSON.stringify(updatedCart))
-        
-        toast.success('Cart updated!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true
-        })
+        } else {
+          // Fallback to localStorage if no guest session ID
+          const updatedCart = cart.map(item => {
+            if ((item.id === itemId || item._id === itemId) && 
+                (size ? item.size === size : true) && 
+                (color ? item.color === color : true)) {
+              return { ...item, quantity }
+            }
+            return item
+          })
+          
+          // Update state and localStorage in one place
+          setCart(updatedCart)
+          localStorage.setItem('cart', JSON.stringify(updatedCart))
+          
+          toast.success('Cart updated!', {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true
+          })
+        }
       }
     } catch (error) {
       console.error('Error updating cart:', error)
@@ -409,7 +607,8 @@ export const CartProvider = ({ children }) => {
   // Clear cart
   const clearCart = async () => {
     try {
-          setError(null)
+      setLoading(true)
+      setError(null)
       
       if (isAuthenticated) {
         // For authenticated users, make a single API call to clear all items
@@ -439,9 +638,34 @@ export const CartProvider = ({ children }) => {
           localStorage.removeItem('cart')
         }
       } else {
-        // For non-authenticated users, simply clear localStorage
-        localStorage.removeItem('cart')
-        setCart([])
+        // For guest users, check if we have a guest session ID
+        const guestSessionId = localStorage.getItem('guestSessionId')
+        
+        if (guestSessionId) {
+          // Try to clear the guest cart with a single API call
+          try {
+            const response = await axios.delete(`/cart/guest/${guestSessionId}`)
+            if (response.data.success) {
+              setCart([])
+              localStorage.removeItem('cart')
+            }
+          } catch (clearError) {
+            console.log('No clear guest cart endpoint, removing items individually')
+            // More efficient individual removal for guest cart
+            const removalPromises = cart.map(item => 
+              axios.delete(`/cart/guest/${guestSessionId}/${item._id}`).catch(e => console.error(`Failed to remove guest item ${item._id}:`, e))
+            )
+            
+            // Wait for all removals to complete
+            await Promise.all(removalPromises)
+            setCart([])
+            localStorage.removeItem('cart')
+          }
+        } else {
+          // For non-authenticated users without guest session ID, simply clear localStorage
+          localStorage.removeItem('cart')
+          setCart([])
+        }
       }
       
       toast.success('Cart cleared!', {
@@ -558,6 +782,16 @@ export const CartProvider = ({ children }) => {
         setCouponCode(code)
         setCouponDiscount(discount)
         
+        // Apply coupon to backend cart if user is authenticated or has a guest session
+        if (isAuthenticated) {
+          await axios.post('/cart/apply-coupon', { code: code })
+        } else {
+          const guestSessionId = localStorage.getItem('guestSessionId')
+          if (guestSessionId) {
+            await axios.post(`/cart/guest/${guestSessionId}/apply-coupon`, { code: code })
+          }
+        }
+        
         toast.success(`Coupon applied! You saved ₹${discount.toFixed(2)}`, {
           position: "top-right",
           autoClose: 3000,
@@ -595,23 +829,83 @@ export const CartProvider = ({ children }) => {
   }
   
   // Remove coupon
-  const removeCoupon = () => {
-    setCouponCode('')
-    setCouponDiscount(0)
-    setCouponError(null)
-    
-    toast.info('Coupon removed', {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true
-    })
-    
-    return { success: true }
+  const removeCoupon = async () => {
+    try {
+      // Remove coupon from backend cart if user is authenticated or has a guest session
+      if (isAuthenticated) {
+        await axios.post('/cart/remove-coupon')
+      } else {
+        const guestSessionId = localStorage.getItem('guestSessionId')
+        if (guestSessionId) {
+          await axios.post(`/cart/guest/${guestSessionId}/remove-coupon`)
+        }
+      }
+      
+      // Update local state
+      setCouponCode('')
+      setCouponDiscount(0)
+      setCouponError(null)
+      
+      toast.info('Coupon removed', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      })
+      
+      return { success: true }
+    } catch (error) {
+      console.error('Error removing coupon:', error)
+      // Still update local state even if backend call fails
+      setCouponCode('')
+      setCouponDiscount(0)
+      setCouponError(null)
+      
+      toast.info('Coupon removed', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      })
+      
+      return { success: true }
+    }
   }
 
+  // Get orders for guest user
+  const getGuestOrders = async () => {
+    try {
+      // Check if we have a guest session ID in localStorage
+      const guestSessionId = localStorage.getItem('guestSessionId');
+      
+      if (!guestSessionId) {
+        return { success: false, error: 'No guest session found' };
+      }
+      
+      setLoading(true);
+      setError(null);
+      
+      const response = await axios.get(`/orders/guest/${guestSessionId}`);
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data.orders };
+      } else {
+        throw new Error(response.data.error || 'Failed to fetch guest orders');
+      }
+    } catch (err) {
+      console.error('Error fetching guest orders:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to fetch guest orders';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Checkout function
   const checkout = async (orderData) => {
     try {
@@ -667,8 +961,26 @@ export const CartProvider = ({ children }) => {
         };
       });
       
+      // Generate a guest session ID if user is not authenticated
+      if (!isAuthenticated) {
+        // Check if we already have a guest session ID in localStorage
+        let guestSessionId = localStorage.getItem('guestSessionId');
+        
+        // If not, create a new one
+        if (!guestSessionId) {
+          guestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);
+          localStorage.setItem('guestSessionId', guestSessionId);
+        }
+        
+        // Add guest session ID to order data
+        orderData.guestSessionId = guestSessionId;
+      }
+      
+      // Determine which endpoint to use based on authentication status
+      const endpoint = isAuthenticated ? '/orders' : '/orders/guest';
+      
       // Create order payload and send to backend
-      const response = await axios.post('/orders', { 
+      const response = await axios.post(endpoint, { 
         ...orderData, 
         items: validatedItems,
         couponCode: couponCode || null,
@@ -738,7 +1050,8 @@ export const CartProvider = ({ children }) => {
         couponDiscount,
         couponError,
         applyCoupon,
-        removeCoupon
+        removeCoupon,
+        getGuestOrders
       }}
     >
       {children}

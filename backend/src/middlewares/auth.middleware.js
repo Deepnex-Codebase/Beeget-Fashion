@@ -22,11 +22,34 @@ export const verifyToken = (req, res, next) => {
       throw new AppError('Access token is required', 'UNAUTHORIZED', 401);
     }
     
-    // Verify the token
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('DEBUG - Decoded token:', JSON.stringify(decoded, null, 2));
+
+    // Set user data in request with proper defaults for subadmin
+    const isSubadmin = decoded.roles && decoded.roles.includes('subadmin');
     
-    // Add the user info to the request object
-    req.user = decoded;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      roles: decoded.roles || [],
+      department: decoded.department || (isSubadmin ? 'all' : undefined),
+      permissions: decoded.permissions || []
+    };
+    
+    // Ensure permissions is always an array
+    if (!Array.isArray(req.user.permissions)) {
+      req.user.permissions = [];
+      console.log('DEBUG - Fixed permissions to be an array');
+    }
+    
+    // Log the final user object
+    console.log('DEBUG - Final user object in verifyToken middleware:', JSON.stringify({
+      id: req.user.id,
+      roles: req.user.roles,
+      department: req.user.department,
+      permissions: req.user.permissions
+    }, null, 2));
     
     next();
   } catch (error) {

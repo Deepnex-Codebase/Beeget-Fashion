@@ -12,7 +12,7 @@ import { storeOTP, verifyOTP } from '../config/redis.js';
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, whatsappNumber } = req.body;
+    const { name, email, password, whatsappNumber, guestSessionId } = req.body;
     
     // Validate required fields
     if (!name || !email || !password) {
@@ -36,6 +36,33 @@ export const register = async (req, res, next) => {
     });
     
     await user.save();
+    
+    // Link guest orders to user account if guestSessionId is provided
+    if (guestSessionId) {
+      try {
+        // Import Order model
+        const Order = (await import('../models/order.model.js')).default;
+        
+        // Find all orders with the given guestSessionId
+        const guestOrders = await Order.find({ guestSessionId });
+        
+        // Update each order to associate it with the user
+        if (guestOrders && guestOrders.length > 0) {
+          await Order.updateMany(
+            { guestSessionId },
+            { 
+              $set: { userId: user._id },
+              $unset: { guestSessionId: 1 }
+            }
+          );
+          
+          logger.info(`Linked ${guestOrders.length} guest orders to user ${user._id}`);
+        }
+      } catch (linkError) {
+        // Log the error but don't fail the registration process
+        logger.error(`Error linking guest orders: ${linkError.message}`);
+      }
+    }
     
     // Generate OTP
     const otp = generateOTP();
@@ -139,7 +166,7 @@ export const verifyEmail = async (req, res, next) => {
  */
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, guestSessionId } = req.body;
     
     // Validate required fields
     if (!email || !password) {
@@ -168,18 +195,67 @@ export const login = async (req, res, next) => {
       throw new AppError('Invalid email or password', 401);
     }
     
+    // Ensure department is set for subadmin
+    if (user.roles.includes('subadmin')) {
+      // If department is not set or empty, set it to 'all'
+      if (!user.department) {
+        user.department = 'all';
+      }
+      
+      // If permissions is not set or not an array, initialize with empty array
+      if (!user.permissions || !Array.isArray(user.permissions)) {
+        user.permissions = [];
+        await user.save();
+        console.log('DEBUG - Initialized subadmin permissions with empty array');
+      }
+    }
+    
+    // Log user data before generating token
+    console.log('DEBUG - User data for token:', {
+      id: user._id,
+      email: user.email,
+      roles: user.roles,
+      department: user.department,
+      permissions: user.permissions
+    });
+    
+    // Prepare token data with proper defaults for subadmin
+    const isSubadmin = user.roles && user.roles.includes('subadmin');
+    
+    // Set default department for subadmin if not set
+    let department = user.department;
+    let permissions = user.permissions;
+    
+    if (isSubadmin) {
+      if (!department) {
+        department = 'all';
+        console.log('DEBUG - Set default department for subadmin in login');
+      }
+      
+      if (!permissions || !Array.isArray(permissions)) {
+        permissions = [];
+        console.log('DEBUG - Initialized permissions with empty array for subadmin in login');
+      }
+    }
+    
     // Generate JWT token
     const token = jwt.sign(
       { 
         id: user._id,
         email: user.email,
-        roles: user.roles
+        roles: user.roles,
+        department: department,
+        permissions: permissions
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
     
-    // Return user data and token
+    // Log the decoded token to verify
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('DEBUG - Decoded token:', JSON.stringify(decoded, null, 2));
+    
+    // Return user data and token with proper defaults
     res.status(200).json({
       success: true,
       data: {
@@ -189,7 +265,9 @@ export const login = async (req, res, next) => {
           email: user.email,
           roles: user.roles,
           isVerified: user.isVerified,
-          isBanned: user.isBanned
+          isBanned: user.isBanned,
+          department: department, // Using the variable with defaults
+          permissions: permissions // Using the variable with defaults
         },
         token
       }
@@ -341,23 +419,47 @@ export const getProfile = async (req, res, next) => {
       throw new AppError('User not found', 404);
     }
     
+    // Prepare response data
+    const userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.roles[0], // For backward compatibility
+      roles: user.roles,
+      isVerified: user.isVerified,
+      whatsappNumber: user.whatsappNumber,
+      addresses: user.addresses,
+      wishlist: user.wishlist,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+    
+    // Add department and permissions for subadmin
+    if (user.roles.includes('subadmin')) {
+      // Ensure department is set to 'all' if not already defined
+      userData.department = user.department || 'all';
+      
+      // Ensure permissions is always an array
+      userData.permissions = Array.isArray(user.permissions) ? user.permissions : [];
+      
+      // Make sure all_permissions is included for subadmins
+      if (!userData.permissions.includes('all_permissions')) {
+        userData.permissions.push('all_permissions');
+      }
+      
+      // Make sure manage_orders is included for subadmins
+      if (!userData.permissions.includes('manage_orders')) {
+        userData.permissions.push('manage_orders');
+      }
+      
+      console.log('Sending subadmin profile with permissions:', userData.permissions);
+    }
+    
     // Return user profile
     res.status(200).json({
       success: true,
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.roles[0], // For backward compatibility
-          roles: user.roles,
-          isVerified: user.isVerified,
-          whatsappNumber: user.whatsappNumber,
-          addresses: user.addresses,
-          wishlist: user.wishlist,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        }
+        user: userData
       }
     });
   } catch (error) {

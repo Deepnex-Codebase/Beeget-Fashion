@@ -201,20 +201,24 @@ const SubAdminManagement = () => {
   const handleEdit = (user) => {
     setEditingUser(user);
     
+    // Get user permissions without automatically adding all_permissions
+    let userPermissions = user.permissions || [];
+    console.log('Editing subadmin with permissions:', userPermissions);
+    
     // Set form data
     setFormData({
       name: user.name,
       email: user.email,
       role: 'subadmin', // Always subadmin for this component
       department: user.department || '',
-      permissions: user.permissions || []
+      permissions: userPermissions
     });
     
     // Initialize selected permissions based on user's existing permissions
     const permissionsObj = {};
     if (user.department && departmentPermissions[user.department]) {
       departmentPermissions[user.department].forEach(perm => {
-        permissionsObj[perm] = (user.permissions || []).includes(perm);
+        permissionsObj[perm] = userPermissions.includes(perm);
       });
     }
     setSelectedPermissions(permissionsObj);
@@ -230,7 +234,7 @@ const SubAdminManagement = () => {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        permissions: [] // Reset permissions
+        permissions: [] // Reset permissions to empty array
       }));
       
       // Initialize permissions checkboxes for the new department
@@ -260,9 +264,12 @@ const SubAdminManagement = () => {
     setSelectedPermissions(updatedPermissions);
     
     // Update formData permissions array based on selected checkboxes
-    const newPermissions = Object.keys(updatedPermissions).filter(
+    let newPermissions = Object.keys(updatedPermissions).filter(
       key => updatedPermissions[key]
     );
+    
+    // No longer automatically adding all_permissions
+    console.log('Updated permissions:', newPermissions);
     
     setFormData(prev => ({
       ...prev,
@@ -275,9 +282,13 @@ const SubAdminManagement = () => {
     e.preventDefault();
     if (!editingUser) return;
     
+    // Use permissions exactly as selected without automatically adding all_permissions
+    const updatedFormData = { ...formData };
+    console.log('Submitting subadmin with permissions:', updatedFormData.permissions);
+    
     updateUserMutation.mutate({
       userId: editingUser._id,
-      userData: formData
+      userData: updatedFormData
     });
   };
   
@@ -374,7 +385,7 @@ const SubAdminManagement = () => {
       setNewSubAdminData(prev => ({
         ...prev,
         [name]: value,
-        permissions: [] // Reset permissions
+        permissions: [] // Reset permissions to empty array
       }));
       
       // Initialize permissions checkboxes for the new department
@@ -404,9 +415,12 @@ const SubAdminManagement = () => {
     setNewSubAdminPermissions(updatedPermissions);
     
     // Update newSubAdminData permissions array based on selected checkboxes
-    const newPermissions = Object.keys(updatedPermissions).filter(
+    let newPermissions = Object.keys(updatedPermissions).filter(
       key => updatedPermissions[key]
     );
+    
+    // No longer automatically adding all_permissions
+    console.log('New subadmin updated permissions:', newPermissions);
     
     setNewSubAdminData(prev => ({
       ...prev,
@@ -434,6 +448,10 @@ const SubAdminManagement = () => {
       return;
     }
     
+    // Use permissions exactly as selected without automatically adding all_permissions
+    const updatedPermissions = [...newSubAdminData.permissions];
+    console.log('Creating new subadmin with permissions:', updatedPermissions);
+    
     // Create new subadmin
     createSubAdminMutation.mutate({
       name: newSubAdminData.name,
@@ -441,7 +459,7 @@ const SubAdminManagement = () => {
       password: newSubAdminData.password,
       role: 'subadmin',
       department: newSubAdminData.department,
-      permissions: newSubAdminData.permissions
+      permissions: updatedPermissions
     });
   };
   

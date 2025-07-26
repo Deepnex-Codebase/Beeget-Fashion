@@ -4,6 +4,9 @@ import { logger } from '../utils/logger.js';
 import { deleteFile, getFileUrl } from '../config/multer.js';
 import path from 'path';
 import mongoose from 'mongoose';
+import fs from 'fs';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 
 /**
  * Create a new product
@@ -98,7 +101,8 @@ export const getProducts = async (req, res, next) => {
       category,
       minPrice,
       maxPrice,
-      search
+      search,
+      collection
     } = req.query;
 
     // Build query
@@ -112,6 +116,26 @@ export const getProducts = async (req, res, next) => {
       }
       // If category is not valid, we don't add it to the query
       // This prevents the CastError when an invalid ObjectId is provided
+    }
+
+    // Add collection filter if provided
+    if (collection) {
+      // Check if collection is a valid ObjectId before proceeding
+      if (mongoose.Types.ObjectId.isValid(collection)) {
+        // Find the collection and get its product IDs
+        const collectionDoc = await mongoose.model('Collection').findById(collection);
+        if (collectionDoc && collectionDoc.products && collectionDoc.products.length > 0) {
+          // Filter products by their IDs in the collection
+          query._id = { $in: collectionDoc.products };
+          console.log(`Filtering products by collection ${collection}, found ${collectionDoc.products.length} products`);
+        } else {
+          // If collection exists but has no products, return empty result
+          console.log(`Collection ${collection} exists but has no products`);
+          query._id = { $in: [] }; // This will return no results
+        }
+      } else {
+        console.log(`Invalid collection ID: ${collection}`);
+      }
     }
 
     // Add price range filter if provided
@@ -399,6 +423,131 @@ export const getCategories = async (req, res, next) => {
       }
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Bulk upload products from CSV/JSON file
+ */
+export const bulkUploadProducts = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw new AppError('No file uploaded', 400);
+    }
+
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    let products = [];
+
+    // Parse CSV file
+    if (fileExtension === '.csv') {
+      const results = [];
+      const fileStream = fs.createReadStream(req.file.path);
+      
+      await new Promise((resolve, reject) => {
+        fileStream
+          .pipe(csv())
+          .on('data', (data) => results.push(data))
+          .on('end', () => resolve())
+          .on('error', (error) => reject(error));
+      });
+
+      // Process CSV data
+      products = results.map(row => {
+        // Parse images (comma-separated URLs)
+        const images = row.images ? row.images.split(',').map(img => img.trim()) : [];
+        
+        // Parse variant attributes
+        const attributes = {};
+        if (row.color) attributes.color = row.color;
+        if (row.size) attributes.size = row.size;
+        
+        return {
+          title: row.title,
+          description: row.description,
+          category: row.category_id,
+          variants: [
+            {
+              sku: row.sku,
+              price: parseFloat(row.price),
+              stock: parseInt(row.stock, 10),
+              attributes
+            }
+          ],
+          images,
+          gstRate: row.gstRate ? parseFloat(row.gstRate) : 18
+        };
+      });
+    } 
+    // Parse JSON file
+    else if (fileExtension === '.json') {
+      const fileContent = fs.readFileSync(req.file.path, 'utf8');
+      const jsonData = JSON.parse(fileContent);
+      
+      if (Array.isArray(jsonData)) {
+        products = jsonData;
+      } else {
+        throw new AppError('JSON file must contain an array of products', 400);
+      }
+    } 
+    else {
+      throw new AppError('Unsupported file format. Please upload CSV or JSON file', 400);
+    }
+
+    // Validate products
+    if (products.length === 0) {
+      throw new AppError('No valid products found in the file', 400);
+    }
+
+    // Check for duplicate SKUs within the upload
+    const skus = new Set();
+    const duplicates = [];
+    
+    products.forEach(product => {
+      product.variants.forEach(variant => {
+        if (skus.has(variant.sku)) {
+          duplicates.push(variant.sku);
+        } else {
+          skus.add(variant.sku);
+        }
+      });
+    });
+
+    if (duplicates.length > 0) {
+      throw new AppError(`Duplicate SKUs found in upload: ${duplicates.join(', ')}`, 400);
+    }
+
+    // Check for existing SKUs in database
+    const existingSkus = [];
+    for (const sku of skus) {
+      const existingProduct = await Product.findOne({ 'variants.sku': sku });
+      if (existingProduct) {
+        existingSkus.push(sku);
+      }
+    }
+
+    if (existingSkus.length > 0) {
+      throw new AppError(`SKUs already exist in database: ${existingSkus.join(', ')}`, 400);
+    }
+
+    // Insert products in bulk
+    const result = await Product.insertMany(products);
+
+    // Delete the temporary file
+    fs.unlinkSync(req.file.path);
+
+    res.status(201).json({
+      success: true,
+      message: `${result.length} products uploaded successfully`,
+      data: {
+        count: result.length
+      }
+    });
+  } catch (error) {
+    // Delete the temporary file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     next(error);
   }
 };

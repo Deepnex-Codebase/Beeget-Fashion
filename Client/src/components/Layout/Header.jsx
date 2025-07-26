@@ -14,7 +14,7 @@ const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const { isAuthenticated, isAdmin, user, logout } = useContext(AuthContext)
+  const { isAuthenticated, isAdmin, isSubAdmin, user, logout } = useContext(AuthContext)
   const { cart, getCartItemCount } = useContext(CartContext)
   const navigate = useNavigate()
   
@@ -101,8 +101,8 @@ const Header = () => {
               <img src={logoImage} alt="Beeget Fashion" className="h-10" />
             </Link>
           </div>
-          
-          {/* User Actions (Right) */}
+           
+           {/* User Actions (Right) */}
           <div className="flex items-center justify-end space-x-4">
             {/* Search Icon */}
             <button 
@@ -158,6 +158,14 @@ const Header = () => {
                         Admin Dashboard
                       </Link>
                     )}
+                    {isSubAdmin && !isAdmin && (
+                      <Link 
+                        to="/subadmin/dashboard" 
+                        className="block px-4 py-2 text-sm text-java-800 hover:bg-java-50"
+                      >
+                        SubAdmin Dashboard
+                      </Link>
+                    )}
                     <button 
                       onClick={logout} 
                       className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-java-50"
@@ -178,6 +186,7 @@ const Header = () => {
           </div>
         </div>
       </div>
+        
       
       {/* Search Bar Animation */}
       <AnimatePresence>

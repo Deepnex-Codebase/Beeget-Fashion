@@ -90,7 +90,7 @@ export const createReview = async (req, res, next) => {
 export const getProductReviews = async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const { page = 1, limit = 10, sort = 'createdAt', order = 'desc' } = req.query;
+    const { page = 1, limit = 10, sort = 'createdAt', order = 'desc', rating, with_photos } = req.query;
 
     // Check if product exists
     const product = await Product.findById(productId);
@@ -104,16 +104,29 @@ export const getProductReviews = async (req, res, next) => {
     // Build sort object
     const sortObj = {};
     sortObj[sort] = order === 'asc' ? 1 : -1;
-
-    // Get reviews for the product
-    const reviews = await Review.find({ product: productId })
+    
+    // Build filter query
+    const filterQuery = { product: productId };
+    
+    // Add rating filter if provided
+    if (rating) {
+      filterQuery.rating = Number(rating);
+    }
+    
+    // Add with_photos filter if provided
+    if (with_photos === 'true') {
+      filterQuery.images = { $exists: true, $not: { $size: 0 } };
+    }
+    
+    // Get reviews for the product with filters
+    const reviews = await Review.find(filterQuery)
       .populate('user', 'name email profileImage')
       .sort(sortObj)
       .skip(skip)
       .limit(Number(limit));
-
-    // Get total count for pagination
-    const total = await Review.countDocuments({ product: productId });
+      
+    // Get total count for pagination with the same filters
+    const total = await Review.countDocuments(filterQuery);
 
     // Calculate average rating
     const ratingStats = await Review.aggregate([

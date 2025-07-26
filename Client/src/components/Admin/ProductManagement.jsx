@@ -5,6 +5,7 @@ import Button from '../Common/Button';
 import Modal from '../Common/Modal';
 import Input from '../Common/Input';
 import { toast } from 'react-hot-toast';
+import { FiUpload, FiDownload } from 'react-icons/fi';
 
 const ProductManagement = () => {
   // Product modals
@@ -12,7 +13,13 @@ const ProductManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
+  
+  // Bulk upload state
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, success, error
 
   // Product form data
   const [formData, setFormData] = useState({
@@ -128,7 +135,7 @@ const ProductManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      setShowAddModal(false);
+      // Modal will be closed by the enhancedSubmit function after successful submission
       resetForm();
     }
   });
@@ -167,7 +174,7 @@ const ProductManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      setShowEditModal(false);
+      // Modal will be closed by the enhancedSubmit function after successful submission
       resetForm();
     }
   });
@@ -193,6 +200,40 @@ const ProductManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    }
+  });
+  
+  // Bulk upload products mutation
+  const bulkUploadMutation = useMutation({
+    mutationFn: async (file) => {
+      setUploadStatus('uploading');
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await axios.post('/products/bulk-upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
+      });
+      
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setUploadStatus('success');
+      toast.success(`${data.message}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      setTimeout(() => {
+        setShowBulkUploadModal(false);
+        resetBulkUpload();
+      }, 2000);
+    },
+    onError: (error) => {
+      setUploadStatus('error');
+      toast.error(error.response?.data?.message || 'Failed to upload products');
     }
   });
   
@@ -453,6 +494,8 @@ const ProductManagement = () => {
           onSuccess: () => {
             toast.dismiss(loadingToastId);
             toast.success('Product updated successfully');
+            // Close the modal after successful submission
+            setShowEditModal(false);
           },
           onError: (error) => {
             toast.dismiss(loadingToastId);
@@ -465,6 +508,8 @@ const ProductManagement = () => {
           onSuccess: () => {
             toast.dismiss(loadingToastId);
             toast.success('Product created successfully');
+            // Close the modal after successful submission
+            setShowAddModal(false);
           },
           onError: (error) => {
             toast.dismiss(loadingToastId);
@@ -513,6 +558,61 @@ const ProductManagement = () => {
       style: 'currency',
       currency: 'INR',
     }).format(amount);
+  };
+  
+  // Handle bulk upload file change
+  const handleBulkFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file type
+      const fileType = file.name.split('.').pop().toLowerCase();
+      if (fileType !== 'csv' && fileType !== 'json') {
+        toast.error('Please upload a CSV or JSON file');
+        return;
+      }
+      
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size should be less than 10MB');
+        return;
+      }
+      
+      setBulkUploadFile(file);
+    }
+  };
+  
+  // Handle bulk upload submit
+  const handleBulkUpload = () => {
+    if (!bulkUploadFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+    
+    bulkUploadMutation.mutate(bulkUploadFile);
+  };
+  
+  // Reset bulk upload state
+  const resetBulkUpload = () => {
+    setBulkUploadFile(null);
+    setUploadProgress(0);
+    setUploadStatus('idle');
+  };
+  
+  // Generate sample CSV
+  const generateSampleCSV = () => {
+    const headers = 'title,description,category_id,sku,price,stock,color,size,images,gstRate';
+    const sampleData = 'मेन्स कॉटन टी-शर्ट,Cotton T-Shirt,507f1f77bcf86cd799439011,TSHIRT-RED-L,499,100,Red,L,"https://example.com/img1.jpg,https://example.com/img2.jpg",5';
+    
+    const csvContent = `${headers}\n${sampleData}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'product_upload_sample.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
   
   // Filter products based on search term and category filter
@@ -755,8 +855,27 @@ const ProductManagement = () => {
             newErrors.variants = 'Please fix errors in variant details';
           }
         }
+      } else if (currentStep === 3) {
+        // Validate images
+        const hasExistingImages = formData.images && formData.images.length > 0;
+        const hasNewImages = formData.imageFiles && formData.imageFiles.length > 0;
+        
+        // Only validate if this is a new product (for edit, images are optional)
+        if (!currentProduct && !hasExistingImages && !hasNewImages) {
+          newErrors.images = 'At least one product image is required';
+        }
       }
-      // Step 3 (images) doesn't have required fields
+      // Step 3 (images) validation
+      else if (step === 3) {
+        // Check if there are any images (either existing or new)
+        const hasExistingImages = formData.images && formData.images.length > 0;
+        const hasNewImages = formData.imageFiles && formData.imageFiles.length > 0;
+        
+        // Only validate if this is a new product (for edit, images are optional)
+        if (!currentProduct && !hasExistingImages && !hasNewImages) {
+          newErrors.images = 'At least one product image is required';
+        }
+      }
       
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
@@ -798,6 +917,7 @@ const ProductManagement = () => {
           });
           
           if (hasVariantErrors) {
+
             newErrors.variants = 'Please fix errors in variant details';
           }
         }
@@ -812,8 +932,9 @@ const ProductManagement = () => {
       // Validate all steps
       const step1Valid = validateStep(1);
       const step2Valid = validateStep(2);
+      const step3Valid = validateStep(3);
       
-      return step1Valid && step2Valid;
+      return step1Valid && step2Valid && step3Valid;
     };
     
     // Handle next step
@@ -1401,10 +1522,20 @@ const ProductManagement = () => {
     <div className="bg-white rounded-lg shadow-sm p-6 overflow-hidden">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-xl font-semibold">Products Management</h3>
-        <Button onClick={() => {
-          setCurrentStep(1); // Always start at step 1
-          setShowAddModal(true);
-        }}>Add New Product</Button>
+        <div className="flex space-x-3">
+          <Button 
+            variant="outline"
+            onClick={() => setShowBulkUploadModal(true)}
+            className="flex items-center gap-2"
+          >
+            <FiUpload className="h-4 w-4" />
+            Bulk Upload
+          </Button>
+          <Button onClick={() => {
+            setCurrentStep(1); // Always start at step 1
+            setShowAddModal(true);
+          }}>Add New Product</Button>
+        </div>
       </div>
       
       {/* Product Summary Cards */}
@@ -1769,6 +1900,115 @@ const ProductManagement = () => {
             </div>
           </div>
         )}
+      </Modal>
+      
+      {/* Bulk Upload Modal */}
+      <Modal
+        isOpen={showBulkUploadModal}
+        onClose={() => {
+          if (uploadStatus !== 'loading') {
+            setShowBulkUploadModal(false);
+            resetBulkUpload();
+          }
+        }}
+        title="Bulk Upload Products"
+        size="lg"
+      >
+        <div className="p-6">
+          <div className="mb-6">
+            <p className="text-sm text-gray-600 mb-4">
+              Upload a CSV or JSON file containing product data. Download the sample template below for reference.
+            </p>
+            
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={generateSampleCSV}
+              className="flex items-center gap-2 mb-4 text-sm"
+            >
+              <FiDownload className="h-4 w-4" />
+              Download Sample CSV
+            </Button>
+            
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              {bulkUploadFile ? (
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center mb-3">
+                    <span className="text-sm font-medium mr-2">{bulkUploadFile.name}</span>
+                    <span className="text-xs text-gray-500">({Math.round(bulkUploadFile.size / 1024)} KB)</span>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setBulkUploadFile(null)}
+                    className="text-xs"
+                    disabled={uploadStatus === 'loading'}
+                  >
+                    Change File
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <FiUpload className="h-10 w-10 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600 mb-2">Drag & drop your file here or</p>
+                  <label className="cursor-pointer text-sm text-blue-600 hover:text-blue-800">
+                    Browse Files
+                    <input 
+                      type="file" 
+                      accept=".csv,.json" 
+                      className="hidden" 
+                      onChange={handleBulkFileChange}
+                    />
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">Supported formats: CSV, JSON (Max 10MB)</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {uploadStatus === 'loading' && (
+            <div className="mb-4">
+              <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-600 rounded-full transition-all duration-300" 
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-center mt-1 text-gray-600">{uploadProgress}% Uploaded</p>
+            </div>
+          )}
+          
+          {uploadStatus === 'error' && (
+            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+              <p>An error occurred during upload. Please try again.</p>
+            </div>
+          )}
+          
+          {uploadStatus === 'success' && (
+            <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-md text-sm">
+              <p>Products uploaded successfully!</p>
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowBulkUploadModal(false);
+                resetBulkUpload();
+              }}
+              disabled={uploadStatus === 'loading'}
+            >
+              {uploadStatus === 'success' ? 'Close' : 'Cancel'}
+            </Button>
+            <Button
+              onClick={handleBulkUpload}
+              disabled={!bulkUploadFile || uploadStatus === 'loading' || uploadStatus === 'success'}
+            >
+              {uploadStatus === 'loading' ? 'Uploading...' : 'Upload Products'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

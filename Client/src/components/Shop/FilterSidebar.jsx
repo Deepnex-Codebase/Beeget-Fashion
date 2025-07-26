@@ -168,6 +168,28 @@ const FilterSidebar = ({ isOpen, onClose, filters, handleFilterChange }) => {
                       />
                       <span className="ml-2 text-sm text-gray-800">Accessories</span>
                     </label>
+                    <label className="flex items-center hover:bg-java-50 p-2 rounded-full transition-colors">
+                      <input
+                        type="radio"
+                        name="category"
+                        value="plus-size"
+                        checked={filters.category === 'plus-size'}
+                        onChange={() => handleFilterChange('category', 'plus-size')}
+                        className="h-4 w-4 text-java-600 border-java-300 focus:ring-java-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-800">Plus Size</span>
+                    </label>
+                    <label className="flex items-center hover:bg-java-50 p-2 rounded-full transition-colors">
+                      <input
+                        type="radio"
+                        name="category"
+                        value="best-seller"
+                        checked={filters.category === 'best-seller'}
+                        onChange={() => handleFilterChange('category', 'best-seller')}
+                        className="h-4 w-4 text-java-600 border-java-300 focus:ring-java-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-800">Best Seller</span>
+                    </label>
                   </div>
                 )}
               </div>

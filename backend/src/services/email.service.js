@@ -108,11 +108,16 @@ export const sendOTPEmail = async (email, otp, name = '') => {
  */
 export const sendOrderConfirmationEmail = async (email, order) => {
   try {
+    logger.info(`Attempting to send order confirmation email to ${email} for order ${order._id}`);
+    
     if (!transporter) {
+      logger.info('Email transporter not found, initializing...');
       transporter = initializeEmailTransporter();
       if (!transporter) {
+        logger.error('Failed to initialize email transporter');
         throw new Error('Email transporter not initialized');
       }
+      logger.info('Email transporter initialized successfully');
     }
     
     const fromEmail = process.env.FROM_EMAIL || process.env.EMAIL_FROM;
@@ -197,17 +202,38 @@ export const sendOrderConfirmationEmail = async (email, order) => {
           </p>
           
           <p style="margin-top: 20px;">We'll send you another email when your order ships.</p>
+          
+          ${!order.userId ? `
+          <div style="margin-top: 20px; padding: 15px; background-color: #f0f7ff; border-radius: 5px;">
+            <h3 style="color: #0066cc; margin-top: 0;">Track Your Order</h3>
+            <p>Create an account or log in to track your order status, view order history, and enjoy faster checkout next time.</p>
+            <div style="margin-top: 15px;">
+              <a href="${process.env.FRONTEND_URL}/register" style="display: inline-block; background-color: #0066cc; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Create Account</a>
+              <a href="${process.env.FRONTEND_URL}/login" style="display: inline-block; background-color: #ffffff; color: #0066cc; padding: 10px 15px; text-decoration: none; border-radius: 4px; border: 1px solid #0066cc;">Login</a>
+            </div>
+          </div>
+          ` : ''}
+          
           <p>Thanks for shopping with us!</p>
           <p>${brandName} Team</p>
         </div>
       `
     };
     
-    const info = await transporter.sendMail(mailOptions);
-    logger.info(`Order confirmation email sent to ${email}: ${info.messageId}`);
-    return true;
+    logger.info(`Preparing to send email with options: ${JSON.stringify({ from: mailOptions.from, to: mailOptions.to, subject: mailOptions.subject })}`);
+    
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      logger.info(`Order confirmation email sent to ${email}: ${info.messageId}`);
+      return true;
+    } catch (emailError) {
+      logger.error(`Error in transporter.sendMail: ${emailError.message}`);
+      logger.error(emailError.stack);
+      throw emailError;
+    }
   } catch (error) {
     logger.error(`Error sending order confirmation email: ${error.message}`);
+    logger.error(error.stack);
     return false;
   }
 };
@@ -386,7 +412,19 @@ export const sendSubadminWelcomeEmail = async (email, name, password, department
 };
 
 // Initialize email transporter when the module is imported
-initializeEmailTransporter();
+const emailTransporter = initializeEmailTransporter();
+
+// Test email transporter
+if (emailTransporter) {
+  logger.info('Testing email transporter...');
+  emailTransporter.verify((error, success) => {
+    if (error) {
+      logger.error(`Email transporter verification failed: ${error.message}`);
+    } else {
+      logger.info('Email transporter is ready to send messages');
+    }
+  });
+}
 
 export default {
   initializeEmailTransporter,

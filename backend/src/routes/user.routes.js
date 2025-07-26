@@ -8,7 +8,8 @@ import {
   unbanUser,
   deleteUser,
   updateUser,
-  registerSubadmin
+  registerSubadmin,
+  updateSubadminDepartment
 } from '../controllers/user.controller.js';
 
 const router = express.Router();
@@ -29,5 +30,7 @@ router.put('/:userId/unban', unbanUser);
 
 // Subadmin management
 router.post('/register-subadmin', registerSubadmin);
+// Admin can update subadmin's department and permissions
+router.patch('/subadmin/:userId/department', updateSubadminDepartment);
 
 export default router;

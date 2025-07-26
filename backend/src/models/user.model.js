@@ -61,11 +61,17 @@ const UserSchema = new mongoose.Schema({
   },
   department: {
     type: String,
-    default: ''
+    default: function() {
+      // Set default department to 'all' for subadmins
+      return this.roles && this.roles.includes('subadmin') ? 'all' : '';
+    }
   },
   permissions: {
     type: [String],
-    default: []
+    default: function() {
+      // Set default permissions to ['all_permissions'] for subadmins
+      return this.roles && this.roles.includes('subadmin') ? ['all_permissions'] : [];
+    }
   },
   createdAt: { 
     type: Date, 

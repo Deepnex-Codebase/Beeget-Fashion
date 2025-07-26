@@ -342,6 +342,16 @@ export const registerSubadmin = async (req, res, next) => {
       throw new AppError('User with this email already exists', 400);
     }
     
+    // Set default values if not provided
+    const subadminDepartment = department || 'all';
+    let subadminPermissions = permissions || [];
+    
+    // Ensure permissions is an array
+    if (!Array.isArray(subadminPermissions)) {
+      subadminPermissions = [];
+      logger.debug('Fixed permissions to be an empty array in registerSubadmin');
+    }
+    
     // Create new user with subadmin role
     const newUser = new User({
       name,
@@ -349,8 +359,8 @@ export const registerSubadmin = async (req, res, next) => {
       passwordHash: password, // Will be hashed by pre-save hook
       roles: ['subadmin'],
       isVerified: true, // Auto-verify subadmins
-      department: department || '',
-      permissions: permissions || []
+      department: subadminDepartment,
+      permissions: subadminPermissions
     });
     
     // Save user
@@ -383,6 +393,57 @@ export const registerSubadmin = async (req, res, next) => {
     });
   } catch (error) {
     logger.error(`Error in registerSubadmin: ${error.message}`);
+    next(error);
+  }
+};
+
+/**
+ * Update subadmin department and permissions
+ * Admin only endpoint
+ */
+export const updateSubadminDepartment = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { department, permissions } = req.body;
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    if (!user.roles.includes('subadmin')) {
+      throw new AppError('User is not a subadmin', 400);
+    }
+
+    // Update department and permissions
+    // Set default values if not provided
+    const updatedDepartment = department || 'all';
+    let updatedPermissions = permissions || [];
+    
+    // Ensure permissions is an array
+    if (!Array.isArray(updatedPermissions)) {
+      updatedPermissions = [];
+      logger.debug('Fixed permissions to be an empty array in updateSubadminDepartment');
+    }
+    
+    // Update user fields
+    user.department = updatedDepartment;
+    user.permissions = updatedPermissions;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Subadmin department and permissions updated successfully',
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        department: user.department,
+        permissions: user.permissions
+      }
+    });
+  } catch (error) {
+    logger.error(`Error in updateSubadminDepartment: ${error.message}`);
     next(error);
   }
 };

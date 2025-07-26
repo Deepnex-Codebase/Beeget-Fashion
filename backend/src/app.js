@@ -20,6 +20,9 @@ import notificationRoutes from './routes/notification.routes.js';
 import returnsRoutes from './routes/returns.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import reviewRoutes from './routes/review.routes.js';
+import cmsRoutes from './routes/cms.routes.js';
+import siteContentRoutes from './routes/site-content.routes.js';
+import guestVerificationRoutes from './routes/guest-verification.routes.js';
 
 // Import middleware
 import { errorHandler } from './middlewares/error.middleware.js';
@@ -83,6 +86,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/returns', returnsRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/cms', cmsRoutes);
+app.use('/api/site-content', siteContentRoutes);
+app.use('/api/guest-verification', guestVerificationRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

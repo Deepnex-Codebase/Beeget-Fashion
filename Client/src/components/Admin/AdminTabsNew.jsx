@@ -12,7 +12,7 @@ const AdminTabsNew = ({ tabs, activeTab, setActiveTab, renderTabContent }) => {
 
   // Group tabs by category - removed category headers as requested
   const tabCategories = {
-    'Main': ['overview', 'products', 'categories', 'collections', 'promotions', 'all-orders', 'ready-to-ship', 'dispatched', 'cancelled', 'returns', 'customers', 'subadmins', 'contacts', 'notifications', 'cms']
+    'Main': ['overview', 'products', 'categories', 'collections', 'promotions', 'all-orders', 'ready-to-ship', 'dispatched', 'cancelled', 'returns', 'customers', 'subadmins', 'contacts', 'notifications', 'site-content']
   };
   
   // Add subadmins to the sidebar navigation categories
@@ -21,7 +21,8 @@ const AdminTabsNew = ({ tabs, activeTab, setActiveTab, renderTabContent }) => {
     'Catalog': ['products', 'categories', 'collections', 'promotions'],
     'Orders': ['all-orders', 'ready-to-ship', 'dispatched', 'cancelled', 'returns'],
     'Users': ['customers', 'subadmins'],
-    'Content': ['contacts', 'notifications', 'cms']
+    'Content': ['contacts', 'notifications'],
+    'Site Content': ['site-content']
   };
 
   // Find which category the active tab belongs to

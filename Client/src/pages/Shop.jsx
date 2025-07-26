@@ -162,10 +162,10 @@ const Shop = () => {
   
   // Handle add to cart
   const handleAddToCart = (product) => {
-    if (!isAuthenticated) {
-      toast.info('Please login to add items to your cart')
-      return
-    }
+    // if (!isAuthenticated) {
+    //   toast.info('Please login to add items to your cart')
+    //   return
+    // }
     
     // Get default size and color from product variants if available
     let defaultSize = null;

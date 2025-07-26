@@ -7,7 +7,7 @@ import CollectionManagement from './CollectionManagement';
 import CustomerManagement from './CustomerManagement';
 import ContactManagement from './ContactManagement';
 import NotificationManagement from './NotificationManagement';
-import CmsManagement from './CmsManagement';
+import SiteContentManagement from './SiteContentManagement';
 import ReturnManagement from './ReturnManagement';
 import PromotionManagement from './PromotionManagement';
 import SubAdminManagement from './SubAdminManagement';
@@ -38,7 +38,7 @@ const AdminDashboard = () => {
   const [actionDropdownId, setActionDropdownId] = useState(null);
   const [salesTimeframe, setSalesTimeframe] = useState('monthly'); // Default to monthly view
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, hasPermission } = useAuth();
   const profileDropdownRef = useRef(null);
   const actionDropdownRef = useRef(null);
   
@@ -1101,407 +1101,767 @@ const AdminDashboard = () => {
       currency: 'INR',
     }).format(amount)
   }
-``
+
   // Define tabs with their required permissions
   const tabsWithPermissions = [
-    { id: 'overview', label: 'Overview', permission: 'view_dashboard' },
-    { id: 'products', label: 'Products', permission: 'manage_products' },
-    { id: 'categories', label: 'Categories', permission: 'manage_categories' },
-    { id: 'collections', label: 'Collections', permission: 'manage_collections' },
-    { id: 'promotions', label: 'Promotions', permission: 'manage_promotions' },
-    { id: 'all-orders', label: 'All Orders', permission: 'view_orders' },
-    { id: 'ready-to-ship', label: 'Ready to Ship', permission: 'manage_orders' },
-    { id: 'dispatched', label: 'Dispatched', permission: 'manage_orders' },
-    { id: 'cancelled', label: 'Cancelled', permission: 'manage_orders' },
-    { id: 'returns', label: 'Returns', permission: 'manage_returns' },
-    { id: 'customers', label: 'Customers', permission: 'view_customers' },
-    { id: 'subadmins', label: 'Sub-Admins', permission: 'manage_subadmins' },
-    { id: 'contacts', label: `Messages ${unreadContactCount > 0 ? `(${unreadContactCount})` : ''}`, permission: 'manage_contacts' },
-    { id: 'notifications', label: 'Notifications', permission: 'manage_notifications' },
-    { id: 'cms', label: 'CMS Pages', permission: 'manage_cms' },
+    { id: 'overview', label: 'Overview', permission: 'view_dashboard', department: 'all' },
+    { id: 'products', label: 'Products', permission: 'Products', department: 'Catalog' },
+    { id: 'categories', label: 'Categories', permission: 'Categories', department: 'Catalog' },
+    { id: 'collections', label: 'Collections', permission: 'manage_collections', department: 'Catalog' },
+    { id: 'promotions', label: 'Promotions', permission: 'manage_promotions', department: 'Catalog' },
+    { id: 'all-orders', label: 'All Orders', permission: 'All Orders', department: 'Orders' },
+    { id: 'ready-to-ship', label: 'Ready to Ship', permission: 'Ready to Ship', department: 'Orders' },
+    { id: 'dispatched', label: 'Dispatched', permission: 'Dispatched', department: 'Orders' },
+    { id: 'cancelled', label: 'Cancelled', permission: 'Cancel', department: 'Orders' },
+    { id: 'returns', label: 'Returns', permission: 'Return', department: 'Orders' },
+    { id: 'customers', label: 'Customers', permission: 'view_customers', department: 'User Communication' },
+    { id: 'subadmins', label: 'Sub-Admins', permission: 'manage_subadmins', department: 'User Communication' },
+    { id: 'contacts', label: `Messages ${unreadContactCount > 0 ? `(${unreadContactCount})` : ''}`, permission: 'manage_contacts', department: 'User Communication' },
+    { id: 'notifications', label: 'Notifications', permission: 'manage_notifications', department: 'User Communication' },
+    { id: 'site-content', label: 'Site Content', permission: 'manage_cms', department: 'Content' },
   ];
   
-  // Filter tabs based on user permissions
-  const { isAdmin, hasPermission } = useAuth();
+  // Add debug log to show which permissions are being checked
+  console.log('Tabs with permissions:', tabsWithPermissions.map(tab => tab.permission));
+  
+  // Log permissions for debugging
+  console.log('User Permissions:', user?.permissions);
+  
+  // Filter tabs based on both department and permission for subadmin
   const tabs = tabsWithPermissions.filter(tab => {
-    // Admin can access all tabs
     if (isAdmin) return true;
-    // SubAdmin can only access tabs they have permission for
-    return hasPermission(tab.permission);
+    // Use the updated hasPermission function that checks both permission and department
+    return hasPermission(tab.permission, tab.department);
   });
 
   // Render overview tab
-  const renderOverview = () => (
-    <div id="overview-section">
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {statsLoading ? (
-          // Loading skeletons for stats cards
-          [...Array(4)].map((_, index) => (
-            <div key={index} className="bg-white rounded-md shadow-sm p-4 animate-pulse">
-              <div className="flex items-center justify-between mb-3">
-                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-                <div className="h-6 w-6 rounded bg-gray-200"></div>
-              </div>
-              <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-            </div>
-          ))
-        ) : (
-          <>
-            <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Sales</h3>
-                  <p className="text-2xl font-medium text-gray-800">{formatCurrency(stats?.totalSales || 0)}</p>
+  const renderOverview = () => {
+    // Cards - use the updated hasPermission function that checks both permission and department
+    const showSalesCard = isAdmin || hasPermission('view_dashboard', 'Finance');
+    const showOrdersCard = isAdmin || hasPermission('view_dashboard', 'Orders');
+    const showCustomersCard = isAdmin || hasPermission('view_dashboard', 'User Communication');
+    const showProductsCard = isAdmin || hasPermission('view_dashboard', 'Catalog');
+    
+    return (
+      <div id="overview-section">
+        {/* Stats cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {statsLoading ? (
+            // Loading skeletons for stats cards
+            [...Array(4)].map((_, index) => (
+              <div key={index} className="bg-white rounded-md shadow-sm p-4 animate-pulse">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-6 w-6 rounded bg-gray-200"></div>
                 </div>
-                <div className="text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
+                <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/4"></div>
               </div>
-              {/* Calculate actual growth percentage from last month */}
-              {(() => {
-                // If no orders data, show default message
-                if (!ordersData?.data?.orders || ordersData.data.orders.length === 0) {
-                  return (
-                    <div className="flex items-center mt-3">
-                      <span className="text-xs text-gray-500">No data available</span>
+            ))
+          ) : (
+            <>
+              {showSalesCard && (
+                <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Sales</h3>
+                      <p className="text-2xl font-medium text-gray-800">{formatCurrency(stats?.totalSales || 0)}</p>
                     </div>
-                  );
-                }
-                
-                const orders = ordersData.data.orders;
-                const now = new Date();
-                
-                // Current month sales
-                const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-                
-                const currentMonthSales = orders.reduce((sum, order) => {
-                  const orderDate = new Date(order.createdAt);
-                  // Only count orders with payment status PAID
-                  const isPaid = order.payment && order.payment.status === 'PAID';
-                  if (orderDate >= currentMonthStart && orderDate <= currentMonthEnd && isPaid) {
-                    return sum + (order.total || 0);
-                  }
-                  return sum;
-                }, 0);
-                
-                // Previous month sales
-                const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-                
-                const prevMonthSales = orders.reduce((sum, order) => {
-                  const orderDate = new Date(order.createdAt);
-                  // Only count orders with payment status PAID
-                  const isPaid = order.payment && order.payment.status === 'PAID';
-                  if (orderDate >= prevMonthStart && orderDate <= prevMonthEnd && isPaid) {
-                    return sum + (order.total || 0);
-                  }
-                  return sum;
-                }, 0);
-                
-                // Calculate growth percentage
-                let growthPercentage = 0;
-                let isPositive = true;
-                
-                if (prevMonthSales > 0) {
-                  growthPercentage = ((currentMonthSales - prevMonthSales) / prevMonthSales) * 100;
-                  isPositive = growthPercentage >= 0;
-                  growthPercentage = Math.abs(Math.round(growthPercentage));
-                } else if (currentMonthSales > 0) {
-                  // If previous month was 0 but current month has sales, show 100% growth
-                  growthPercentage = 100;
-                  isPositive = true;
-                }
-                
-                return (
-                  <div className="flex items-center mt-3">
-                    <span className={`text-xs ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
-                      {isPositive ? '↑' : '↓'} {growthPercentage}% from last month
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-            
-            <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Orders</h3>
-                  <p className="text-2xl font-medium text-gray-800">{stats?.totalOrders || 0}</p>
-                </div>
-                <div className="text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                </div>
-              </div>
-              {/* Calculate actual growth percentage from last month */}
-              {(() => {
-                // If no orders data, show default message
-                if (!ordersData?.data?.orders || ordersData.data.orders.length === 0) {
-                  return (
-                    <div className="flex items-center mt-3">
-                      <span className="text-xs text-gray-500">No data available</span>
+                    <div className="text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     </div>
-                  );
-                }
-                
-                const orders = ordersData.data.orders;
-                const now = new Date();
-                
-                // Current month orders
-                const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-                
-                const currentMonthOrders = orders.filter(order => {
-                  const orderDate = new Date(order.createdAt);
-                  return orderDate >= currentMonthStart && orderDate <= currentMonthEnd;
-                }).length;
-                
-                // Previous month orders
-                const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-                
-                const prevMonthOrders = orders.filter(order => {
-                  const orderDate = new Date(order.createdAt);
-                  return orderDate >= prevMonthStart && orderDate <= prevMonthEnd;
-                }).length;
-                
-                // Calculate growth percentage
-                let growthPercentage = 0;
-                let isPositive = true;
-                
-                if (prevMonthOrders > 0) {
-                  growthPercentage = ((currentMonthOrders - prevMonthOrders) / prevMonthOrders) * 100;
-                  isPositive = growthPercentage >= 0;
-                  growthPercentage = Math.abs(Math.round(growthPercentage));
-                } else if (currentMonthOrders > 0) {
-                  // If previous month was 0 but current month has orders, show 100% growth
-                  growthPercentage = 100;
-                  isPositive = true;
-                }
-                
-                return (
-                  <div className="flex items-center mt-3">
-                    <span className={`text-xs ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
-                      {isPositive ? '↑' : '↓'} {growthPercentage}% from last month
-                    </span>
                   </div>
-                );
-              })()}
-            </div>
-            
-            <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Customers</h3>
-                  <p className="text-2xl font-medium text-gray-800">{stats?.totalCustomers || 0}</p>
+                  {/* Calculate actual growth percentage from last month */}
+                  {(() => {
+                    // If no orders data, show default message
+                    if (!ordersData?.data?.orders || ordersData.data.orders.length === 0) {
+                      return (
+                        <div className="flex items-center mt-3">
+                          <span className="text-xs text-gray-500">No data available</span>
+                        </div>
+                      );
+                    }
+                    
+                    const orders = ordersData.data.orders;
+                    const now = new Date();
+                    
+                    // Current month sales
+                    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    
+                    const currentMonthSales = orders.reduce((sum, order) => {
+                      const orderDate = new Date(order.createdAt);
+                      // Only count orders with payment status PAID
+                      const isPaid = order.payment && order.payment.status === 'PAID';
+                      if (orderDate >= currentMonthStart && orderDate <= currentMonthEnd && isPaid) {
+                        return sum + (order.total || 0);
+                      }
+                      return sum;
+                    }, 0);
+                    
+                    // Previous month sales
+                    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                    
+                    const prevMonthSales = orders.reduce((sum, order) => {
+                      const orderDate = new Date(order.createdAt);
+                      // Only count orders with payment status PAID
+                      const isPaid = order.payment && order.payment.status === 'PAID';
+                      if (orderDate >= prevMonthStart && orderDate <= prevMonthEnd && isPaid) {
+                        return sum + (order.total || 0);
+                      }
+                      return sum;
+                    }, 0);
+                    
+                    // Calculate growth percentage
+                    let growthPercentage = 0;
+                    let isPositive = true;
+                    
+                    if (prevMonthSales > 0) {
+                      growthPercentage = ((currentMonthSales - prevMonthSales) / prevMonthSales) * 100;
+                      isPositive = growthPercentage >= 0;
+                      growthPercentage = Math.abs(Math.round(growthPercentage));
+                    } else if (currentMonthSales > 0) {
+                      // If previous month was 0 but current month has sales, show 100% growth
+                      growthPercentage = 100;
+                      isPositive = true;
+                    }
+                    
+                    return (
+                      <div className="flex items-center mt-3">
+                        <span className={`text-xs ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                          {isPositive ? '↑' : '↓'} {growthPercentage}% from last month
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
-                <div className="text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-              </div>
-              {/* Calculate actual growth percentage from last month */}
-              {(() => {
-                // If no orders data, show default message
-                if (!ordersData?.data?.orders || ordersData.data.orders.length === 0) {
-                  return (
-                    <div className="flex items-center mt-3">
-                      <span className="text-xs text-gray-500">No data available</span>
+              )}
+              
+              {showOrdersCard && (
+                <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Orders</h3>
+                      <p className="text-2xl font-medium text-gray-800">{stats?.totalOrders || 0}</p>
                     </div>
-                  );
-                }
-                
-                const orders = ordersData.data.orders;
-                const now = new Date();
-                
-                // Get unique customer IDs for current month
-                const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-                
-                const currentMonthCustomerIds = new Set();
-                orders.forEach(order => {
-                  const orderDate = new Date(order.createdAt);
-                  if (orderDate >= currentMonthStart && orderDate <= currentMonthEnd && order.userId?._id) {
-                    currentMonthCustomerIds.add(order.userId._id);
-                  }
-                });
-                
-                // Get unique customer IDs for previous month
-                const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-                
-                const prevMonthCustomerIds = new Set();
-                orders.forEach(order => {
-                  const orderDate = new Date(order.createdAt);
-                  if (orderDate >= prevMonthStart && orderDate <= prevMonthEnd && order.userId?._id) {
-                    prevMonthCustomerIds.add(order.userId._id);
-                  }
-                });
-                
-                // Calculate growth percentage
-                const currentMonthCustomers = currentMonthCustomerIds.size;
-                const prevMonthCustomers = prevMonthCustomerIds.size;
-                
-                let growthPercentage = 0;
-                let isPositive = true;
-                
-                if (prevMonthCustomers > 0) {
-                  growthPercentage = ((currentMonthCustomers - prevMonthCustomers) / prevMonthCustomers) * 100;
-                  isPositive = growthPercentage >= 0;
-                  growthPercentage = Math.abs(Math.round(growthPercentage));
-                } else if (currentMonthCustomers > 0) {
-                  // If previous month was 0 but current month has customers, show 100% growth
-                  growthPercentage = 100;
-                  isPositive = true;
-                }
-                
-                return (
-                  <div className="flex items-center mt-3">
-                    <span className={`text-xs ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
-                      {isPositive ? '↑' : '↓'} {growthPercentage}% from last month
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-            
-            <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Products</h3>
-                  <p className="text-2xl font-medium text-gray-800">{stats?.totalProducts || 0}</p>
-                </div>
-                <div className="text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                  </svg>
-                </div>
-              </div>
-              {/* Calculate actual growth percentage from last month */}
-              {(() => {
-                // If no products data, show default message
-                if (!stats?.totalProducts) {
-                  return (
-                    <div className="flex items-center mt-3">
-                      <span className="text-xs text-gray-500">No data available</span>
+                    <div className="text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
                     </div>
-                  );
-                }
-                
-                // For products, we don't have historical data in our current API structure
-                // So we'll show a static message instead
-                return (
-                  <div className="flex items-center mt-3">
-                    <span className="text-xs text-gray-500">
-                      Total active products
-                    </span>
                   </div>
-                );
-              })()}
+                  {/* Calculate actual growth percentage from last month */}
+                  {(() => {
+                    // If no orders data, show default message
+                    if (!ordersData?.data?.orders || ordersData.data.orders.length === 0) {
+                      return (
+                        <div className="flex items-center mt-3">
+                          <span className="text-xs text-gray-500">No data available</span>
+                        </div>
+                      );
+                    }
+                    
+                    const orders = ordersData.data.orders;
+                    const now = new Date();
+                    
+                    // Current month orders
+                    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    
+                    const currentMonthOrders = orders.filter(order => {
+                      const orderDate = new Date(order.createdAt);
+                      return orderDate >= currentMonthStart && orderDate <= currentMonthEnd;
+                    }).length;
+                    
+                    // Previous month orders
+                    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                    
+                    const prevMonthOrders = orders.filter(order => {
+                      const orderDate = new Date(order.createdAt);
+                      return orderDate >= prevMonthStart && orderDate <= prevMonthEnd;
+                    }).length;
+                    
+                    // Calculate growth percentage
+                    let growthPercentage = 0;
+                    let isPositive = true;
+                    
+                    if (prevMonthOrders > 0) {
+                      growthPercentage = ((currentMonthOrders - prevMonthOrders) / prevMonthOrders) * 100;
+                      isPositive = growthPercentage >= 0;
+                      growthPercentage = Math.abs(Math.round(growthPercentage));
+                    } else if (currentMonthOrders > 0) {
+                      // If previous month was 0 but current month has orders, show 100% growth
+                      growthPercentage = 100;
+                      isPositive = true;
+                    }
+                    
+                    return (
+                      <div className="flex items-center mt-3">
+                        <span className={`text-xs ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                          {isPositive ? '↑' : '↓'} {growthPercentage}% from last month
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+              
+              {showCustomersCard && (
+                <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Customers</h3>
+                      <p className="text-2xl font-medium text-gray-800">{stats?.totalCustomers || 0}</p>
+                    </div>
+                    <div className="text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  {/* Calculate actual growth percentage from last month */}
+                  {(() => {
+                    // If no orders data, show default message
+                    if (!ordersData?.data?.orders || ordersData.data.orders.length === 0) {
+                      return (
+                        <div className="flex items-center mt-3">
+                          <span className="text-xs text-gray-500">No data available</span>
+                        </div>
+                      );
+                    }
+                    
+                    const orders = ordersData.data.orders;
+                    const now = new Date();
+                    
+                    // Get unique customer IDs for current month
+                    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    
+                    const currentMonthCustomerIds = new Set();
+                    orders.forEach(order => {
+                      const orderDate = new Date(order.createdAt);
+                      if (orderDate >= currentMonthStart && orderDate <= currentMonthEnd && order.userId?._id) {
+                        currentMonthCustomerIds.add(order.userId._id);
+                      }
+                    });
+                    
+                    // Get unique customer IDs for previous month
+                    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                    
+                    const prevMonthCustomerIds = new Set();
+                    orders.forEach(order => {
+                      const orderDate = new Date(order.createdAt);
+                      if (orderDate >= prevMonthStart && orderDate <= prevMonthEnd && order.userId?._id) {
+                        prevMonthCustomerIds.add(order.userId._id);
+                      }
+                    });
+                    
+                    // Calculate growth percentage
+                    const currentMonthCustomers = currentMonthCustomerIds.size;
+                    const prevMonthCustomers = prevMonthCustomerIds.size;
+                    
+                    let growthPercentage = 0;
+                    let isPositive = true;
+                    
+                    if (prevMonthCustomers > 0) {
+                      growthPercentage = ((currentMonthCustomers - prevMonthCustomers) / prevMonthCustomers) * 100;
+                      isPositive = growthPercentage >= 0;
+                      growthPercentage = Math.abs(Math.round(growthPercentage));
+                    } else if (currentMonthCustomers > 0) {
+                      // If previous month was 0 but current month has customers, show 100% growth
+                      growthPercentage = 100;
+                      isPositive = true;
+                    }
+                    
+                    return (
+                      <div className="flex items-center mt-3">
+                        <span className={`text-xs ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                          {isPositive ? '↑' : '↓'} {growthPercentage}% from last month
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+              
+              {showProductsCard && (
+                <div className="bg-white rounded-md shadow-sm p-4 border-t border-gray-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-gray-500 text-xs font-medium mb-1 uppercase tracking-wider">Products</h3>
+                      <p className="text-2xl font-medium text-gray-800">{stats?.totalProducts || 0}</p>
+                    </div>
+                    <div className="text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                    </div>
+                  </div>
+                  {/* Calculate actual growth percentage from last month */}
+                  {(() => {
+                    // If no products data, show default message
+                    if (!stats?.totalProducts) {
+                      return (
+                        <div className="flex items-center mt-3">
+                          <span className="text-xs text-gray-500">No data available</span>
+                        </div>
+                      );
+                    }
+                    
+                    // For products, we don't have historical data in our current API structure
+                    // So we'll show a static message instead
+                    return (
+                      <div className="flex items-center mt-3">
+                        <span className="text-xs text-gray-500">
+                          Total active products
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        
+        {/* Sales Analytics Graph */}
+        <div className="bg-white rounded-md shadow-sm p-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-medium text-gray-700">Sales Analytics</h2>
+            <div className="flex items-center space-x-2">
+              <motion.button 
+                onClick={() => setSalesTimeframe('weekly')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'weekly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              >
+                Weekly
+              </motion.button>
+              <motion.button 
+                onClick={() => setSalesTimeframe('monthly')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'monthly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              >
+                Monthly
+              </motion.button>
+              <motion.button 
+                onClick={() => setSalesTimeframe('yearly')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'yearly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              >
+                Yearly
+              </motion.button>
+              <div className="border-l border-gray-200 h-5 mx-2"></div>
+              <motion.button 
+                onClick={handleExportOverview}
+                className="flex items-center px-3 py-1 text-xs font-medium rounded bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              >
+                <ArrowDownTrayIcon className="h-3 w-3 mr-1" />
+                Export Report
+              </motion.button>
             </div>
-          </>
-        )}
-      </div>
-      
-      {/* Sales Analytics Graph */}
-      <div className="bg-white rounded-md shadow-sm p-4 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-medium text-gray-700">Sales Analytics</h2>
-          <div className="flex items-center space-x-2">
-            <motion.button 
-              onClick={() => setSalesTimeframe('weekly')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'weekly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-            >
-              Weekly
-            </motion.button>
-            <motion.button 
-              onClick={() => setSalesTimeframe('monthly')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'monthly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-            >
-              Monthly
-            </motion.button>
-            <motion.button 
-              onClick={() => setSalesTimeframe('yearly')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'yearly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-            >
-              Yearly
-            </motion.button>
-            <div className="border-l border-gray-200 h-5 mx-2"></div>
-            <motion.button 
-              onClick={handleExportOverview}
-              className="flex items-center px-3 py-1 text-xs font-medium rounded bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-            >
-              <ArrowDownTrayIcon className="h-3 w-3 mr-1" />
-              Export Report
-            </motion.button>
+          </div>
+          
+          {/* Advanced Graph Visualization with Recharts */}
+          <div className="h-64 w-full">
+            {statsLoading ? (
+              <div className="h-full w-full flex items-center justify-center">
+                <div className="animate-pulse bg-gray-200 h-full w-full rounded"></div>
+              </div>
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={salesTimeframe}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.5 }}
+                  className="h-full w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={getSalesDataByTimeframe()}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey={salesTimeframe === 'weekly' ? 'day' : salesTimeframe === 'monthly' ? 'month' : 'year'} 
+                        tick={{ fontSize: 12 }}
+                        tickMargin={10}
+                        stroke="#9ca3af"
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => `₹${value / 1000}k`}
+                        tick={{ fontSize: 12 }}
+                        tickMargin={10}
+                        stroke="#9ca3af"
+                      />
+                      <Tooltip 
+                        formatter={(value, name) => {
+                          if (name === 'sales') return [`₹${value.toLocaleString()}`, 'Total Sales'];
+                          if (name === 'cashfree') return [`₹${value.toLocaleString()}`, 'Cashfree'];
+                          if (name === 'cod') return [`₹${value.toLocaleString()}`, 'Cash on Delivery'];
+                          if (name === 'creditCard') return [`₹${value.toLocaleString()}`, 'Credit Card'];
+                          if (name === 'debitCard') return [`₹${value.toLocaleString()}`, 'Debit Card'];
+                          if (name === 'upi') return [`₹${value.toLocaleString()}`, 'UPI'];
+                          if (name === 'netBanking') return [`₹${value.toLocaleString()}`, 'Net Banking'];
+                          if (name === 'other') return [`₹${value.toLocaleString()}`, 'Other Methods'];
+                          return [`₹${value.toLocaleString()}`, name];
+                        }}
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          border: 'none', 
+                          borderRadius: '0.375rem',
+                          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+                          fontSize: '0.75rem'
+                        }}
+                        animationDuration={300}
+                      />
+                      <Legend 
+                        verticalAlign="top" 
+                        height={36}
+                        iconType="circle"
+                        iconSize={8}
+                        formatter={(value) => {
+                          if (value === 'sales') return 'Total Sales';
+                          if (value === 'cashfree') return 'Cashfree';
+                          if (value === 'cod') return 'COD';
+                          if (value === 'creditCard') return 'Credit Card';
+                          if (value === 'debitCard') return 'Debit Card';
+                          if (value === 'upi') return 'UPI';
+                          if (value === 'netBanking') return 'Net Banking';
+                          if (value === 'other') return 'Other';
+                          return value;
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="sales" 
+                        stroke="#38bdf8" 
+                        strokeWidth={2} 
+                        dot={{ r: 3, strokeWidth: 2, fill: '#38bdf8' }}
+                        activeDot={{ r: 5, strokeWidth: 0, fill: '#38bdf8' }}
+                        animationDuration={1500}
+                        animationEasing="ease-in-out"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="cashfree" 
+                        stroke="#10b981" 
+                        strokeWidth={2} 
+                        dot={{ r: 3, strokeWidth: 2, fill: '#10b981' }}
+                        activeDot={{ r: 5, strokeWidth: 0, fill: '#10b981' }}
+                        animationDuration={1500}
+                        animationEasing="ease-in-out"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="cod" 
+                        stroke="#f59e0b" 
+                        strokeWidth={2} 
+                        dot={{ r: 3, strokeWidth: 2, fill: '#f59e0b' }}
+                        activeDot={{ r: 5, strokeWidth: 0, fill: '#f59e0b' }}
+                        animationDuration={1500}
+                        animationEasing="ease-in-out"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </motion.div>
+              </AnimatePresence>
+            )}
           </div>
         </div>
         
-        {/* Advanced Graph Visualization with Recharts */}
-        <div className="h-64 w-full">
+        {/* Payment Summary */}
+        <div className="bg-white rounded-md shadow-sm p-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-medium text-gray-700">Payment Summary</h2>
+          </div>
+          
           {statsLoading ? (
-            <div className="h-full w-full flex items-center justify-center">
-              <div className="animate-pulse bg-gray-200 h-full w-full rounded"></div>
+            <div className="h-full w-full flex items-center justify-center py-4">
+              <div className="animate-pulse bg-gray-200 h-20 w-full rounded"></div>
             </div>
           ) : (
-            <AnimatePresence mode="wait">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {getSalesDataByTimeframe().length > 0 ? (
+                <>
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <h3 className="text-sm font-medium text-gray-700 mb-1">
+                      {salesTimeframe === 'weekly' ? 'Weekly' : salesTimeframe === 'monthly' ? 'Monthly' : 'Yearly'} Total
+                    </h3>
+                    <p className="text-xl font-semibold text-java-600">
+                      ₹{getSalesDataByTimeframe().reduce((sum, item) => sum + item.sales, 0).toLocaleString()}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <h3 className="text-sm font-medium text-gray-700 mb-1">Highest {salesTimeframe === 'weekly' ? 'Day' : salesTimeframe === 'monthly' ? 'Month' : 'Year'}</h3>
+                    <p className="text-xl font-semibold text-java-600">
+                      {(() => {
+                        const data = getSalesDataByTimeframe();
+                        const maxItem = data.reduce((max, item) => item.sales > max.sales ? item : max, { sales: 0 });
+                        const key = salesTimeframe === 'weekly' ? 'day' : salesTimeframe === 'monthly' ? 'month' : 'year';
+                        return maxItem[key] ? `${maxItem[key]} (₹${maxItem.sales.toLocaleString()})` : 'N/A';
+                      })()}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <h3 className="text-sm font-medium text-gray-700 mb-1">Average Per {salesTimeframe === 'weekly' ? 'Day' : salesTimeframe === 'monthly' ? 'Month' : 'Year'}</h3>
+                    <p className="text-xl font-semibold text-java-600">
+                      ₹{Math.round(getSalesDataByTimeframe().reduce((sum, item) => sum + item.sales, 0) / getSalesDataByTimeframe().length).toLocaleString()}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-3 text-center py-4">
+                  <p className="text-gray-400 text-sm">No payment data available</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Payment Method Breakdown */}
+          {!statsLoading && getSalesDataByTimeframe().length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Payment Method Breakdown</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(() => {
+                  const data = getSalesDataByTimeframe();
+                  const totalSales = data.reduce((sum, item) => sum + item.sales, 0);
+                  
+                  // Calculate totals for each payment method
+                  const methodTotals = {
+                    cashfree: data.reduce((sum, item) => sum + item.cashfree, 0),
+                    cod: data.reduce((sum, item) => sum + item.cod, 0),
+                    creditCard: data.reduce((sum, item) => sum + item.creditCard, 0),
+                    debitCard: data.reduce((sum, item) => sum + item.debitCard, 0),
+                    upi: data.reduce((sum, item) => sum + item.upi, 0),
+                    netBanking: data.reduce((sum, item) => sum + item.netBanking, 0),
+                    other: data.reduce((sum, item) => sum + item.other, 0)
+                  };
+                  
+                  // Create array of payment methods with their totals and percentages
+                  const methods = [
+                    { name: 'Cashfree', total: methodTotals.cashfree, color: '#10b981' },
+                    { name: 'COD', total: methodTotals.cod, color: '#f59e0b' },
+                    { name: 'Credit Card', total: methodTotals.creditCard, color: '#ef4444' },
+                    { name: 'Debit Card', total: methodTotals.debitCard, color: '#3b82f6' },
+                    { name: 'UPI', total: methodTotals.upi, color: '#8b5cf6' },
+                    { name: 'Net Banking', total: methodTotals.netBanking, color: '#ec4899' },
+                    { name: 'Other', total: methodTotals.other, color: '#6b7280' }
+                  ].filter(method => method.total > 0) // Only show methods with values
+                   .sort((a, b) => b.total - a.total); // Sort by highest total
+                  
+                  return methods.map((method, index) => {
+                    const percentage = totalSales > 0 ? Math.round((method.total / totalSales) * 100) : 0;
+                    
+                    return (
+                      <div key={index} className="bg-gray-50 p-3 rounded-md">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-medium text-gray-500">{method.name}</span>
+                          <span className="text-xs font-medium" style={{ color: method.color }}>{percentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div 
+                            className="h-1.5 rounded-full" 
+                            style={{ width: `${percentage}%`, backgroundColor: method.color }}
+                          ></div>
+                        </div>
+                        <p className="mt-1 text-sm font-medium text-gray-700">₹{method.total.toLocaleString()}</p>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Recent Orders */}
+        <div className="bg-white rounded-md shadow-sm p-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-medium text-gray-700">Recent Orders</h2>
+            <button 
+              onClick={() => setActiveTab('all-orders')}
+              className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center"
+            >
+              View All
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          
+          {statsLoading ? (
+            // Loading skeleton for orders table
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-100 rounded mb-3"></div>
+              <>{[...Array(5)].map((_, index) => (
+                <div key={index} className="h-12 bg-gray-100 rounded mb-2"></div>
+              ))}</>
+            </div>
+          ) : !stats?.recentOrders || stats.recentOrders.length === 0 ? (
+            <div className="text-center py-6">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <p className="text-gray-400 text-sm mb-3">No orders found</p>
+              <button 
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-stats'] })}
+                className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead>
+                  <tr>
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Order ID
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {(stats?.recentOrders || []).slice(0, 5).map((order, index) => (
+                    <tr key={order?._id || index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-700">
+                        #{order?._id ? order._id.slice(-6) : `ORDER${index}`}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                        {order?.userId?.name || 'Guest'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                        {order?.createdAt ? formatDate(order.createdAt) : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                        {formatCurrency(order?.total || 0)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded ${getStatusBadgeClass(
+                          order?.statusHistory && order.statusHistory.length > 0 
+                            ? order.statusHistory[order.statusHistory.length - 1].status 
+                            : 'processing'
+                        )}`}>
+                          {order?.statusHistory && order.statusHistory.length > 0 
+                            ? order.statusHistory[order.statusHistory.length - 1].status.charAt(0).toUpperCase() + 
+                              order.statusHistory[order.statusHistory.length - 1].status.slice(1) 
+                            : 'Processing'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-xs font-medium">
+                        <button
+                          onClick={() => navigate(`/admin/orders/${order?._id}`)}
+                          className="text-java-600 hover:text-java-800 font-medium flex items-center transition-colors"
+                          disabled={!order?._id}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        
+        {/* Order Status Distribution */}
+        <div className="bg-white rounded-md shadow-sm p-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-medium text-gray-700">Order Status Distribution</h2>
+            <div className="flex flex-wrap items-center text-xs text-gray-500">
+              <div className="flex items-center mr-3 mb-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-java-400 mr-1"></span>
+                <span>Processing</span>
+              </div>
+              <div className="flex items-center mr-3 mb-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-green-400 mr-1"></span>
+                <span>Shipped</span>
+              </div>
+              <div className="flex items-center mr-3 mb-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-yellow-400 mr-1"></span>
+                <span>Ready</span>
+              </div>
+              <div className="flex items-center mb-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-red-400 mr-1"></span>
+                <span>Cancelled</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row justify-between items-center py-4">
+            {statsLoading ? (
+              <div className="w-full h-64 animate-pulse bg-gray-200 rounded"></div>
+            ) : (
               <motion.div 
-                key={salesTimeframe}
+                className="w-full h-64"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="h-full w-full"
+                transition={{ 
+                  duration: 0.8, 
+                  delay: 0.2,
+                  ease: [0.04, 0.62, 0.23, 0.98] 
+                }}
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={getSalesDataByTimeframe()}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    data={[
+                      { name: 'Processing', value: stats?.orderStatusDistribution?.processing || 0, color: '#38bdf8' },
+                      { name: 'Shipped', value: stats?.orderStatusDistribution?.shipped || 0, color: '#4ade80' },
+                      { name: 'Ready', value: stats?.orderStatusDistribution?.['ready-to-ship'] || 0, color: '#facc15' },
+                      { name: 'Delivered', value: stats?.orderStatusDistribution?.delivered || 0, color: '#10b981' },
+                      { name: 'Cancelled', value: stats?.orderStatusDistribution?.cancelled || 0, color: '#f87171' },
+                    ]}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                    layout="vertical"
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey={salesTimeframe === 'weekly' ? 'day' : salesTimeframe === 'monthly' ? 'month' : 'year'} 
-                      tick={{ fontSize: 12 }}
-                      tickMargin={10}
-                      stroke="#9ca3af"
-                    />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+                    <XAxis type="number" domain={[0, 'dataMax']} />
                     <YAxis 
-                      tickFormatter={(value) => `₹${value / 1000}k`}
-                      tick={{ fontSize: 12 }}
-                      tickMargin={10}
-                      stroke="#9ca3af"
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false}
+                      tickLine={false}
+                      width={100}
                     />
-                    <Tooltip 
-                      formatter={(value, name) => {
-                        if (name === 'sales') return [`₹${value.toLocaleString()}`, 'Total Sales'];
-                        if (name === 'cashfree') return [`₹${value.toLocaleString()}`, 'Cashfree'];
-                        if (name === 'cod') return [`₹${value.toLocaleString()}`, 'Cash on Delivery'];
-                        if (name === 'creditCard') return [`₹${value.toLocaleString()}`, 'Credit Card'];
-                        if (name === 'debitCard') return [`₹${value.toLocaleString()}`, 'Debit Card'];
-                        if (name === 'upi') return [`₹${value.toLocaleString()}`, 'UPI'];
-                        if (name === 'netBanking') return [`₹${value.toLocaleString()}`, 'Net Banking'];
-                        if (name === 'other') return [`₹${value.toLocaleString()}`, 'Other Methods'];
-                        return [`₹${value.toLocaleString()}`, name];
-                      }}
+                    <Tooltip
+                      formatter={(value, name, props) => [`${value} orders (${Math.round(value / (stats?.totalOrders || 1) * 100)}%)`, props.payload.name]}
                       contentStyle={{ 
                         backgroundColor: 'white', 
                         border: 'none', 
@@ -1511,503 +1871,157 @@ const AdminDashboard = () => {
                       }}
                       animationDuration={300}
                     />
-                    <Legend 
-                      verticalAlign="top" 
-                      height={36}
-                      iconType="circle"
-                      iconSize={8}
-                      formatter={(value) => {
-                        if (value === 'sales') return 'Total Sales';
-                        if (value === 'cashfree') return 'Cashfree';
-                        if (value === 'cod') return 'COD';
-                        if (value === 'creditCard') return 'Credit Card';
-                        if (value === 'debitCard') return 'Debit Card';
-                        if (value === 'upi') return 'UPI';
-                        if (value === 'netBanking') return 'Net Banking';
-                        if (value === 'other') return 'Other';
-                        return value;
-                      }}
-                    />
                     <Line 
-                      type="monotone" 
-                      dataKey="sales" 
-                      stroke="#38bdf8" 
-                      strokeWidth={2} 
-                      dot={{ r: 3, strokeWidth: 2, fill: '#38bdf8' }}
-                      activeDot={{ r: 5, strokeWidth: 0, fill: '#38bdf8' }}
-                      animationDuration={1500}
-                      animationEasing="ease-in-out"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="cashfree" 
-                      stroke="#10b981" 
-                      strokeWidth={2} 
-                      dot={{ r: 3, strokeWidth: 2, fill: '#10b981' }}
-                      activeDot={{ r: 5, strokeWidth: 0, fill: '#10b981' }}
-                      animationDuration={1500}
-                      animationEasing="ease-in-out"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="cod" 
-                      stroke="#f59e0b" 
-                      strokeWidth={2} 
-                      dot={{ r: 3, strokeWidth: 2, fill: '#f59e0b' }}
-                      activeDot={{ r: 5, strokeWidth: 0, fill: '#f59e0b' }}
+                      dataKey="value" 
+                      stroke="#38bdf8"
+                      strokeWidth={2}
+                      dot={{ stroke: '#38bdf8', strokeWidth: 2, r: 4, fill: 'white' }}
+                      activeDot={{ r: 6, fill: '#38bdf8' }}
                       animationDuration={1500}
                       animationEasing="ease-in-out"
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </motion.div>
-            </AnimatePresence>
-          )}
-        </div>
-      </div>
-      
-      {/* Payment Summary */}
-      <div className="bg-white rounded-md shadow-sm p-4 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-medium text-gray-700">Payment Summary</h2>
-        </div>
-        
-        {statsLoading ? (
-          <div className="h-full w-full flex items-center justify-center py-4">
-            <div className="animate-pulse bg-gray-200 h-20 w-full rounded"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {getSalesDataByTimeframe().length > 0 ? (
-              <>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">
-                    {salesTimeframe === 'weekly' ? 'Weekly' : salesTimeframe === 'monthly' ? 'Monthly' : 'Yearly'} Total
-                  </h3>
-                  <p className="text-xl font-semibold text-java-600">
-                    ₹{getSalesDataByTimeframe().reduce((sum, item) => sum + item.sales, 0).toLocaleString()}
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">Highest {salesTimeframe === 'weekly' ? 'Day' : salesTimeframe === 'monthly' ? 'Month' : 'Year'}</h3>
-                  <p className="text-xl font-semibold text-java-600">
-                    {(() => {
-                      const data = getSalesDataByTimeframe();
-                      const maxItem = data.reduce((max, item) => item.sales > max.sales ? item : max, { sales: 0 });
-                      const key = salesTimeframe === 'weekly' ? 'day' : salesTimeframe === 'monthly' ? 'month' : 'year';
-                      return maxItem[key] ? `${maxItem[key]} (₹${maxItem.sales.toLocaleString()})` : 'N/A';
-                    })()}
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">Average Per {salesTimeframe === 'weekly' ? 'Day' : salesTimeframe === 'monthly' ? 'Month' : 'Year'}</h3>
-                  <p className="text-xl font-semibold text-java-600">
-                    ₹{Math.round(getSalesDataByTimeframe().reduce((sum, item) => sum + item.sales, 0) / getSalesDataByTimeframe().length).toLocaleString()}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="col-span-3 text-center py-4">
-                <p className="text-gray-400 text-sm">No payment data available</p>
-              </div>
             )}
           </div>
-        )}
-        
-        {/* Payment Method Breakdown */}
-        {!statsLoading && getSalesDataByTimeframe().length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Payment Method Breakdown</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {(() => {
-                const data = getSalesDataByTimeframe();
-                const totalSales = data.reduce((sum, item) => sum + item.sales, 0);
-                
-                // Calculate totals for each payment method
-                const methodTotals = {
-                  cashfree: data.reduce((sum, item) => sum + item.cashfree, 0),
-                  cod: data.reduce((sum, item) => sum + item.cod, 0),
-                  creditCard: data.reduce((sum, item) => sum + item.creditCard, 0),
-                  debitCard: data.reduce((sum, item) => sum + item.debitCard, 0),
-                  upi: data.reduce((sum, item) => sum + item.upi, 0),
-                  netBanking: data.reduce((sum, item) => sum + item.netBanking, 0),
-                  other: data.reduce((sum, item) => sum + item.other, 0)
-                };
-                
-                // Create array of payment methods with their totals and percentages
-                const methods = [
-                  { name: 'Cashfree', total: methodTotals.cashfree, color: '#10b981' },
-                  { name: 'COD', total: methodTotals.cod, color: '#f59e0b' },
-                  { name: 'Credit Card', total: methodTotals.creditCard, color: '#ef4444' },
-                  { name: 'Debit Card', total: methodTotals.debitCard, color: '#3b82f6' },
-                  { name: 'UPI', total: methodTotals.upi, color: '#8b5cf6' },
-                  { name: 'Net Banking', total: methodTotals.netBanking, color: '#ec4899' },
-                  { name: 'Other', total: methodTotals.other, color: '#6b7280' }
-                ].filter(method => method.total > 0) // Only show methods with values
-                 .sort((a, b) => b.total - a.total); // Sort by highest total
-                
-                return methods.map((method, index) => {
-                  const percentage = totalSales > 0 ? Math.round((method.total / totalSales) * 100) : 0;
-                  
-                  return (
-                    <div key={index} className="bg-gray-50 p-3 rounded-md">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-medium text-gray-500">{method.name}</span>
-                        <span className="text-xs font-medium" style={{ color: method.color }}>{percentage}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div 
-                          className="h-1.5 rounded-full" 
-                          style={{ width: `${percentage}%`, backgroundColor: method.color }}
-                        ></div>
-                      </div>
-                      <p className="mt-1 text-sm font-medium text-gray-700">₹{method.total.toLocaleString()}</p>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Recent Orders */}
-      <div className="bg-white rounded-md shadow-sm p-4 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-medium text-gray-700">Recent Orders</h2>
-          <button 
-            onClick={() => setActiveTab('all-orders')}
-            className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center"
+          
+          {/* Status Details */}
+          <motion.div 
+            className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
           >
-            View All
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-        
-        {statsLoading ? (
-          // Loading skeleton for orders table
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-100 rounded mb-3"></div>
-            <>{[...Array(5)].map((_, index) => (
-              <div key={index} className="h-12 bg-gray-100 rounded mb-2"></div>
-            ))}</>
-          </div>
-        ) : !stats?.recentOrders || stats.recentOrders.length === 0 ? (
-          <div className="text-center py-6">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-            <p className="text-gray-400 text-sm mb-3">No orders found</p>
-            <button 
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-stats'] })}
-              className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
-            >
-              Refresh
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead>
-                <tr>
-                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Order ID
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {(stats?.recentOrders || []).slice(0, 5).map((order, index) => (
-                  <tr key={order?._id || index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-700">
-                      #{order?._id ? order._id.slice(-6) : `ORDER${index}`}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                      {order?.userId?.name || 'Guest'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                      {order?.createdAt ? formatDate(order.createdAt) : 'N/A'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                      {formatCurrency(order?.total || 0)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded ${getStatusBadgeClass(
-                        order?.statusHistory && order.statusHistory.length > 0 
-                          ? order.statusHistory[order.statusHistory.length - 1].status 
-                          : 'processing'
-                      )}`}>
-                        {order?.statusHistory && order.statusHistory.length > 0 
-                          ? order.statusHistory[order.statusHistory.length - 1].status.charAt(0).toUpperCase() + 
-                            order.statusHistory[order.statusHistory.length - 1].status.slice(1) 
-                          : 'Processing'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-xs font-medium">
-                      <button
-                        onClick={() => navigate(`/admin/orders/${order?._id}`)}
-                        className="text-java-600 hover:text-java-800 font-medium flex items-center transition-colors"
-                        disabled={!order?._id}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      
-      {/* Order Status Distribution */}
-      <div className="bg-white rounded-md shadow-sm p-4 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-medium text-gray-700">Order Status Distribution</h2>
-          <div className="flex flex-wrap items-center text-xs text-gray-500">
-            <div className="flex items-center mr-3 mb-1">
-              <span className="inline-block w-3 h-3 rounded-full bg-java-400 mr-1"></span>
-              <span>Processing</span>
-            </div>
-            <div className="flex items-center mr-3 mb-1">
-              <span className="inline-block w-3 h-3 rounded-full bg-green-400 mr-1"></span>
-              <span>Shipped</span>
-            </div>
-            <div className="flex items-center mr-3 mb-1">
-              <span className="inline-block w-3 h-3 rounded-full bg-yellow-400 mr-1"></span>
-              <span>Ready</span>
-            </div>
-            <div className="flex items-center mb-1">
-              <span className="inline-block w-3 h-3 rounded-full bg-red-400 mr-1"></span>
-              <span>Cancelled</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex flex-col md:flex-row justify-between items-center py-4">
-          {statsLoading ? (
-            <div className="w-full h-64 animate-pulse bg-gray-200 rounded"></div>
-          ) : (
+            {/* Processing Status */}
             <motion.div 
-              className="w-full h-64"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ 
-                duration: 0.8, 
-                delay: 0.2,
-                ease: [0.04, 0.62, 0.23, 0.98] 
-              }}
+              className="bg-gray-50 p-3 rounded-lg border border-gray-100"
+              whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={[
-                    { name: 'Processing', value: stats?.orderStatusDistribution?.processing || 0, color: '#38bdf8' },
-                    { name: 'Shipped', value: stats?.orderStatusDistribution?.shipped || 0, color: '#4ade80' },
-                    { name: 'Ready', value: stats?.orderStatusDistribution?.['ready-to-ship'] || 0, color: '#facc15' },
-                    { name: 'Delivered', value: stats?.orderStatusDistribution?.delivered || 0, color: '#10b981' },
-                    { name: 'Cancelled', value: stats?.orderStatusDistribution?.cancelled || 0, color: '#f87171' },
-                  ]}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
-                  layout="vertical"
+              <div className="flex items-center mb-1">
+                <span className="w-3 h-3 rounded-full bg-java-400 mr-2"></span>
+                <span className="text-sm font-medium text-gray-700">Processing</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <motion.span 
+                  className="text-xl font-semibold text-gray-800"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
-                  <XAxis type="number" domain={[0, 'dataMax']} />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    axisLine={false}
-                    tickLine={false}
-                    width={100}
-                  />
-                  <Tooltip
-                    formatter={(value, name, props) => [`${value} orders (${Math.round(value / (stats?.totalOrders || 1) * 100)}%)`, props.payload.name]}
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: 'none', 
-                      borderRadius: '0.375rem',
-                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-                      fontSize: '0.75rem'
-                    }}
-                    animationDuration={300}
-                  />
-                  <Line 
-                    dataKey="value" 
-                    stroke="#38bdf8"
-                    strokeWidth={2}
-                    dot={{ stroke: '#38bdf8', strokeWidth: 2, r: 4, fill: 'white' }}
-                    activeDot={{ r: 6, fill: '#38bdf8' }}
-                    animationDuration={1500}
-                    animationEasing="ease-in-out"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                  {stats?.orderStatusDistribution?.processing || 0}
+                </motion.span>
+                <span className="text-xs text-gray-500">
+                  {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.processing || 0) / stats.totalOrders * 100) : 0}%
+                </span>
+              </div>
             </motion.div>
-          )}
+            
+            {/* Ready to Ship Status */}
+            <motion.div 
+              className="bg-gray-50 p-3 rounded-lg border border-gray-100"
+              whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <div className="flex items-center mb-1">
+                <span className="w-3 h-3 rounded-full bg-yellow-400 mr-2"></span>
+                <span className="text-sm font-medium text-gray-700">Ready</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <motion.span 
+                  className="text-xl font-semibold text-gray-800"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                >
+                  {stats?.orderStatusDistribution?.['ready-to-ship'] || 0}
+                </motion.span>
+                <span className="text-xs text-gray-500">
+                  {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.['ready-to-ship'] || 0) / stats.totalOrders * 100) : 0}%
+                </span>
+              </div>
+            </motion.div>
+            
+            {/* Shipped Status */}
+            <motion.div 
+              className="bg-gray-50 p-3 rounded-lg border border-gray-100"
+              whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <div className="flex items-center mb-1">
+                <span className="w-3 h-3 rounded-full bg-green-400 mr-2"></span>
+                <span className="text-sm font-medium text-gray-700">Shipped</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <motion.span 
+                  className="text-xl font-semibold text-gray-800"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                >
+                  {stats?.orderStatusDistribution?.shipped || 0}
+                </motion.span>
+                <span className="text-xs text-gray-500">
+                  {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.shipped || 0) / stats.totalOrders * 100) : 0}%
+                </span>
+              </div>
+            </motion.div>
+            
+            {/* Delivered Status */}
+            <motion.div 
+              className="bg-gray-50 p-3 rounded-lg border border-gray-100"
+              whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <div className="flex items-center mb-1">
+                <span className="w-3 h-3 rounded-full bg-blue-400 mr-2"></span>
+                <span className="text-sm font-medium text-gray-700">Delivered</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <motion.span 
+                  className="text-xl font-semibold text-gray-800"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.7 }}
+                >
+                  {stats?.orderStatusDistribution?.delivered || 0}
+                </motion.span>
+                <span className="text-xs text-gray-500">
+                  {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.delivered || 0) / stats.totalOrders * 100) : 0}%
+                </span>
+              </div>
+            </motion.div>
+            
+            {/* Cancelled Status */}
+            <motion.div 
+              className="bg-gray-50 p-3 rounded-lg border border-gray-100"
+              whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <div className="flex items-center mb-1">
+                <span className="w-3 h-3 rounded-full bg-red-400 mr-2"></span>
+                <span className="text-sm font-medium text-gray-700">Cancelled</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <motion.span 
+                  className="text-xl font-semibold text-gray-800"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.8 }}
+                >
+                  {stats?.orderStatusDistribution?.cancelled || 0}
+                </motion.span>
+                <span className="text-xs text-gray-500">
+                  {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.cancelled || 0) / stats.totalOrders * 100) : 0}%
+                </span>
+              </div>
+            </motion.div>
+          </motion.div>
         </div>
-        
-        {/* Status Details */}
-        <motion.div 
-          className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          {/* Processing Status */}
-          <motion.div 
-            className="bg-gray-50 p-3 rounded-lg border border-gray-100"
-            whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          >
-            <div className="flex items-center mb-1">
-              <span className="w-3 h-3 rounded-full bg-java-400 mr-2"></span>
-              <span className="text-sm font-medium text-gray-700">Processing</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <motion.span 
-                className="text-xl font-semibold text-gray-800"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                {stats?.orderStatusDistribution?.processing || 0}
-              </motion.span>
-              <span className="text-xs text-gray-500">
-                {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.processing || 0) / stats.totalOrders * 100) : 0}%
-              </span>
-            </div>
-          </motion.div>
-          
-          {/* Ready to Ship Status */}
-          <motion.div 
-            className="bg-gray-50 p-3 rounded-lg border border-gray-100"
-            whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          >
-            <div className="flex items-center mb-1">
-              <span className="w-3 h-3 rounded-full bg-yellow-400 mr-2"></span>
-              <span className="text-sm font-medium text-gray-700">Ready</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <motion.span 
-                className="text-xl font-semibold text-gray-800"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
-              >
-                {stats?.orderStatusDistribution?.['ready-to-ship'] || 0}
-              </motion.span>
-              <span className="text-xs text-gray-500">
-                {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.['ready-to-ship'] || 0) / stats.totalOrders * 100) : 0}%
-              </span>
-            </div>
-          </motion.div>
-          
-          {/* Shipped Status */}
-          <motion.div 
-            className="bg-gray-50 p-3 rounded-lg border border-gray-100"
-            whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          >
-            <div className="flex items-center mb-1">
-              <span className="w-3 h-3 rounded-full bg-green-400 mr-2"></span>
-              <span className="text-sm font-medium text-gray-700">Shipped</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <motion.span 
-                className="text-xl font-semibold text-gray-800"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.6 }}
-              >
-                {stats?.orderStatusDistribution?.shipped || 0}
-              </motion.span>
-              <span className="text-xs text-gray-500">
-                {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.shipped || 0) / stats.totalOrders * 100) : 0}%
-              </span>
-            </div>
-          </motion.div>
-          
-          {/* Delivered Status */}
-          <motion.div 
-            className="bg-gray-50 p-3 rounded-lg border border-gray-100"
-            whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          >
-            <div className="flex items-center mb-1">
-              <span className="w-3 h-3 rounded-full bg-blue-400 mr-2"></span>
-              <span className="text-sm font-medium text-gray-700">Delivered</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <motion.span 
-                className="text-xl font-semibold text-gray-800"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.7 }}
-              >
-                {stats?.orderStatusDistribution?.delivered || 0}
-              </motion.span>
-              <span className="text-xs text-gray-500">
-                {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.delivered || 0) / stats.totalOrders * 100) : 0}%
-              </span>
-            </div>
-          </motion.div>
-          
-          {/* Cancelled Status */}
-          <motion.div 
-            className="bg-gray-50 p-3 rounded-lg border border-gray-100"
-            whileHover={{ scale: 1.03, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          >
-            <div className="flex items-center mb-1">
-              <span className="w-3 h-3 rounded-full bg-red-400 mr-2"></span>
-              <span className="text-sm font-medium text-gray-700">Cancelled</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <motion.span 
-                className="text-xl font-semibold text-gray-800"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.8 }}
-              >
-                {stats?.orderStatusDistribution?.cancelled || 0}
-              </motion.span>
-              <span className="text-xs text-gray-500">
-                {stats?.totalOrders ? Math.round((stats.orderStatusDistribution?.cancelled || 0) / stats.totalOrders * 100) : 0}%
-              </span>
-            </div>
-          </motion.div>
-        </motion.div>
-
-       
-
-     
-         
-          </div>
-    
-    </div>
-  );
+      </div>
+    );
+  };
 
   // State for All Orders tab
   const [allOrdersSelectedOrders, setAllOrdersSelectedOrders] = useState([]);
@@ -3620,8 +3634,8 @@ const AdminDashboard = () => {
         return renderContacts();
       case 'notifications':
         return <NotificationManagement />;
-      case 'cms':
-        return <CmsManagement />;
+      case 'site-content':
+        return <SiteContentManagement />;
       default:
         return <ProductManagement />;
     }
@@ -3659,105 +3673,103 @@ const AdminDashboard = () => {
             <div className="mb-4">
               {!isSidebarCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Dashboard</h3>}
               <div className="space-y-1">
-                {tabs
-                  .filter(tab => ['overview'].includes(tab.id))
-                  .map((tab) => {
-                    let icon;
-                    switch(tab.id) {
-                case 'overview':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>;
-                  break;
-                case 'products':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>;
-                  break;
-                case 'all-orders':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m-6-8h6M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>;
-                  break;
-                case 'ready-to-ship':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>;
-                  break;
-                case 'dispatched':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-                  </svg>;
-                  break;
-                case 'cancelled':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>;
-                  break;
-                case 'returns':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>;
-                  break;
-                case 'customers':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>;
-                  break;
-                case 'categories':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>;
-                  break;
-                case 'collections':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                  </svg>;
-                  break;
-                case 'promotions':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                  </svg>;
-                  break;
-                case 'contacts':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>;
-                  break;
-                case 'notifications':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                  </svg>;
-                  break;
-                case 'cms':
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>;
-                  break;
-                default:
-                  icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>;
-              }
-              
-              return (
-                <React.Fragment key={tab.id}>
-                  <button
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
-                      ${activeTab === tab.id
-                        ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
-                      transition-all duration-150 ease-in-out
-                    `}
-                  >
-                    <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
-                    {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
-                  </button>
-                </React.Fragment>
-              );
-            })}
+                {tabs.filter(tab => tab.department === 'all').map((tab) => {
+                  let icon;
+                  switch(tab.id) {
+                    case 'overview':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>;
+                      break;
+                    case 'products':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>;
+                      break;
+                    case 'all-orders':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m-6-8h6M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>;
+                      break;
+                    case 'ready-to-ship':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>;
+                      break;
+                    case 'dispatched':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                      </svg>;
+                      break;
+                    case 'cancelled':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>;
+                      break;
+                    case 'returns':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>;
+                      break;
+                    case 'customers':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>;
+                      break;
+                    case 'categories':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>;
+                      break;
+                    case 'collections':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      </svg>;
+                      break;
+                    case 'promotions':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                      </svg>;
+                      break;
+                    case 'contacts':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>;
+                      break;
+                    case 'notifications':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>;
+                      break;
+                    case 'cms':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>;
+                      break;
+                    default:
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>;
+                  }
+                  
+                  return (
+                    <React.Fragment key={tab.id}>
+                      <button
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`
+                          w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
+                          ${activeTab === tab.id
+                            ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
+                          transition-all duration-150 ease-in-out
+                        `}
+                      >
+                        <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
+                        {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
             
@@ -3765,55 +3777,53 @@ const AdminDashboard = () => {
             <div className="mb-4">
               {!isSidebarCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Catalog</h3>}
               <div className="space-y-1">
-                {tabs
-                  .filter(tab => ['products', 'categories', 'collections', 'promotions'].includes(tab.id))
-                  .map((tab) => {
-                    let icon;
-                    switch(tab.id) {
-                      case 'products':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>;
-                        break;
-                      case 'categories':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                        </svg>;
-                        break;
-                      case 'collections':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                        </svg>;
-                        break;
-                      case 'promotions':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                        </svg>;
-                        break;
-                      default:
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>;
-                    }
-                    
-                    return (
-                      <React.Fragment key={tab.id}>
-                        <button
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`
-                            w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
-                            ${activeTab === tab.id
-                              ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
-                              : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
-                            transition-all duration-150 ease-in-out
-                          `}
-                        >
-                          <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
-                          {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
-                        </button>
-                      </React.Fragment>
-                    );
-                  })}
+                {tabs.filter(tab => tab.department === 'Catalog').map((tab) => {
+                  let icon;
+                  switch(tab.id) {
+                    case 'products':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>;
+                      break;
+                    case 'categories':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>;
+                      break;
+                    case 'collections':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      </svg>;
+                      break;
+                    case 'promotions':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                      </svg>;
+                      break;
+                    default:
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>;
+                  }
+                  
+                  return (
+                    <React.Fragment key={tab.id}>
+                      <button
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`
+                          w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
+                          ${activeTab === tab.id
+                            ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
+                          transition-all duration-150 ease-in-out
+                        `}
+                      >
+                        <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
+                        {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
             
@@ -3821,60 +3831,58 @@ const AdminDashboard = () => {
             <div className="mb-4">
               {!isSidebarCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Orders</h3>}
               <div className="space-y-1">
-                {tabs
-                  .filter(tab => ['all-orders', 'ready-to-ship', 'dispatched', 'cancelled', 'returns'].includes(tab.id))
-                  .map((tab) => {
-                    let icon;
-                    switch(tab.id) {
-                      case 'all-orders':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m-6-8h6M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>;
-                        break;
-                      case 'ready-to-ship':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>;
-                        break;
-                      case 'dispatched':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-                        </svg>;
-                        break;
-                      case 'cancelled':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>;
-                        break;
-                      case 'returns':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>;
-                        break;
-                      default:
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>;
-                    }
-                    
-                    return (
-                      <React.Fragment key={tab.id}>
-                        <button
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`
-                            w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
-                            ${activeTab === tab.id
-                              ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
-                              : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
-                            transition-all duration-150 ease-in-out
-                          `}
-                        >
-                          <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
-                          {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
-                        </button>
-                      </React.Fragment>
-                    );
-                  })}
+                {tabs.filter(tab => tab.department === 'Orders').map((tab) => {
+                  let icon;
+                  switch(tab.id) {
+                    case 'all-orders':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m-6-8h6M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>;
+                      break;
+                    case 'ready-to-ship':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>;
+                      break;
+                    case 'dispatched':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                      </svg>;
+                      break;
+                    case 'cancelled':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>;
+                      break;
+                    case 'returns':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>;
+                      break;
+                    default:
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>;
+                  }
+                  
+                  return (
+                    <React.Fragment key={tab.id}>
+                      <button
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`
+                          w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
+                          ${activeTab === tab.id
+                            ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
+                          transition-all duration-150 ease-in-out
+                        `}
+                      >
+                        <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
+                        {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
             
@@ -3882,60 +3890,58 @@ const AdminDashboard = () => {
             <div className="mb-4">
               {!isSidebarCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Users & Communication</h3>}
               <div className="space-y-1">
-                {tabs
-                  .filter(tab => ['customers', 'subadmins', 'contacts', 'notifications'].includes(tab.id))
-                  .map((tab) => {
-                    let icon;
-                    switch(tab.id) {
-                      case 'customers':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>;
-                        break;
-                      case 'subadmins':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>;
-                        break;
-                      case 'contacts':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                        </svg>;
-                        break;
-                      case 'notifications':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                        </svg>;
-                        break;
-                      default:
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>;
-                    }
-                    
-                    return (
-                      <React.Fragment key={tab.id}>
-                        <button
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`
-                            w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
-                            ${activeTab === tab.id
-                              ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
-                              : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
-                            transition-all duration-150 ease-in-out
-                          `}
-                        >
-                          <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
-                          {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
-                          {!isSidebarCollapsed && tab.id === 'contacts' && unreadContactCount > 0 && (
-                            <span className="ml-auto bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
-                              {unreadContactCount}
-                            </span>
-                          )}
-                        </button>
-                      </React.Fragment>
-                    );
-                  })}
+                {tabs.filter(tab => tab.department === 'User Communication').map((tab) => {
+                  let icon;
+                  switch(tab.id) {
+                    case 'customers':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>;
+                      break;
+                    case 'subadmins':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>;
+                      break;
+                    case 'contacts':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>;
+                      break;
+                    case 'notifications':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>;
+                      break;
+                    default:
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>;
+                  }
+                  
+                  return (
+                    <React.Fragment key={tab.id}>
+                      <button
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`
+                          w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
+                          ${activeTab === tab.id
+                            ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
+                          transition-all duration-150 ease-in-out
+                        `}
+                      >
+                        <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
+                        {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
+                        {!isSidebarCollapsed && tab.id === 'contacts' && unreadContactCount > 0 && (
+                          <span className="ml-auto bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
+                            {unreadContactCount}
+                          </span>
+                        )}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
             
@@ -3943,40 +3949,38 @@ const AdminDashboard = () => {
             <div className="mb-4">
               {!isSidebarCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Content</h3>}
               <div className="space-y-1">
-                {tabs
-                  .filter(tab => ['cms'].includes(tab.id))
-                  .map((tab) => {
-                    let icon;
-                    switch(tab.id) {
-                      case 'cms':
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>;
-                        break;
-                      default:
-                        icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>;
-                    }
-                    
-                    return (
-                      <React.Fragment key={tab.id}>
-                        <button
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`
-                            w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
-                            ${activeTab === tab.id
-                              ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
-                              : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
-                            transition-all duration-150 ease-in-out
-                          `}
-                        >
-                          <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
-                          {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
-                        </button>
-                      </React.Fragment>
-                    );
-                  })}
+                {tabs.filter(tab => tab.department === 'Content').map((tab) => {
+                  let icon;
+                  switch(tab.id) {
+                    case 'cms':
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>;
+                      break;
+                    default:
+                      icon = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>;
+                  }
+                  
+                  return (
+                    <React.Fragment key={tab.id}>
+                      <button
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`
+                          w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg mb-1
+                          ${activeTab === tab.id
+                            ? 'bg-java-50 text-java-700 border-l-4 border-java-400'
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-java-600'}
+                          transition-all duration-150 ease-in-out
+                        `}
+                      >
+                        <span className={`${activeTab === tab.id ? 'text-java-500' : 'text-gray-500'} mr-3 flex-shrink-0`}>{icon}</span>
+                        {!isSidebarCollapsed && <span className="truncate">{tab.label}</span>}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
           </nav>

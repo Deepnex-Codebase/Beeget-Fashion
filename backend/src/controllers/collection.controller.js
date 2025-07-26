@@ -76,32 +76,51 @@ export const getCollections = async (req, res, next) => {
     // Build query
     const query = {};
     
-    // Filter by active status if specified
-    if (active !== undefined) {
-      query.active = active === 'true';
+    // No filtering by active status - send all collections
+    // Keeping query empty to get all collections
+    console.log('Sending all collections without active filtering');
+    
+    // Get collections with detailed logging
+    console.log('Executing Collection.find() with query:', JSON.stringify(query));
+    
+    let collections = [];
+    try {
+      collections = await Collection.find(query).sort({ order: 1, createdAt: -1 });
+      console.log(`Found ${collections.length} collections in database`);
+      
+      // Log first collection for debugging if available
+      if (collections.length > 0) {
+        console.log('Sample collection:', {
+          id: collections[0]._id,
+          name: collections[0].name,
+          active: collections[0].active,
+          startDate: collections[0].startDate,
+          endDate: collections[0].endDate
+        });
+      }
+    } catch (dbError) {
+      console.error('Database error in Collection.find():', dbError);
+      throw dbError;
     }
     
-    // Get collections
-    const collections = await Collection.find(query).sort({ order: 1, createdAt: -1 });
+    // No filtering by date - send all collections directly
+    console.log('Total collections found:', collections.length);
     
-    // Filter collections by date if needed
-    const now = new Date();
-    const filteredCollections = active === 'true' ? 
-      collections.filter(collection => {
-        // Check if collection is active based on dates
-        if (!collection.active) return false;
-        if (collection.startDate && collection.startDate > now) return false;
-        if (collection.endDate && collection.endDate < now) return false;
-        return true;
-      }) : 
-      collections;
+    // Use all collections without filtering
+    const filteredCollections = collections;
+    
+    console.log('Sending all collections without date filtering');
 
-    // Return collections
-    res.status(200).json({
-      success: true,
-      data: filteredCollections
-    });
+    // Log the response being sent
+    console.log(`Sending ${filteredCollections.length} collections in response`);
+    
+    // Return collections directly without nested data property
+    res.status(200).json(filteredCollections);
+    
+    // Log response for debugging
+    console.log(`Sending direct response with ${filteredCollections.length} collections`);
   } catch (error) {
+    console.error('Error in getCollections:', error);
     next(error);
   }
 };

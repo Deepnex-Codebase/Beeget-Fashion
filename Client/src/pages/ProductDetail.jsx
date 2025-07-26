@@ -213,7 +213,18 @@ const ProductDetail = () => {
         setReviewImages([])
         
         // Refresh reviews
-        fetchProductReviews()
+        if (product && product._id) {
+          fetchProductReviews(product._id, 1, 'all')
+            .then(result => {
+              console.log('Reviews refreshed after submission:', result)
+              // Reset filter to show all reviews including the new one
+              setReviewsFilter('all')
+              setReviewsPage(1)
+            })
+            .catch(err => {
+              console.error('Error refreshing reviews after submission:', err)
+            })
+        }
       } else {
         toast.error(response.data.message || 'Failed to submit review')
       }
@@ -312,73 +323,85 @@ const ProductDetail = () => {
   
   // Fetch reviews for a product
   const fetchProductReviews = async (productId, page = 1, filter = 'all') => {
-    if (!productId) return
-    
-    setIsReviewsLoading(true)
-    
-    try {
-      // Build query parameters
-      const params = new URLSearchParams()
-      params.append('page', page)
-      params.append('limit', reviewsLimit)
+    return new Promise(async (resolve, reject) => {
+      if (!productId) {
+        setIsReviewsLoading(false)
+        return reject(new Error('Product ID is required'))
+      }
       
-      // Add sorting - newest first by default
-      params.append('sort', 'createdAt')
-      params.append('order', 'desc')
+      setIsReviewsLoading(true)
       
-      // Add filter based on type
-      if (filter !== 'all') {
-        if (filter === 'with_photos') {
-          params.append('has_images', 'true')
-        } else if (filter === 'recent') {
-          // Already sorted by newest first
-        } else if (filter === 'highest_rated') {
-          params.set('sort', 'rating')
-          params.set('order', 'desc')
-        } else if (filter === 'lowest_rated') {
-          params.set('sort', 'rating')
-          params.set('order', 'asc')
-        } else if (!isNaN(parseInt(filter))) {
-          params.append('rating', parseInt(filter))
+      try {
+        // Build query parameters
+        const params = new URLSearchParams()
+        params.append('page', page)
+        params.append('limit', reviewsLimit)
+        
+        // Add sorting - newest first by default
+        params.append('sort', 'createdAt')
+        params.append('order', 'desc')
+        
+        // Add filter based on type
+        if (filter !== 'all') {
+          if (filter === 'with_photos') {
+            params.append('with_photos', 'true') // Changed from 'has_images' to 'with_photos' to match filter button
+          } else if (filter === 'recent') {
+            // Already sorted by newest first
+          } else if (filter === 'highest_rated') {
+            params.set('sort', 'rating')
+            params.set('order', 'desc')
+          } else if (filter === 'lowest_rated') {
+            params.set('sort', 'rating')
+            params.set('order', 'asc')
+          } else if (!isNaN(parseInt(filter))) {
+            params.append('rating', parseInt(filter))
+          }
         }
-      }
-      
-      const url = `/reviews/product/${productId}?${params.toString()}`
-      console.log('Fetching reviews with URL:', url)
-      
-      const response = await api.get(url)
-      
-      if (response.data && response.data.success && response.data.data) {
-        const { reviews: fetchedReviews, stats, pagination } = response.data.data
         
-        setReviews(fetchedReviews)
-        setReviewStats(stats)
-        setReviewsTotalPages(pagination.pages || 1)
+        const url = `/reviews/product/${productId}?${params.toString()}`
+        console.log('Fetching reviews with URL:', url)
         
-        // Log for debugging
-        console.log('Fetched reviews:', fetchedReviews.length)
-        console.log('Review stats:', stats)
+        const response = await api.get(url)
+        
+        if (response.data && response.data.success && response.data.data) {
+          const { reviews: fetchedReviews, stats, pagination } = response.data.data
+          
+          setReviews(fetchedReviews)
+          setReviewStats(stats)
+          setReviewsTotalPages(pagination.pages || 1)
+          
+          // Log for debugging
+          console.log('Fetched reviews:', fetchedReviews.length)
+          console.log('Review stats:', stats)
+          
+          setIsReviewsLoading(false)
+          return resolve({ fetchedReviews, stats, pagination })
+        } else {
+          setIsReviewsLoading(false)
+          return reject(new Error('Invalid response format'))
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error)
+        // If API fails, use empty reviews
+        setReviews([])
+        setReviewStats({
+          averageRating: 0,
+          totalReviews: 0,
+          rating5: 0,
+          rating4: 0,
+          rating3: 0,
+          rating2: 0,
+          rating1: 0
+        })
+        setReviewsTotalPages(1)
+        
+        // Show error toast
+        toast.error('Failed to load reviews. Please try again.')
+        
+        setIsReviewsLoading(false)
+        return reject(error)
       }
-    } catch (error) {
-      console.error('Error fetching reviews:', error)
-      // If API fails, use empty reviews
-      setReviews([])
-      setReviewStats({
-        averageRating: 0,
-        totalReviews: 0,
-        rating5: 0,
-        rating4: 0,
-        rating3: 0,
-        rating2: 0,
-        rating1: 0
-      })
-      setReviewsTotalPages(1)
-      
-      // Show error toast
-      toast.error('Failed to load reviews. Please try again.')
-    } finally {
-      setIsReviewsLoading(false)
-    }
+    })
   }
   
   // Handle review filter change
@@ -400,11 +423,18 @@ const ProductDetail = () => {
       // Add a small delay for better UX
       setTimeout(() => {
         fetchProductReviews(product._id, 1, filter)
+          .then(result => {
+            console.log('Filter applied successfully:', filter, result)
+          })
           .catch(err => {
             console.error('Error applying filter:', err)
             toast.error('Failed to apply filter. Please try again.')
           })
       }, 300)
+    } else {
+      // If no product ID, end loading state
+      setIsReviewsLoading(false)
+      toast.error('Product information is missing')
     }
     
     // Log for debugging
@@ -417,7 +447,17 @@ const ProductDetail = () => {
     
     setReviewsPage(newPage)
     if (product && product._id) {
+      setIsReviewsLoading(true)
       fetchProductReviews(product._id, newPage, reviewsFilter)
+        .then(result => {
+          console.log('Page changed successfully:', newPage, result)
+        })
+        .catch(err => {
+          console.error('Error changing page:', err)
+          toast.error('Failed to load reviews for this page. Please try again.')
+        })
+    } else {
+      toast.error('Product information is missing')
     }
   }
   
@@ -449,6 +489,12 @@ const ProductDetail = () => {
             // Fetch reviews for the product
             if (foundProduct._id) {
               fetchProductReviews(foundProduct._id, reviewsPage, reviewsFilter)
+                .then(result => {
+                  console.log('Reviews fetched successfully:', result)
+                })
+                .catch(err => {
+                  console.error('Error fetching reviews:', err)
+                })
             }
             
             // Fetch related products
@@ -534,18 +580,6 @@ const ProductDetail = () => {
   
   // Handle add to cart
   const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      toast.error('Please log in to add items to your cart', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
-      return
-    }
-    
     if (!selectedSize) {
       toast.warning('Please select a size', {
         position: "top-right",
@@ -728,70 +762,82 @@ const ProductDetail = () => {
                 {/* Mobile Swipeable Gallery */}
                 <div 
                   className="relative w-full overflow-hidden rounded-lg border border-java-100 touch-pan-y"
-                  style={{ height: window.innerWidth <= 768 ? '450px' : window.innerWidth <= 1024 ? '500px' : '550px' }}
                 >
                   {/* Main Image Container with Swipe Functionality */}
                   <div 
-                    ref={imageRef}
-                    className={`relative w-full h-full overflow-hidden ${isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-                    onClick={toggleZoom}
-                    onMouseMove={isZoomed ? handleImageZoom : undefined}
-                    onTouchStart={(e) => {
-                      // Store the initial touch position for swipe detection
-                      const touchDown = e.touches[0].clientX;
-                      e.currentTarget.dataset.touchStartX = touchDown.toString();
-                    }}
-                    onTouchMove={(e) => {
-                      // Skip if we didn't store a touchDown property
-                      const touchDown = e.currentTarget.dataset.touchStartX;
-                      if (touchDown === undefined) return;
+                      ref={imageRef}
+                     className={`relative w-full overflow-auto ${isZoomed ? 'cursor-zoom-out' : 'cursor-default'}`}
+                     onMouseMove={isZoomed ? handleImageZoom : undefined}
+                    >
+                      {/* Mobile View - Horizontal Slider */}
+                      <div 
+                        className="md:hidden w-full min-h-[400px] overflow-x-auto flex snap-x snap-mandatory scroll-smooth"
+                        onScroll={(e) => {
+                          // Update selectedImageIndex based on scroll position
+                          if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                            const slider = e.currentTarget;
+                            const slideWidth = slider.offsetWidth;
+                            const scrollLeft = slider.scrollLeft;
+                            const index = Math.round(scrollLeft / slideWidth);
+                            if (index !== selectedImageIndex && index >= 0 && index < product.images.length) {
+                              setSelectedImageIndex(index);
+                            }
+                          }
+                        }}
+                      >
+                        {product.images && Array.isArray(product.images) && product.images.map((image, index) => (
+                          <div key={index} className="flex-shrink-0 w-full snap-center p-2 flex items-center justify-center">
+                            <img 
+                              src={image ? image.trim().replace(/`/g, '') : '/placeholder-product.svg'} 
+                              alt={`${product.title} view ${index + 1}`} 
+                              className="w-full object-contain hover:scale-105 transition-transform duration-300 p-2"
+                              onError={(e) => {
+                                console.error('Image failed to load:', e.target.src);
+                                e.target.src = '/placeholder-product.svg';
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedImageIndex(index);
+                                toggleZoom();
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
                       
-                      // Calculate distance moved
-                      const currentTouch = e.touches[0].clientX;
-                      const diff = parseFloat(touchDown) - currentTouch;
-                      
-                      // If the user swiped more than 5px, change the image
-                      if (diff > 50) {
-                        // Swiped left, show next image
-                        setSelectedImageIndex(prev => (prev === product.images.length - 1 ? 0 : prev + 1));
-                        e.currentTarget.dataset.touchStartX = undefined; // Reset
-                      } else if (diff < -50) {
-                        // Swiped right, show previous image
-                        setSelectedImageIndex(prev => (prev === 0 ? product.images.length - 1 : prev - 1));
-                        e.currentTarget.dataset.touchStartX = undefined; // Reset
-                      }
-                    }}
-                    onTouchEnd={(e) => {
-                      // Reset the touch start position
-                      e.currentTarget.dataset.touchStartX = undefined;
-                    }}
-                  >
-                    <motion.img 
-                      src={product.images && Array.isArray(product.images) && product.images.length > 0 
-                        ? product.images[selectedImageIndex].trim().replace(/`/g, '') // Remove backticks and trim whitespace
-                        : '/placeholder-product.svg'} 
-                      alt={product.title} 
-                      className={`w-full h-full object-contain transition-all duration-500 ${isZoomed ? 'opacity-0' : 'opacity-100'} p-2`}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: isZoomed ? 0 : 1 }}
-                      key={selectedImageIndex}
-                      transition={{ duration: 0.3 }}
-                      onError={(e) => {
-                        console.error('Image failed to load:', e.target.src);
-                        e.target.src = '/placeholder-product.svg'; // Fallback to placeholder on error
-                      }}
-                    />
+                      {/* Desktop View - Grid Layout */}
+                      <div className="hidden md:grid grid-cols-2 gap-4 p-3 w-full">
+                        {product.images && Array.isArray(product.images) && product.images.map((image, index) => (
+                          <div key={index} className="relative rounded-lg overflow-hidden border-2 border-java-200 shadow-md hover:shadow-lg transition-all duration-300">
+                            <img 
+                              src={image ? image.trim().replace(/`/g, '') : '/placeholder-product.svg'} 
+                              alt={`${product.title} view ${index + 1}`} 
+                              className="w-full object-contain hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                console.error('Image failed to load:', e.target.src);
+                                e.target.src = '/placeholder-product.svg';
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedImageIndex(index);
+                                toggleZoom();
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     {isZoomed && (
                       <div 
-                        className="absolute inset-0 bg-white"
+                        className="absolute inset-0 bg-white z-20"
                         style={{
                           backgroundImage: `url(${product.images && Array.isArray(product.images) && product.images.length > 0 
                             ? product.images[selectedImageIndex].trim().replace(/`/g, '') // Remove backticks and trim whitespace
                             : '/placeholder-product.svg'})`,
                           backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                          backgroundSize: '250%',
+                          backgroundSize: '150%',
                           backgroundRepeat: 'no-repeat'
                         }}
+                        onClick={toggleZoom}
                       />
                     )}
                     
@@ -809,50 +855,67 @@ const ProductDetail = () => {
                       </svg>
                     </button>
                   
-                    {/* Navigation arrows - visible on desktop and tablet, hidden on mobile (using swipe instead) */}
+                    {/* Mobile Pagination Indicators */}
+                    <div className="md:hidden absolute bottom-4 left-0 right-0 flex justify-center space-x-2 z-10">
+                      {product.images && Array.isArray(product.images) && product.images.map((_, index) => (
+                        <button
+                          key={index}
+                          className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${index === selectedImageIndex ? 'bg-java-500 w-4' : 'bg-gray-300'}`}
+                          onClick={() => {
+                            setSelectedImageIndex(index);
+                            // Scroll to this image in the slider
+                            const slider = document.querySelector('.snap-x');
+                            if (slider) {
+                              const slideWidth = slider.offsetWidth;
+                              slider.scrollTo({ left: slideWidth * index, behavior: 'smooth' });
+                            }
+                          }}
+                          aria-label={`View image ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* Navigation Arrows for Mobile */}
                     {product.images && Array.isArray(product.images) && product.images.length > 1 && (
-                      <>
-                        <button 
-                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-md transition-all duration-300 focus:outline-none z-10 hidden sm:block"
+                      <div className="md:hidden absolute inset-y-0 left-0 right-0 flex justify-between items-center px-2 z-10">
+                        <button
+                          className="bg-white/70 hover:bg-white p-1.5 rounded-full shadow-md transition-all duration-300"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedImageIndex(prev => (prev === 0 ? product.images.length - 1 : prev - 1));
+                            const newIndex = selectedImageIndex === 0 ? product.images.length - 1 : selectedImageIndex - 1;
+                            setSelectedImageIndex(newIndex);
+                            // Scroll to this image in the slider
+                            const slider = document.querySelector('.snap-x');
+                            if (slider) {
+                              const slideWidth = slider.offsetWidth;
+                              slider.scrollTo({ left: slideWidth * newIndex, behavior: 'smooth' });
+                            }
                           }}
                           aria-label="Previous image"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-java-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                           </svg>
                         </button>
-                        <button 
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-md transition-all duration-300 focus:outline-none z-10 hidden sm:block"
+                        <button
+                          className="bg-white/70 hover:bg-white p-1.5 rounded-full shadow-md transition-all duration-300"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedImageIndex(prev => (prev === product.images.length - 1 ? 0 : prev + 1));
+                            const newIndex = selectedImageIndex === product.images.length - 1 ? 0 : selectedImageIndex + 1;
+                            setSelectedImageIndex(newIndex);
+                            // Scroll to this image in the slider
+                            const slider = document.querySelector('.snap-x');
+                            if (slider) {
+                              const slideWidth = slider.offsetWidth;
+                              slider.scrollTo({ left: slideWidth * newIndex, behavior: 'smooth' });
+                            }
                           }}
                           aria-label="Next image"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-java-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
-                      </>
-                    )}
-                    
-                    {/* Mobile pagination dots - only visible on mobile */}
-                    {product.images && Array.isArray(product.images) && product.images.length > 1 && (
-                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1.5 sm:hidden">
-                        {product.images.map((_, index) => (
-                          <button
-                            key={index}
-                            className={`w-2 h-2 rounded-full transition-all duration-300 ${selectedImageIndex === index ? 'bg-java-500 w-4' : 'bg-gray-300'}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedImageIndex(index);
-                            }}
-                            aria-label={`Go to image ${index + 1}`}
-                          />
-                        ))}
                       </div>
                     )}
                   </div>
@@ -875,31 +938,7 @@ const ProductDetail = () => {
                 </button>
               </div>
               
-              {/* Thumbnail Gallery - Hidden on mobile, visible on tablet and desktop */}
-              <div className="hidden sm:flex space-x-1.5 sm:space-x-2 md:space-x-3 overflow-x-auto pb-2 pt-1 scrollbar-hide justify-center md:justify-start px-1 sm:px-2">
-                {product.images && Array.isArray(product.images) && product.images.map((image, index) => (
-                  <div 
-                    key={index} 
-                    className={`relative flex-shrink-0 cursor-pointer transition-all duration-300 rounded-md overflow-hidden ${selectedImageIndex === index 
-                      ? 'border-2 border-java-500 shadow-md ring-1 ring-java-300 ring-offset-1' 
-                      : 'border border-java-200 hover:border-java-300 shadow-sm'}`}
-                    onClick={() => setSelectedImageIndex(index)}
-                  >
-                    <img 
-                      src={image ? image.trim().replace(/`/g, '') : '/placeholder-product.svg'} 
-                      alt={`${product.title} view ${index + 1}`} 
-                      className="w-12 h-14 sm:w-16 sm:h-18 md:w-18 md:h-22 object-cover hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        console.error('Thumbnail failed to load:', e.target.src);
-                        e.target.src = '/placeholder-product.svg';
-                      }}
-                    />
-                    {selectedImageIndex === index && (
-                      <div className="absolute inset-0 bg-java-500/10"></div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {/* No thumbnail gallery needed as all images are displayed in the main grid */}
             </div>
             
             {/* Product Info - Right Side */}
@@ -912,19 +951,31 @@ const ProductDetail = () => {
                 {/* Ratings */}
                 <div className="flex items-center mb-3 sm:mb-4">
                   <div className="flex text-yellow-400">
-                    {[...Array(5)].map((_, i) => (
-                      <svg 
-                        key={i} 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${i < (product.rating || 4) ? 'text-yellow-400' : 'text-gray-300'}`}
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
+                    {[...Array(5)].map((_, i) => {
+                      // Determine color based on rating
+                      const rating = reviewStats.averageRating || 0;
+                      let starColor = '';
+                      if (rating >= 4) starColor = 'text-green-500';
+                      else if (rating >= 3) starColor = 'text-yellow-500';
+                      else if (rating > 0) starColor = 'text-red-500';
+                      else starColor = 'text-yellow-400'; // Default color when no ratings
+                      
+                      return (
+                        <svg 
+                          key={i} 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${i < Math.floor(rating) ? starColor : 'text-gray-300'}`}
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      );
+                    })}
                   </div>
-                  <span className="text-gray-500 ml-2 text-xs sm:text-sm">{product.rating || 4.0} | {product.reviewCount || 24} Ratings</span>
+                  <span className="text-gray-500 ml-2 text-xs sm:text-sm">
+                    {reviewStats.averageRating ? reviewStats.averageRating.toFixed(1) : '0.0'} | {reviewStats.totalReviews || 0} Ratings
+                  </span>
                 </div>
                 
                 {/* Price */}
@@ -1200,13 +1251,13 @@ const ProductDetail = () => {
                 <Button 
                   fullWidth 
                   onClick={handleAddToCart}
-                  disabled={!isAuthenticated || !(product.variants && product.variants.length > 0 && product.variants[0].stock > 0)}
+                  disabled={!(product.variants && product.variants.length > 0 && product.variants[0].stock > 0)}
                   className="bg-java-500 hover:bg-java-600 text-white py-3 rounded-md shadow-sm transition-colors duration-300 flex items-center justify-center gap-2 font-medium"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
-                  {!(product.variants && product.variants.length > 0 && product.variants[0].stock > 0) ? 'OUT OF STOCK' : isAuthenticated ? 'ADD TO BAG' : 'LOGIN TO ADD TO BAG'}
+                  {!(product.variants && product.variants.length > 0 && product.variants[0].stock > 0) ? 'OUT OF STOCK' : 'ADD TO BAG'}
                 </Button>
                 <Button 
                   variant="secondary" 
@@ -1382,15 +1433,15 @@ const ProductDetail = () => {
               <div className="lg:w-1/3 lg:border-r lg:border-java-100 lg:pr-8">
                 <div className="text-center bg-java-50 p-3 sm:p-6 rounded-lg mb-4 sm:mb-5 shadow-sm">
                   <div className="text-3xl sm:text-5xl font-medium mb-2 sm:mb-3">
-                    <span className={`${product.rating >= 4 ? 'text-green-600' : product.rating >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>
-                      {product.rating || 4.0}
+                    <span className={`${reviewStats.averageRating >= 4 ? 'text-green-600' : reviewStats.averageRating >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      {reviewStats.averageRating ? reviewStats.averageRating.toFixed(1) : '0.0'}
                     </span>
                     <span className="text-lg sm:text-xl text-gray-600">/5</span>
                   </div>
                   <div className="flex justify-center mb-2 sm:mb-3">
                     {[...Array(5)].map((_, i) => {
                       // Determine color based on rating
-                      const rating = product.rating || 4.0;
+                      const rating = reviewStats.averageRating || 0;
                       let starColor = '';
                       if (rating >= 4) starColor = 'text-green-500';
                       else if (rating >= 3) starColor = 'text-yellow-500';
@@ -1410,7 +1461,7 @@ const ProductDetail = () => {
                     })}
                   </div>
                   <div className="text-xs sm:text-sm text-java-600 mb-1 sm:mb-2">
-                    <span className="bg-java-100 text-java-700 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md font-medium">{reviewStats.totalReviews || product.reviewCount || 24}</span> <span className="ml-1 sm:ml-2">Verified Ratings</span>
+                    <span className="bg-java-100 text-java-700 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md font-medium">{reviewStats.totalReviews || 0}</span> <span className="ml-1 sm:ml-2">Verified Ratings</span>
                   </div>
                 </div>
                 
@@ -1431,6 +1482,8 @@ const ProductDetail = () => {
                     };
                     
                     const percentage = getPercentage(star);
+                    const count = reviewStats[`rating${star}`] || 0;
+                    
                     // Define colors based on rating value
                     const getRatingColor = (rating) => {
                       if (rating >= 4) return "text-green-600";
@@ -1458,7 +1511,10 @@ const ProductDetail = () => {
                             <div className={`h-full ${barColorClass} rounded-full`} style={{ width: `${percentage}%` }}></div>
                           </div>
                         </div>
-                        <div className={`w-12 sm:w-16 text-right text-xs font-medium ${textColorClass} ml-1.5 sm:ml-2`}>{percentage}%</div>
+                        <div className="flex justify-between w-20 sm:w-24 text-xs font-medium ml-1.5 sm:ml-2">
+                          <span className={textColorClass}>{count}</span>
+                          <span className={textColorClass}>{percentage}%</span>
+                        </div>
                       </div>
                     );
                   })}

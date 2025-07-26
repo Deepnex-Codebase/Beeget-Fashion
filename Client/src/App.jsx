@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { CartProvider } from './contexts/CartContext'
 import { WishlistProvider } from './contexts/WishlistContext'
+import { SiteContentProvider } from './contexts/SiteContentContext'
 import Layout from './components/Layout/Layout'
 import ProtectedRoute from './components/Common/ProtectedRoute'
 import ScrollToTop from './components/Common/ScrollToTop'
@@ -32,6 +33,11 @@ const Contact = lazy(() => import('./pages/Contact'))
 const Shipping = lazy(() => import('./pages/Shipping'))
 const FAQ = lazy(() => import('./pages/FAQ'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
+const Collections = lazy(() => import('./pages/Collections'))
+const CollectionDetail = lazy(() => import('./pages/CollectionDetail'))
+const PlusSize = lazy(() => import('./pages/PlusSize'))
+const NewArrivals = lazy(() => import('./pages/NewArrivals'))
+const BestSeller = lazy(() => import('./pages/BestSeller'))
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -45,10 +51,11 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <WishlistProvider>
-          <ToastContainer />
-          <ScrollToTop />
-          <Suspense fallback={<LoadingFallback />}>
-          <Routes>
+          <SiteContentProvider>
+            <ToastContainer position="bottom-right" autoClose={3000} />
+            <ScrollToTop />
+            <Suspense fallback={<LoadingFallback />}>
+            <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="shop" element={<Shop />} />
@@ -68,11 +75,13 @@ function App() {
               <Route path="shipping" element={<Shipping />} />
               <Route path="faq" element={<FAQ />} />
               <Route path="privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="collections" element={<Collections />} />
+              <Route path="collections/:id" element={<CollectionDetail />} />
+              <Route path="plus-size" element={<PlusSize />} />
+              <Route path="new-arrivals" element={<NewArrivals />} />
+              <Route path="best-seller" element={<BestSeller />} />
               
-              {/* Protected Account Route */}
-              <Route path="account/*" element={<ProtectedRoute />}>
                 <Route path="*" element={<Account />} />
-              </Route>
               
               {/* Protected Admin Routes */}
               <Route path="admin" element={<ProtectedRoute adminOnly={true} />}>
@@ -86,15 +95,21 @@ function App() {
               </Route>
               
               {/* Permission-based Routes - Example */}
-              <Route path="products" element={<ProtectedRoute requiredPermission="manage_products" />}>
+              <Route path="products" element={<ProtectedRoute requiredPermission="manage_products" requiredDepartment="Catalog" />}>
+                <Route path="manage" element={<AdminDashboard />} />
+              </Route>
+              
+              {/* Orders Routes */}
+              <Route path="orders" element={<ProtectedRoute requiredPermission="view_orders" requiredDepartment="Orders" />}>
                 <Route path="manage" element={<AdminDashboard />} />
               </Route>
               
               {/* 404 Route */}
               <Route path="*" element={<NotFound />} />
             </Route>
-          </Routes>
-          </Suspense>
+            </Routes>
+            </Suspense>
+          </SiteContentProvider>
         </WishlistProvider>
       </CartProvider>
     </AuthProvider>

@@ -8,7 +8,8 @@ import useAuth from '../hooks/useAuth'
 import useCart from '../hooks/useCart'
 import axios from '../utils/api'
 import { toast } from 'react-toastify'
-import { FiCheck, FiX, FiPlus } from 'react-icons/fi'
+import { FiCheck, FiX, FiPlus, FiMail } from 'react-icons/fi'
+import { sendGuestOTP, verifyGuestOTP, checkEmailVerification } from '../utils/guestVerification'
 
 // Form validation schema
 const schema = yup.object().shape({
@@ -132,6 +133,16 @@ const Checkout = () => {
   const [cashfreeOrderId, setCashfreeOrderId] = useState('')
   const [cashfreeLoaded, setCashfreeLoaded] = useState(false)
   
+  // State for guest checkout
+  const [isGuestCheckout, setIsGuestCheckout] = useState(!user)
+  
+  // State for OTP verification
+  const [isEmailVerified, setIsEmailVerified] = useState(false)
+  const [showOtpForm, setShowOtpForm] = useState(false)
+  const [otpValue, setOtpValue] = useState('')
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
+  
   // Initialize form with user data if available
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
@@ -149,6 +160,81 @@ const Checkout = () => {
       termsAccepted: false
     }
   })
+  
+  // Get email value from form
+  const emailValue = watch('email');
+  
+  // Handle sending OTP for guest checkout
+  const handleSendOTP = async () => {
+    if (!emailValue) {
+      toast.error('Please enter your email address');
+      return;
+    }
+    
+    try {
+      setSendingOtp(true);
+      const response = await sendGuestOTP(emailValue);
+      
+      if (response.success) {
+        toast.success('OTP sent to your email');
+        setShowOtpForm(true);
+      } else {
+        toast.error(response.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      console.error('Error sending OTP:', error);
+      toast.error('Failed to send OTP. Please try again.');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+  
+  // Handle verifying OTP
+  const handleVerifyOTP = async () => {
+    if (!otpValue) {
+      toast.error('Please enter the OTP');
+      return;
+    }
+    
+    try {
+      setVerifyingOtp(true);
+      const response = await verifyGuestOTP(emailValue, otpValue);
+      
+      if (response.success) {
+        toast.success('Email verified successfully');
+        setIsEmailVerified(true);
+        setShowOtpForm(false);
+      } else {
+        toast.error(response.message || 'Invalid OTP');
+      }
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      toast.error('Failed to verify OTP. Please try again.');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+  
+  // Check email verification status when email changes
+  useEffect(() => {
+    if (isGuestCheckout && emailValue) {
+      const checkVerification = async () => {
+        try {
+          const response = await checkEmailVerification(emailValue);
+          if (response.success && response.data && response.data.verified) {
+            setIsEmailVerified(true);
+          } else {
+            setIsEmailVerified(false);
+          }
+        } catch (error) {
+          console.error('Error checking email verification:', error);
+          setIsEmailVerified(false);
+        }
+      };
+      
+      checkVerification();
+    }
+  }, [emailValue, isGuestCheckout]);
   
   // Add useEffect to handle orderId from URL
   useEffect(() => {
@@ -244,9 +330,13 @@ const Checkout = () => {
     }
   }
   
-  // Fetch user profile and addresses when component mounts
+  // Fetch user profile and addresses when component mounts (only for authenticated users)
   useEffect(() => {
-    if (!user) return;
+    // Skip for guest checkout
+    if (!user) {
+      setIsLoadingAddress(false);
+      return;
+    }
     
     const fetchUserAddresses = async () => {
       try {
@@ -307,6 +397,27 @@ const Checkout = () => {
   
   // Watch selected address ID to auto-fill form fields
   const selectedAddressId = watch('selectedAddressId')
+  
+  // Check if email is already verified when email changes
+  useEffect(() => {
+    if (isGuestCheckout && emailValue && !isEmailVerified) {
+      const checkVerification = async () => {
+        try {
+          const response = await checkEmailVerification(emailValue);
+          if (response.success && response.data && response.data.verified) {
+            setIsEmailVerified(true);
+          } else {
+            setIsEmailVerified(false);
+          }
+        } catch (error) {
+          console.error('Error checking email verification:', error);
+          setIsEmailVerified(false);
+        }
+      };
+      
+      checkVerification();
+    }
+  }, [emailValue, isGuestCheckout, isEmailVerified]);
   
   // Auto-fill form fields when an address is selected
   useEffect(() => {
@@ -418,6 +529,13 @@ const Checkout = () => {
   // Handle form submission with real API integration
   const onSubmit = async (data) => {
     try {
+      // Check if email verification is required for guest checkout
+      if (isGuestCheckout && !isEmailVerified) {
+        toast.error('Please verify your email before proceeding with checkout');
+        setProcessingOrder(false);
+        return;
+      }
+      
       setProcessingOrder(true);
       
       // Format shipping address
@@ -477,7 +595,9 @@ const Checkout = () => {
         // Add customer details for payment processing
         customerName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
         customerEmail: data.email,
-        customerPhone: data.phone
+        customerPhone: data.phone,
+        // Add isGuestCheckout flag
+        isGuestCheckout: isGuestCheckout
       };
       
       // Process checkout using CartContext
@@ -607,9 +727,28 @@ const Checkout = () => {
               <Link to="/shop">
                 <Button>Continue Shopping</Button>
               </Link>
-              <Link to="/account/orders">
-                <Button variant="secondary">View Orders</Button>
-              </Link>
+              {user ? (
+                <Link to="/account/orders">
+                  <Button variant="secondary">View Orders</Button>
+                </Link>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <Link to="/guest-orders">
+                    <Button variant="secondary">View Your Orders</Button>
+                  </Link>
+                  <div className="p-4 bg-blue-50 rounded-lg text-left">
+                    <p className="text-sm text-gray-700 mb-2">Create an account to track your orders and get faster checkout next time.</p>
+                    <div className="flex space-x-3">
+                      <Link to="/register" className="text-sm text-teal hover:text-teal-700 font-medium">
+                        Create Account
+                      </Link>
+                      <Link to="/login" className="text-sm text-teal hover:text-teal-700 font-medium">
+                        Login
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -643,6 +782,24 @@ const Checkout = () => {
                   </div>
                 ) : (
                   <>
+                    {!user && (
+                      <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                        <div className="flex items-center mb-2">
+                          <h3 className="text-lg font-medium">Guest Checkout</h3>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">You are checking out as a guest. Your order information will not be saved to an account.</p>
+                        <div className="flex items-center">
+                          <Link to="/login" className="text-sm text-teal hover:text-teal-700 font-medium">
+                            Login to your account
+                          </Link>
+                          <span className="mx-2 text-gray-400">or</span>
+                          <Link to="/register" className="text-sm text-teal hover:text-teal-700 font-medium">
+                            Create an account
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                    
                     {user && addresses.length > 0 && (
                       <div className="mb-6">
                         <div className="flex items-center mb-4">
@@ -753,13 +910,60 @@ const Checkout = () => {
                         
                         <div>
                           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                          <input
-                            type="email"
-                            id="email"
-                            {...register('email')}
-                            className={`w-full px-3 py-2 border rounded-md text-sm ${errors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-teal focus:border-teal'}`}
-                          />
+                          <div className="flex">
+                            <input
+                              type="email"
+                              id="email"
+                              {...register('email')}
+                              className={`w-full px-3 py-2 border rounded-l-md text-sm ${errors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-teal focus:border-teal'}`}
+                              disabled={isEmailVerified}
+                            />
+                            {isGuestCheckout && !isEmailVerified && (
+                              <button
+                                type="button"
+                                onClick={handleSendOTP}
+                                disabled={sendingOtp || !emailValue}
+                                className="flex items-center justify-center px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {sendingOtp ? 'Sending...' : 'Verify'}
+                              </button>
+                            )}
+                            {isGuestCheckout && isEmailVerified && (
+                              <div className="flex items-center justify-center px-4 py-2 border border-l-0 border-green-300 rounded-r-md bg-green-50 text-sm font-medium text-green-700">
+                                <FiCheck className="mr-1" /> Verified
+                              </div>
+                            )}
+                          </div>
                           {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+                          
+                          {/* OTP Verification Form */}
+                          {isGuestCheckout && showOtpForm && !isEmailVerified && (
+                            <div className="mt-3 p-3 border border-gray-200 rounded-md bg-gray-50">
+                              <p className="text-sm text-gray-600 mb-2">Enter the OTP sent to your email</p>
+                              <div className="flex">
+                                <input
+                                  type="text"
+                                  value={otpValue}
+                                  onChange={(e) => setOtpValue(e.target.value)}
+                                  placeholder="Enter OTP"
+                                  className="w-full px-3 py-2 border rounded-l-md text-sm border-gray-300 focus:ring-teal focus:border-teal"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleVerifyOTP}
+                                  disabled={verifyingOtp || !otpValue}
+                                  className="flex items-center justify-center px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {verifyingOtp ? 'Verifying...' : 'Submit'}
+                                </button>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">OTP is valid for 10 minutes</p>
+                            </div>
+                          )}
+                          
+                          {isGuestCheckout && !isEmailVerified && !showOtpForm && (
+                            <p className="text-xs text-teal-600 mt-1">Email verification is required for guest checkout</p>
+                          )}
                         </div>
                         
                         <div>
@@ -863,31 +1067,6 @@ const Checkout = () => {
                 <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
                 
                 <div className="space-y-4">
-                  <div className="flex items-center">
-                    <input
-                      id="credit-card"
-                      type="radio"
-                      value="credit-card"
-                      {...register('paymentMethod')}
-                      className="h-4 w-4 text-teal border-gray-300 focus:ring-teal"
-                    />
-                    <label htmlFor="credit-card" className="ml-2 block text-sm font-medium text-gray-700">
-                      Credit Card
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      id="paypal"
-                      type="radio"
-                      value="paypal"
-                      {...register('paymentMethod')}
-                      className="h-4 w-4 text-teal border-gray-300 focus:ring-teal"
-                    />
-                    <label htmlFor="paypal" className="ml-2 block text-sm font-medium text-gray-700">
-                      PayPal
-                    </label>
-                  </div>
                   
                   <div className="flex items-center">
                     <input

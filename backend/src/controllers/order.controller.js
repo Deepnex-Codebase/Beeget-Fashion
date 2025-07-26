@@ -13,6 +13,27 @@ import {
 } from "../services/sms.service.js";
 
 /**
+ * Generate a unique order ID with BG prefix and 6 random numbers
+ */
+const generateOrderId = async () => {
+  let isUnique = false;
+  let orderId;
+  
+  while (!isUnique) {
+    const randomNumbers = Math.floor(100000 + Math.random() * 900000); // 6 digit random number
+    orderId = `BG${randomNumbers}`;
+    
+    // Check if this order_id already exists
+    const existingOrder = await Order.findOne({ order_id: orderId });
+    if (!existingOrder) {
+      isUnique = true;
+    }
+  }
+  
+  return orderId;
+};
+
+/**
  * Create a new order
  */
 export const  createOrder = async (req, res, next) => {
@@ -180,8 +201,12 @@ export const  createOrder = async (req, res, next) => {
     // Calculate total
     const total = subtotal - discount;
 
+    // Generate unique order ID
+    const order_id = await generateOrderId();
+    
     // Create order
     const order = new Order({
+      order_id,
       userId: userId,
       guestSessionId: !userId ? guestSessionId : undefined,
       items: processedItems,
@@ -258,6 +283,7 @@ export const  createOrder = async (req, res, next) => {
         data: {
           order,
           orderId: order._id.toString(),
+          order_id: order.order_id,
           paymentToken: paymentOrder.data.token,
           paymentDetails: {
             orderId: paymentOrder.data.orderId,
@@ -283,21 +309,53 @@ export const  createOrder = async (req, res, next) => {
 
       await order.save();
 
-      // Send confirmation email if user exists
+      // Send confirmation email
       if (userId) {
+        // For registered users
         const user = await User.findById(userId);
         if (user && user.email) {
           await sendOrderConfirmationEmail(user.email, order);
+          
+          // Send confirmation SMS if phone number exists
+          if (user.whatsappNumber) {
+            await sendOrderConfirmationSMS(
+              user.whatsappNumber,
+              order._id.toString()
+            );
+          }
         }
-
-        // Send confirmation SMS if phone number exists
-        if (user && user.whatsappNumber) {
-          await sendOrderConfirmationSMS(
-            user.whatsappNumber,
-            order._id.toString()
-          );
+      } else if (guestSessionId) {
+        // For guest users with email
+        const guestEmail = shipping.address.email;
+        logger.info(`Guest order email check - guestSessionId: ${guestSessionId}, email: ${guestEmail}`);
+        logger.info(`Shipping address details: ${JSON.stringify(shipping.address)}`);
+        
+        if (guestEmail) {
+          try {
+            await sendOrderConfirmationEmail(guestEmail, order);
+            logger.info(`Guest order confirmation email sent to ${guestEmail} for order ${order._id}`);
+          } catch (emailError) {
+            logger.error(`Error sending guest order confirmation email: ${emailError.message}`);
+          }
+        } else {
+          logger.warn(`No email found for guest order ${order._id}`);
         }
         
+        // Send confirmation SMS if phone number exists
+        const guestPhone = shipping.address.phone;
+        if (guestPhone) {
+          try {
+            await sendOrderConfirmationSMS(
+              guestPhone,
+              order._id.toString()
+            );
+            logger.info(`Guest order confirmation SMS sent to ${guestPhone} for order ${order._id}`);
+          } catch (smsError) {
+            logger.error(`Error sending guest order confirmation SMS: ${smsError.message}`);
+          }
+        } else {
+          logger.warn(`No phone number found for guest order ${order._id}`);
+        }
       }
     }
 
@@ -307,6 +365,8 @@ export const  createOrder = async (req, res, next) => {
       message: "Order created successfully",
       data: {
         order,
+        orderId: order._id.toString(),
+        order_id: order.order_id
       },
     });
   } catch (error) {
@@ -333,8 +393,22 @@ export const getOrders = async (req, res, next) => {
     // Build query
     const query = {};
 
-    // Add user filter for non-admin users
-    if (req.user.role !== "admin" && req.user.role !== "sub-admin") {
+    // Department-based access control
+    if (req.user.roles && req.user.roles.includes('admin')) {
+      // Admin: see all orders
+    } else if (req.user.roles && req.user.roles.includes('subadmin')) {
+      // Subadmin: must have department 'orders' and permission 'manage_orders'
+      if (req.user.department !== 'orders' || !req.user.permissions.includes('manage_orders')) {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Access denied. Department: orders and permission: manage_orders required'
+          }
+        });
+      }
+      // Subadmin with correct department/permission: see all orders
+    } else {
+      // Other users: only their own orders
       query.userId = req.user.id;
     }
 
@@ -378,7 +452,8 @@ export const getOrders = async (req, res, next) => {
       .populate("items.productId", "title images")
       .sort(sortObj)
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .select("_id order_id items shipping payment coupon subtotal discount total totalGST statusHistory createdAt updatedAt");
 
     // Get total count for pagination
     const total = await Order.countDocuments(query);
@@ -431,6 +506,8 @@ export const getOrderById = async (req, res, next) => {
       success: true,
       data: {
         order,
+        orderId: order._id.toString(),
+        order_id: order.order_id
       },
     });
   } catch (error) {
@@ -585,6 +662,34 @@ export const updateOrderStatus = async (req, res, next) => {
       message: "Order status updated successfully",
       data: {
         order,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get orders by guest session ID
+ */
+export const getOrdersByGuestSession = async (req, res, next) => {
+  try {
+    const { guestSessionId } = req.params;
+    
+    if (!guestSessionId) {
+      throw new AppError("Guest session ID is required", 400);
+    }
+    
+    // Find orders by guest session ID
+    const orders = await Order.find({ guestSessionId })
+      .populate("items.productId", "title images category")
+      .sort({ createdAt: -1 })
+      .select("_id order_id items shipping payment coupon subtotal discount total totalGST statusHistory createdAt updatedAt");
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        orders,
       },
     });
   } catch (error) {
@@ -830,26 +935,61 @@ export const processPaymentCallback = async (req, res, next) => {
         await order.save();
         logger.info(`Order ${orderId} marked as PAID and CONFIRMED via callback`);
 
-        // Send confirmation email if user exists
+        // Send confirmation email
         if (order.userId && order.userId.email) {
+          // For registered users
           try {
             await sendOrderConfirmationEmail(order.userId.email, order);
             logger.info(`Confirmation email sent for order ${orderId}`);
           } catch (emailError) {
             logger.error(`Error sending confirmation email for order ${orderId}:`, emailError);
           }
-        }
-
-        // Send confirmation SMS if phone number exists
-        if (order.userId && order.userId.whatsappNumber) {
-          try {
-            await sendOrderConfirmationSMS(
-              order.userId.whatsappNumber,
-              order._id.toString()
-            );
-            logger.info(`Confirmation SMS sent for order ${orderId}`);
-          } catch (smsError) {
-            logger.error(`Error sending confirmation SMS for order ${orderId}:`, smsError);
+          
+          // Send confirmation SMS if phone number exists
+          if (order.userId.whatsappNumber) {
+            try {
+              await sendOrderConfirmationSMS(
+                order.userId.whatsappNumber,
+                order._id.toString()
+              );
+              logger.info(`Confirmation SMS sent for order ${orderId}`);
+            } catch (smsError) {
+              logger.error(`Error sending confirmation SMS for order ${orderId}:`, smsError);
+            }
+          }
+        } else if (order.guestSessionId && order.shipping && order.shipping.address) {
+          // For guest users with email
+          const guestEmail = order.shipping.address.email;
+          logger.info(`Cashfree payment - Guest order email check - guestSessionId: ${order.guestSessionId}, email: ${guestEmail}`);
+          logger.info(`Cashfree payment - Shipping address details: ${JSON.stringify(order.shipping.address)}`);
+          
+          if (guestEmail) {
+            try {
+              await sendOrderConfirmationEmail(guestEmail, order);
+              logger.info(`Cashfree payment - Confirmation email sent for guest order ${orderId} to ${guestEmail}`);
+            } catch (emailError) {
+              logger.error(`Cashfree payment - Error sending confirmation email for guest order ${orderId}: ${emailError.message}`);
+              logger.error(emailError.stack);
+            }
+          } else {
+            logger.warn(`Cashfree payment - No email found for guest order ${orderId}`);
+          }
+          
+          // Send confirmation SMS if phone number exists
+          const guestPhone = order.shipping.address.phone;
+          if (guestPhone) {
+            try {
+              await sendOrderConfirmationSMS(
+                guestPhone,
+                order._id.toString()
+              );
+              logger.info(`Cashfree payment - Confirmation SMS sent for guest order ${orderId} to ${guestPhone}`);
+            } catch (smsError) {
+              logger.error(`Cashfree payment - Error sending confirmation SMS for guest order ${orderId}: ${smsError.message}`);
+              logger.error(smsError.stack);
+            }
+          } else {
+            logger.warn(`Cashfree payment - No phone number found for guest order ${orderId}`);
           }
         }
 

@@ -419,7 +419,7 @@ const AccountOrders = () => {
         // Selected order details view
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Order #{selectedOrder.substring(0, 8)}</h2>
+            <h2 className="text-xl font-semibold">Order #{(orders.find(o => o._id === selectedOrder)?.order_id || selectedOrder).substring(0, 8)}</h2>
             <Button variant="outline" size="sm" onClick={() => setSelectedOrder(null)}>Back to Orders</Button>
           </div>
           
@@ -680,7 +680,7 @@ const AccountOrders = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {orders.map((order) => (
                   <tr key={order._id} className="hover:bg-gray-50 transition duration-150">
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">#{order._id.substring(0, 8)}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">#{(order.order_id || order._id).substring(0, 8)}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
                       <div>{formatDate(order.createdAt)}</div>
                       <div className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
@@ -780,7 +780,7 @@ const AccountOrders = () => {
         <Modal
           isOpen={showOrderModal}
           onClose={() => setShowOrderModal(false)}
-          title={`Order Details #${orderDetails._id.substring(0, 8)}`}
+          title={`Order Details #${(orderDetails.order_id || orderDetails._id).substring(0, 8)}`}
           size="lg"
         >
           <div className="p-4">

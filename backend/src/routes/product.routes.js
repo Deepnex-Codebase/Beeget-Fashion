@@ -1,5 +1,6 @@
 import express from 'express';
 import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
+import { hasDepartmentPermission } from '../middlewares/role.middleware.js';
 import {
   createProduct,
   getProducts,
@@ -7,9 +8,10 @@ import {
   updateProduct,
   deleteProduct,
   updateStock as updateProductStock,
-  getCategories as getProductCategories
+  getCategories as getProductCategories,
+  bulkUploadProducts
 } from '../controllers/product.controller.js';
-import { productUpload } from '../config/multer.js';
+import { productUpload, tempUpload } from '../config/multer.js';
 
 const router = express.Router();
 
@@ -23,8 +25,9 @@ router.use(verifyToken);
 
 // Admin/SubAdmin only routes
 router.post('/', isAdmin, productUpload.array('images', 10), createProduct);
+router.post('/bulk-upload', isAdmin, tempUpload.single('file'), bulkUploadProducts);
 router.put('/:id', isAdmin, productUpload.array('images', 10), updateProduct);
 router.delete('/:id', isAdmin, deleteProduct);
-router.patch('/:id/stock', isSubAdmin, updateProductStock);
+router.patch('/:id/stock', isSubAdmin, hasDepartmentPermission('products', 'manage_products'), updateProductStock);
 
 export default router;
