@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import Button from '../Common/Button';
 import Modal from '../Common/Modal';
 import { format } from 'date-fns';
+import { SiteContentContext } from '../../contexts/SiteContentContext';
 
 const ContactManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +19,9 @@ const ContactManagement = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
   
   const queryClient = useQueryClient();
+  
+  // Get functions from SiteContentContext
+  const { fetchEnquiries, updateEnquiryStatus } = useContext(SiteContentContext);
   
   // Fetch contacts with pagination, search, and filtering
   const { data, isLoading, error } = useQuery({
@@ -36,8 +40,7 @@ const ContactManagement = () => {
         params.status = statusFilter;
       }
       
-      const response = await axios.get('/contact', { params });
-      return response.data;
+      return await fetchEnquiries(currentPage, 10, params);
     },
     keepPreviousData: true,
     staleTime: 5 * 60 * 1000 // 5 minutes
@@ -46,7 +49,7 @@ const ContactManagement = () => {
   // Delete contact mutation
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId) => {
-      await axios.delete(`/contact/${contactId}`);
+      await axios.delete(`/site-content/enquiries/${contactId}`);
     },
     onSuccess: () => {
       toast.success('Contact message deleted successfully');
@@ -58,19 +61,28 @@ const ContactManagement = () => {
     }
   });
   
+  // State to track if email is being sent
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  
   // Update contact status mutation
   const updateContactMutation = useMutation({
     mutationFn: async ({ contactId, data }) => {
-      const response = await axios.put(`/contact/${contactId}`, data);
-      return response.data;
+      // Use the updateEnquiryStatus function from context
+      // Pass the status and responseMessage to the function
+      setIsSendingEmail(true); // Set email sending state to true before API call
+      return await updateEnquiryStatus(contactId, data.status, data.responseMessage);
     },
     onSuccess: () => {
-      toast.success('Contact message updated successfully');
+      // Modal will be closed and success message will be shown by the context function
       setShowViewModal(false);
       queryClient.invalidateQueries({ queryKey: ['admin-contacts'] });
     },
     onError: (error) => {
       toast.error(error.response?.data?.error || 'Failed to update contact message');
+    },
+    onSettled: () => {
+      // Set email sending state to false when done (success or error)
+      setIsSendingEmail(false);
     }
   });
   
@@ -98,6 +110,8 @@ const ContactManagement = () => {
   // Handle response submit
   const handleResponseSubmit = () => {
     if (currentContact) {
+      // Pass contactId, status, and responseMessage to the mutation
+      // The mutation will handle setting isSendingEmail state
       updateContactMutation.mutate({
         contactId: currentContact._id,
         data: {
@@ -190,7 +204,7 @@ const ContactManagement = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.data.map((contact) => (
+                {data.enquiries && data.enquiries.map((contact) => (
                   <tr key={contact._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">{contact.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{contact.email}</td>
@@ -228,10 +242,10 @@ const ContactManagement = () => {
           </div>
           
           {/* Pagination */}
-          {data.pagination && data.pagination.pages > 1 && (
+          {data.totalPages > 1 && (
             <div className="flex justify-between items-center mt-6">
               <div className="text-sm text-gray-500">
-                Showing {(currentPage - 1) * 10 + 1} to {Math.min(currentPage * 10, data.pagination.total)} of {data.pagination.total} results
+                Showing {(currentPage - 1) * 10 + 1} to {Math.min(currentPage * 10, data.totalItems)} of {data.totalItems} results
               </div>
               <div className="flex space-x-2">
                 <button
@@ -242,9 +256,9 @@ const ContactManagement = () => {
                   Previous
                 </button>
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, data.pagination.pages))}
-                  disabled={currentPage === data.pagination.pages}
-                  className={`px-3 py-1 rounded ${currentPage === data.pagination.pages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, data.totalPages))}
+                  disabled={currentPage === data.totalPages}
+                  className={`px-3 py-1 rounded ${currentPage === data.totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 >
                   Next
                 </button>
@@ -252,7 +266,7 @@ const ContactManagement = () => {
             </div>
           )}
           
-          {data.data.length === 0 && (
+          {(!data.enquiries || data.enquiries.length === 0) && (
             <div className="text-center py-4 text-gray-500">No contact messages found</div>
           )}
         </>
@@ -292,7 +306,7 @@ const ContactManagement = () => {
         size="lg"
       >
         {currentContact && (
-          <div className="p-6">
+          <div className="p-6 relative">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Name</h3>
@@ -340,22 +354,39 @@ const ContactManagement = () => {
                 onChange={(e) => setResponseMessage(e.target.value)}
                 placeholder="Enter your response here..."
               />
+              {currentContact.responseMessage && (
+                <div className="mt-3">
+                  <h4 className="text-xs font-medium text-gray-500">Previous Response:</h4>
+                  <div className="mt-1 p-3 bg-gray-50 rounded-md text-sm">{currentContact.responseMessage}</div>
+                </div>
+              )}
             </div>
             
             <div className="flex justify-end space-x-4">
               <Button
                 variant="outline"
                 onClick={() => setShowViewModal(false)}
+                disabled={isSendingEmail}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleResponseSubmit}
-                loading={updateContactMutation.isLoading}
+                loading={updateContactMutation.isLoading || isSendingEmail}
               >
-                Save Response
+                {isSendingEmail ? 'Sending Email...' : 'Save Response'}
               </Button>
             </div>
+            
+            {/* Email sending overlay */}
+            {isSendingEmail && (
+              <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-teal border-t-transparent mb-2"></div>
+                  <p className="text-teal font-medium">Sending email, please wait...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

@@ -352,16 +352,28 @@ export const sendCouponEmail = async (email, name, coupon, promotion) => {
  */
 export const sendSubadminWelcomeEmail = async (email, name, password, department, permissions) => {
   try {
+    logger.info(`Attempting to send welcome email to new subadmin: ${email}`);
+    
     if (!transporter) {
+      logger.info('Email transporter not found, initializing...');
       transporter = initializeEmailTransporter();
       if (!transporter) {
+        logger.error('Failed to initialize email transporter');
         throw new Error('Email transporter not initialized');
       }
+      logger.info('Email transporter initialized successfully');
     }
     
     const fromEmail = process.env.FROM_EMAIL || process.env.EMAIL_FROM;
     const brandName = process.env.EMAIL_FROM_NAME || 'Begget Fashion';
-    const loginUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    let loginUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    // Ensure loginUrl doesn't end with a slash
+    if (loginUrl.endsWith('/')) {
+      loginUrl = loginUrl.slice(0, -1);
+    }
+    
+    logger.info(`Using login URL: ${loginUrl}/login for subadmin welcome email`);
     
     // Format permissions for display
     const formattedPermissions = permissions && permissions.length > 0 
@@ -392,7 +404,7 @@ export const sendSubadminWelcomeEmail = async (email, name, password, department
           
           <p>You can log in to the admin panel using the link below:</p>
           <p style="text-align: center;">
-            <a href="${loginUrl}/admin" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Login to Admin Panel</a>
+            <a href="${loginUrl}/login" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Login to Admin Panel</a>
           </p>
           
           <p style="margin-top: 20px;">For security reasons, we recommend changing your password after your first login.</p>
@@ -402,12 +414,22 @@ export const sendSubadminWelcomeEmail = async (email, name, password, department
       `
     };
     
+    logger.info(`Attempting to send email with transporter to ${email}`);
     const info = await transporter.sendMail(mailOptions);
     logger.info(`Subadmin welcome email sent to ${email}: ${info.messageId}`);
-    return true;
+    return { success: true, messageId: info.messageId };
   } catch (error) {
     logger.error(`Error sending subadmin welcome email: ${error.message}`);
-    return false;
+    logger.error(`Error details: ${JSON.stringify(error)}`);
+    // Check for specific error types
+    if (error.code === 'ECONNREFUSED') {
+      logger.error('Connection to mail server was refused. Check SMTP settings.');
+    } else if (error.code === 'ETIMEDOUT') {
+      logger.error('Connection to mail server timed out. Check network or firewall settings.');
+    } else if (error.code === 'EAUTH') {
+      logger.error('Authentication failed. Check username and password.');
+    }
+    return { success: false, error: error.message };
   }
 };
 
@@ -420,11 +442,123 @@ if (emailTransporter) {
   emailTransporter.verify((error, success) => {
     if (error) {
       logger.error(`Email transporter verification failed: ${error.message}`);
+      logger.error(`Email configuration: SMTP_HOST=${process.env.SMTP_HOST}, SMTP_PORT=${process.env.SMTP_PORT}, SMTP_USER=${process.env.SMTP_USER ? '***SET***' : 'NOT SET'}, SMTP_PASS=${process.env.SMTP_PASS ? '***SET***' : 'NOT SET'}, FROM_EMAIL=${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'NOT SET'}, FRONTEND_URL=${process.env.FRONTEND_URL || 'NOT SET'}`);
     } else {
       logger.info('Email transporter is ready to send messages');
+      logger.info(`Email configuration: SMTP_HOST=${process.env.SMTP_HOST}, SMTP_PORT=${process.env.SMTP_PORT}, SMTP_USER=${process.env.SMTP_USER ? '***SET***' : 'NOT SET'}, SMTP_PASS=${process.env.SMTP_PASS ? '***SET***' : 'NOT SET'}, FROM_EMAIL=${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'NOT SET'}, FRONTEND_URL=${process.env.FRONTEND_URL || 'NOT SET'}`);
     }
   });
 }
+
+/**
+ * Test email configuration by sending a test email
+ */
+export const testEmailConfiguration = async () => {
+  try {
+    if (!transporter) {
+      logger.info('Email transporter not found, initializing...');
+      transporter = initializeEmailTransporter();
+      if (!transporter) {
+        logger.error('Failed to initialize email transporter for test');
+        return { success: false, error: 'Email transporter not initialized' };
+      }
+      logger.info('Email transporter initialized successfully for test');
+    }
+    
+    const fromEmail = process.env.FROM_EMAIL || process.env.EMAIL_FROM;
+    const testEmail = process.env.ADMIN_EMAIL || fromEmail;
+    
+    if (!testEmail) {
+      logger.error('No test email address available');
+      return { success: false, error: 'No test email address available' };
+    }
+    
+    const mailOptions = {
+      from: fromEmail,
+      to: testEmail,
+      subject: 'Email Configuration Test',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2 style="color: #333; text-align: center;">Email Configuration Test</h2>
+          <p>This is a test email to verify that the email configuration is working correctly.</p>
+          <p>If you received this email, it means that the email service is configured correctly.</p>
+          <p>Configuration:</p>
+          <ul>
+            <li>SMTP_HOST: ${process.env.SMTP_HOST}</li>
+            <li>SMTP_PORT: ${process.env.SMTP_PORT}</li>
+            <li>SMTP_USER: ${process.env.SMTP_USER ? '***SET***' : 'NOT SET'}</li>
+            <li>SMTP_PASS: ${process.env.SMTP_PASS ? '***SET***' : 'NOT SET'}</li>
+            <li>FROM_EMAIL: ${process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'NOT SET'}</li>
+            <li>FRONTEND_URL: ${process.env.FRONTEND_URL || 'NOT SET'}</li>
+          </ul>
+        </div>
+      `
+    };
+    
+    logger.info(`Sending test email to ${testEmail}...`);
+    const info = await transporter.sendMail(mailOptions);
+    logger.info(`Test email sent successfully: ${info.messageId}`);
+    
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    logger.error(`Error sending test email: ${error.message}`);
+    logger.error(`Error details: ${JSON.stringify(error)}`);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send enquiry response email to user
+ * @param {string} email - Recipient email
+ * @param {string} name - Recipient name
+ * @param {string} subject - Original enquiry subject
+ * @param {string} responseMessage - Admin's response message
+ */
+export const sendEnquiryResponseEmail = async (email, name, subject, responseMessage) => {
+  try {
+    logger.info(`Attempting to send enquiry response email to ${email}`); 
+    
+    if (!transporter) {
+      logger.info('Email transporter not found, initializing...');
+      transporter = initializeEmailTransporter();
+      if (!transporter) {
+        logger.error('Failed to initialize email transporter');
+        throw new Error('Email transporter not initialized');
+      }
+      logger.info('Email transporter initialized successfully');
+    }
+    
+    const fromEmail = process.env.FROM_EMAIL || process.env.EMAIL_FROM;
+    const brandName = process.env.EMAIL_FROM_NAME || 'Begget Fashion';
+    
+    const mailOptions = {
+      from: fromEmail,
+      to: email,
+      subject: `Re: ${subject} - ${brandName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2 style="color: #333; text-align: center;">${brandName} - Response to Your Enquiry</h2>
+          <p>Hello ${name},</p>
+          <p>Thank you for contacting us regarding "${subject}". We appreciate your interest and have provided a response below:</p>
+          
+          <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            ${responseMessage.replace(/\n/g, '<br>')}
+          </div>
+          
+          <p>If you have any further questions, please don't hesitate to contact us again.</p>
+          <p>Thanks,<br>${brandName} Team</p>
+        </div>
+      `
+    };
+    
+    const info = await transporter.sendMail(mailOptions);
+    logger.info(`Enquiry response email sent to ${email}: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    logger.error(`Error sending enquiry response email: ${error.message}`);
+    return false;
+  }
+};
 
 export default {
   initializeEmailTransporter,
@@ -433,5 +567,7 @@ export default {
   sendOrderConfirmationEmail,
   sendCampaignEmail,
   sendCouponEmail,
-  sendSubadminWelcomeEmail
+  sendSubadminWelcomeEmail,
+  sendEnquiryResponseEmail,
+  testEmailConfiguration
 };

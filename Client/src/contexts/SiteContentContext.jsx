@@ -239,11 +239,22 @@ export const SiteContentProvider = ({ children }) => {
   // Submit Enquiry
   const submitEnquiry = async (data) => {
     try {
+      console.log('SiteContentContext: Submitting enquiry with data:', data);
+      console.log('SiteContentContext: API URL being used:', axios.defaults.baseURL + '/site-content/enquiries');
+      
       const response = await axios.post('/site-content/enquiries', data);
+      
+      console.log('SiteContentContext: Full response object:', response);
+      console.log('SiteContentContext: Enquiry submission response data:', response.data);
+      
       toast.success('Your message has been sent successfully!');
       return response.data;
     } catch (err) {
-      console.error('Error submitting enquiry:', err);
+      console.error('SiteContentContext: Error submitting enquiry:', err);
+      console.log('SiteContentContext: Error response:', err.response);
+      console.log('SiteContentContext: Error details:', err.response?.data);
+      console.log('SiteContentContext: Error message:', err.message);
+      
       toast.error(err.response?.data?.error || 'Failed to submit your message. Please try again.');
       throw err;
     }
@@ -270,10 +281,24 @@ export const SiteContentProvider = ({ children }) => {
   };
 
   // Update Enquiry Status (admin only)
-  const updateEnquiryStatus = async (id, status) => {
+  const updateEnquiryStatus = async (id, status, responseMessage = null) => {
     try {
-      const response = await axios.put(`/site-content/enquiries/${id}/status`, { status });
-      toast.success('Enquiry status updated successfully');
+      const payload = { status };
+      
+      // Add response message to payload if provided
+      if (responseMessage) {
+        payload.responseMessage = responseMessage;
+      }
+      
+      const response = await axios.put(`/site-content/enquiries/${id}/status`, payload);
+      
+      // Show different success message based on status
+      if (status === 'replied' && responseMessage) {
+        toast.success('Response sent successfully to user');
+      } else {
+        toast.success('Enquiry status updated successfully');
+      }
+      
       return response.data;
     } catch (err) {
       console.error('Error updating enquiry status:', err);

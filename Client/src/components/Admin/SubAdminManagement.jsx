@@ -36,6 +36,7 @@ const SubAdminManagement = () => {
   const [showConfirmUnban, setShowConfirmUnban] = useState(false);
   const [userToUnban, setUserToUnban] = useState(null);
   const [showAddSubAdminModal, setShowAddSubAdminModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newSubAdminData, setNewSubAdminData] = useState({
     name: '',
     email: '',
@@ -96,11 +97,20 @@ const SubAdminManagement = () => {
   // Mutation for updating user
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, userData }) => {
-      const response = await axios.put(`/users/${userId}`, userData);
-      return response.data;
+      console.log('Updating subadmin with ID:', userId);
+      console.log('Update payload:', userData);
+      try {
+        const response = await axios.put(`/users/${userId}`, userData);
+        console.log('Update response:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('Update error details:', error.response || error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Invalidate and refetch users query
+      console.log('Update successful:', data);
       queryClient.invalidateQueries({ queryKey: ['subadmins'] });
       toast.success('SubAdmin updated successfully');
       setEditingUser(null);
@@ -172,13 +182,25 @@ const SubAdminManagement = () => {
   // Mutation for creating a new subadmin
   const createSubAdminMutation = useMutation({
     mutationFn: async (userData) => {
+      console.log('Creating new subadmin with data:', { ...userData, password: '***HIDDEN***' });
       const response = await axios.post('/users/register-subadmin', userData);
+      console.log('Subadmin creation response:', response.data);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Subadmin created successfully:', data);
       // Invalidate and refetch users query
       queryClient.invalidateQueries({ queryKey: ['subadmins'] });
-      toast.success('SubAdmin created successfully');
+      
+      // Show success message with email notification
+      toast.success(
+        <div>
+          <p>SubAdmin created successfully!</p>
+          <p>A welcome email with login details has been sent to {newSubAdminData.email}</p>
+        </div>,
+        { autoClose: 5000 }
+      );
+      
       setShowAddSubAdminModal(false);
       setNewSubAdminData({
         name: '',
@@ -190,10 +212,15 @@ const SubAdminManagement = () => {
       });
       // Reset selected permissions
       setNewSubAdminPermissions({});
+      // Reset submitting state
+      setIsSubmitting(false);
     },
     onError: (error) => {
       console.error('Error creating subadmin:', error);
+      console.error('Error details:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to create subadmin');
+      // Reset submitting state
+      setIsSubmitting(false);
     }
   });
   
@@ -277,19 +304,63 @@ const SubAdminManagement = () => {
     }));
   };
   
+  // Mutation for updating subadmin department and permissions
+  const updateSubadminDepartmentMutation = useMutation({
+    mutationFn: async ({ userId, departmentData }) => {
+      console.log('Updating subadmin department with ID:', userId);
+      console.log('Department update payload:', departmentData);
+      try {
+        const response = await axios.patch(`/users/subadmin/${userId}/department`, departmentData);
+        console.log('Department update response:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('Department update error details:', error.response || error);
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      console.log('Department update successful:', data);
+      queryClient.invalidateQueries({ queryKey: ['subadmins'] });
+      toast.success('SubAdmin department and permissions updated successfully');
+      setEditingUser(null);
+    },
+    onError: (error) => {
+      console.error('Error updating subadmin department:', error);
+      toast.error(error.response?.data?.message || 'Failed to update subadmin department');
+    }
+  });
+
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!editingUser) return;
     
-    // Use permissions exactly as selected without automatically adding all_permissions
-    const updatedFormData = { ...formData };
-    console.log('Submitting subadmin with permissions:', updatedFormData.permissions);
-    
-    updateUserMutation.mutate({
-      userId: editingUser._id,
-      userData: updatedFormData
-    });
+    // Check if we're updating department and permissions or general user info
+    if (formData.department) {
+      // Use permissions exactly as selected without automatically adding all_permissions
+      console.log('Submitting subadmin with permissions:', formData.permissions);
+      
+      // Use the specific endpoint for updating department and permissions
+      updateSubadminDepartmentMutation.mutate({
+        userId: editingUser._id,
+        departmentData: {
+          department: formData.department,
+          permissions: formData.permissions
+        }
+      });
+    } else {
+      // For general user info updates (name, email)
+      const updatedFormData = {
+        name: formData.name,
+        email: formData.email,
+        role: 'subadmin'
+      };
+      
+      updateUserMutation.mutate({
+        userId: editingUser._id,
+        userData: updatedFormData
+      });
+    }
   };
   
   // Handle cancel edit
@@ -432,19 +503,34 @@ const SubAdminManagement = () => {
   const handleAddSubAdmin = (e) => {
     e.preventDefault();
     
+    // Set submitting state to true to show loader
+    setIsSubmitting(true);
+    
+    console.log('Handling add new subadmin with form data:', {
+      ...newSubAdminData,
+      password: '***HIDDEN***',
+      confirmPassword: '***HIDDEN***'
+    });
+    
     // Validate form
     if (!newSubAdminData.name || !newSubAdminData.email || !newSubAdminData.password || !newSubAdminData.department) {
+      console.warn('Missing required fields for new subadmin');
       toast.error('Please fill all required fields');
+      setIsSubmitting(false);
       return;
     }
     
     if (newSubAdminData.password !== newSubAdminData.confirmPassword) {
+      console.warn('Passwords do not match for new subadmin');
       toast.error('Passwords do not match');
+      setIsSubmitting(false);
       return;
     }
     
     if (newSubAdminData.permissions.length === 0) {
+      console.warn('No permissions selected for new subadmin');
       toast.error('Please select at least one permission');
+      setIsSubmitting(false);
       return;
     }
     
@@ -452,15 +538,20 @@ const SubAdminManagement = () => {
     const updatedPermissions = [...newSubAdminData.permissions];
     console.log('Creating new subadmin with permissions:', updatedPermissions);
     
-    // Create new subadmin
-    createSubAdminMutation.mutate({
+    // Prepare data for API call
+    const subadminData = {
       name: newSubAdminData.name,
       email: newSubAdminData.email,
       password: newSubAdminData.password,
       role: 'subadmin',
       department: newSubAdminData.department,
       permissions: updatedPermissions
-    });
+    };
+    
+    console.log('Submitting new subadmin data to API:', { ...subadminData, password: '***HIDDEN***' });
+    
+    // Create new subadmin
+    createSubAdminMutation.mutate(subadminData);
   };
   
   // Format date
@@ -644,7 +735,7 @@ const SubAdminManagement = () => {
               <Button
                 type="submit"
                 variant="primary"
-                isLoading={updateUserMutation.isLoading}
+                loading={updateUserMutation.isLoading || updateSubadminDepartmentMutation.isLoading}
               >
                 Save Changes
               </Button>
@@ -656,7 +747,16 @@ const SubAdminManagement = () => {
       {/* Add SubAdmin Modal */}
       {showAddSubAdminModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+            {/* Loading overlay */}
+            {isSubmitting && (
+              <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 border-4 border-java-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="mt-2 text-java-600 font-medium">Creating SubAdmin...</span>
+                </div>
+              </div>
+            )}
             <h4 className="text-lg font-medium mb-4">Add New SubAdmin</h4>
             <form onSubmit={handleAddSubAdmin}>
               <div className="space-y-4">
@@ -766,7 +866,7 @@ const SubAdminManagement = () => {
                 <Button
                   type="submit"
                   variant="primary"
-                  isLoading={createSubAdminMutation.isLoading}
+                  loading={isSubmitting || createSubAdminMutation.isLoading}
                 >
                   Create SubAdmin
                 </Button>
@@ -779,7 +879,16 @@ const SubAdminManagement = () => {
       {/* Delete confirmation modal */}
       {showConfirmDelete && userToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+            {/* Loading overlay */}
+            {deleteUserMutation.isLoading && (
+              <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 border-4 border-java-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="mt-2 text-java-600 font-medium">Deleting SubAdmin...</span>
+                </div>
+              </div>
+            )}
             <h4 className="text-lg font-medium mb-4">Confirm Delete</h4>
             <p className="mb-6">Are you sure you want to delete the SubAdmin <span className="font-semibold">{userToDelete.name}</span>? This action cannot be undone.</p>
             <div className="flex justify-end space-x-2">
@@ -789,13 +898,14 @@ const SubAdminManagement = () => {
                   setShowConfirmDelete(false);
                   setUserToDelete(null);
                 }}
+                disabled={deleteUserMutation.isLoading}
               >
                 Cancel
               </Button>
               <Button
                 variant="danger"
                 onClick={handleConfirmDelete}
-                isLoading={deleteUserMutation.isLoading}
+                loading={deleteUserMutation.isLoading}
               >
                 Delete
               </Button>
@@ -807,7 +917,16 @@ const SubAdminManagement = () => {
       {/* Ban confirmation modal */}
       {showConfirmBan && userToBan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+            {/* Loading overlay */}
+            {banUserMutation.isLoading && (
+              <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 border-4 border-java-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="mt-2 text-java-600 font-medium">Banning SubAdmin...</span>
+                </div>
+              </div>
+            )}
             <h4 className="text-lg font-medium mb-4">Ban SubAdmin</h4>
             <p className="mb-4">Are you sure you want to ban <span className="font-semibold">{userToBan.name}</span>? They will not be able to log in.</p>
             <div className="mb-4">
@@ -818,6 +937,7 @@ const SubAdminManagement = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                 rows="3"
                 placeholder="Enter reason for banning this SubAdmin"
+                disabled={banUserMutation.isLoading}
               />
             </div>
             <div className="flex justify-end space-x-2">
@@ -828,13 +948,14 @@ const SubAdminManagement = () => {
                   setUserToBan(null);
                   setBanReason('');
                 }}
+                disabled={banUserMutation.isLoading}
               >
                 Cancel
               </Button>
               <Button
                 variant="danger"
                 onClick={handleConfirmBan}
-                isLoading={banUserMutation.isLoading}
+                loading={banUserMutation.isLoading}
               >
                 Ban SubAdmin
               </Button>
@@ -846,7 +967,16 @@ const SubAdminManagement = () => {
       {/* Unban confirmation modal */}
       {showConfirmUnban && userToUnban && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+            {/* Loading overlay */}
+            {unbanUserMutation.isLoading && (
+              <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 border-4 border-java-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="mt-2 text-java-600 font-medium">Unbanning SubAdmin...</span>
+                </div>
+              </div>
+            )}
             <h4 className="text-lg font-medium mb-4">Unban SubAdmin</h4>
             <p className="mb-6">Are you sure you want to unban <span className="font-semibold">{userToUnban.name}</span>? They will be able to log in again.</p>
             <div className="flex justify-end space-x-2">
@@ -856,13 +986,14 @@ const SubAdminManagement = () => {
                   setShowConfirmUnban(false);
                   setUserToUnban(null);
                 }}
+                disabled={unbanUserMutation.isLoading}
               >
                 Cancel
               </Button>
               <Button
                 variant="primary"
                 onClick={handleConfirmUnban}
-                isLoading={unbanUserMutation.isLoading}
+                loading={unbanUserMutation.isLoading}
               >
                 Unban SubAdmin
               </Button>

@@ -1757,7 +1757,7 @@ const AdminDashboard = () => {
                   {(stats?.recentOrders || []).slice(0, 5).map((order, index) => (
                     <tr key={order?._id || index} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-700">
-                        #{order?._id ? order._id.slice(-6) : `ORDER${index}`}
+                        #{order?.order_id || (order?._id ? order._id : `ORDER${index}`)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
                         {order?.userId?.name || 'Guest'}
@@ -1766,7 +1766,7 @@ const AdminDashboard = () => {
                         {order?.createdAt ? formatDate(order.createdAt) : 'N/A'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                        {formatCurrency(order?.total || 0)}
+                        {formatCurrency((order?.total || 0) + (order?.totalGST || 0))}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded ${getStatusBadgeClass(
@@ -2103,7 +2103,8 @@ const AdminDashboard = () => {
       // Rest of your filter logic remains the same...
       if (ordersSearchTerm) {
         const searchLower = ordersSearchTerm.toLowerCase();
-        const matchesOrderId = order._id && order._id.toLowerCase().includes(searchLower);
+        const matchesOrderId = (order.order_id && order.order_id.toLowerCase().includes(searchLower)) || 
+                              (order._id && order._id.toLowerCase().includes(searchLower));
         const matchesCustomerName = order.userId?.name && order.userId.name.toLowerCase().includes(searchLower);
         const matchesProduct = order.items && order.items.some(item => {
           return (item.productId?._id && item.productId._id.toLowerCase().includes(searchLower)) ||
@@ -2199,7 +2200,7 @@ const AdminDashboard = () => {
         ).join('; ');
         
         const row = [
-          `"${order._id || ''}"`,
+          `"${order.order_id || order._id || ''}"`,
           `"${(order.userId?.name || order.shipping?.address?.name || '').replace(/"/g, '""')}"`,
           `"${(order.shipping?.address?.email || order.userId?.email || '').replace(/"/g, '""')}"`,
           `"${(order.shipping?.address?.phone || order.userId?.whatsappNumber || '').replace(/"/g, '""')}"`,
@@ -2403,10 +2404,10 @@ const AdminDashboard = () => {
                     />
                     <button 
                       className="ml-2 flex items-center"
-                      onClick={() => handleOrdersSortChange('_id')}
+                      onClick={() => handleOrdersSortChange('order_id')}
                     >
                       <span>Order ID</span>
-                      {ordersSort === '_id' && (
+                      {ordersSort === 'order_id' && (
                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 ml-1 ${ordersOrder === 'asc' ? 'transform rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
@@ -2477,7 +2478,7 @@ const AdminDashboard = () => {
                       <div className="flex-shrink-0 h-6 w-6 bg-java-50 text-java-500 rounded flex items-center justify-center mr-2">
                         <span className="text-xs">{index + 1}</span>
                       </div>
-                      <span className="text-xs text-gray-700">{order._id ? order._id.substring(0, 8) : 'N/A'}</span>
+                      <span className="text-xs text-gray-700">{order.order_id || (order._id ? order._id.substring(0, 8) : 'N/A')}</span>
                     </div>
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
@@ -4220,7 +4221,7 @@ const AdminDashboard = () => {
         <Modal
           isOpen={showOrderModal}
           onClose={() => setShowOrderModal(false)}
-          title={`Order Details #${orderDetails._id ? orderDetails._id.substring(0, 8) : 'N/A'}`}
+          title={`Order Details #${orderDetails.order_id || (orderDetails._id ? orderDetails._id : 'N/A')}`}
         >
           <div className="p-4">
             {/* Order Summary Card */}
@@ -4231,8 +4232,8 @@ const AdminDashboard = () => {
                   <p className="text-sm font-medium">{orderDetails.createdAt ? formatDate(orderDetails.createdAt) : 'Not Available'}</p>
                 </div>
                 <div>
-                  <h3 className="text-xs font-medium text-java-600 mb-1">Total Amount</h3>
-                  <p className="text-sm font-semibold text-gray-800">{formatCurrency(orderDetails.totalAmount || 0)}</p>
+                  <h3 className="text-xs font-medium text-java-600 mb-1">Total Amount (Inc. Tax)</h3>
+                  <p className="text-sm font-semibold text-gray-800">{formatCurrency((orderDetails.totalAmount || 0) + (orderDetails.totalGST || 0))}</p>
                 </div>
                 <div>
                   <h3 className="text-xs font-medium text-java-600 mb-1">Order Status</h3>
@@ -4294,7 +4295,7 @@ const AdminDashboard = () => {
                   </div>
                   <div>
                     <h4 className="text-xs text-gray-500 mb-1">Order ID</h4>
-                    <p className="font-mono text-xs text-gray-500 bg-gray-50 p-1 rounded select-all">{orderDetails._id || 'Not Available'}</p>
+                    <p className="font-mono text-xs text-gray-500 bg-gray-50 p-1 rounded select-all">{orderDetails.order_id || 'Not Available'}</p>
                   </div>
                 </div>
               </div>
@@ -4350,6 +4351,48 @@ const AdminDashboard = () => {
                     <p className="text-sm text-gray-500">No products found in this order</p>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Price Breakdown */}
+            <div className="mb-5">
+              <h3 className="text-xs font-semibold uppercase text-gray-500 mb-2 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Price Breakdown
+              </h3>
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="px-4 py-2 text-sm text-gray-500 font-medium">Subtotal:</td>
+                      <td className="px-4 py-2 text-sm text-gray-900 text-right">
+                        {formatCurrency(orderDetails.totalAmount || 0)}
+                      </td>
+                    </tr>
+                    {(orderDetails.totalGST > 0 || (orderDetails.items && orderDetails.items.some(item => item.gstAmount > 0))) && (
+                      <tr>
+                        <td className="px-4 py-2 text-sm text-gray-500 font-medium">GST:</td>
+                        <td className="px-4 py-2 text-sm text-gray-900 text-right">
+                          {formatCurrency(orderDetails.totalGST || (orderDetails.items ? orderDetails.items.reduce((sum, item) => sum + (item.gstAmount || 0), 0) : 0))}
+                        </td>
+                      </tr>
+                    )}
+                    {orderDetails.discount > 0 && (
+                      <tr>
+                        <td className="px-4 py-2 text-sm text-gray-500 font-medium">Discount:</td>
+                        <td className="px-4 py-2 text-sm text-red-600 text-right">-{formatCurrency(orderDetails.discount)}</td>
+                      </tr>
+                    )}
+                    <tr className="bg-gray-50">
+                      <td className="px-4 py-2 text-sm text-gray-700 font-medium">Total Amount (Inc. Tax):</td>
+                      <td className="px-4 py-2 text-sm font-semibold text-gray-900 text-right">
+                        {formatCurrency((orderDetails.totalAmount || 0) + (orderDetails.totalGST || 0) - (orderDetails.discount || 0))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 

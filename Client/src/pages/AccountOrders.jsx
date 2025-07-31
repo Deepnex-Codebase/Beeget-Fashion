@@ -589,8 +589,8 @@ const AccountOrders = () => {
                     </tr>
                   )}
                   <tr className="border-t-2 border-gray-300">
-                    <td colSpan="3" className="px-4 py-3 text-right font-medium">Total:</td>
-                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(orders.find(o => o._id === selectedOrder)?.total || orders.find(o => o._id === selectedOrder)?.totalAmount)}</td>
+                      <td colSpan="3" className="px-4 py-3 text-right font-medium">Total:</td>
+                    <td className="px-4 py-3 text-right font-medium">{formatCurrency((orders.find(o => o._id === selectedOrder)?.total || orders.find(o => o._id === selectedOrder)?.totalAmount || 0) + (orders.find(o => o._id === selectedOrder)?.totalGST || 0))}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -713,7 +713,7 @@ const AccountOrders = () => {
                       <div className="text-xs text-gray-500 mt-1">{order.payment?.method || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      {formatCurrency(order.total)}
+                      {formatCurrency((order.total || order.totalAmount || 0) + (order.totalGST || 0))}
                       {order.items && (
                         <div className="text-xs text-gray-500 mt-1">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</div>
                       )}
@@ -793,7 +793,7 @@ const AccountOrders = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Total Amount</h3>
-                  <p className="font-medium">{formatCurrency(orderDetails.total || orderDetails.totalAmount)}</p>
+                  <p className="font-medium">{formatCurrency((orderDetails.total || orderDetails.totalAmount || 0) + (orderDetails.totalGST || 0))}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Order Status</h3>
@@ -949,7 +949,7 @@ const AccountOrders = () => {
                   )}
                   <tr className="border-t-2 border-gray-300">
                     <td colSpan="3" className="px-4 py-3 text-right font-medium">Total:</td>
-                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(orderDetails.total || orderDetails.totalAmount)}</td>
+                    <td className="px-4 py-3 text-right font-medium">{formatCurrency((orderDetails.total || orderDetails.totalAmount || 0) + (orderDetails.totalGST || 0))}</td>
                   </tr>
                 </tfoot>
               </table>

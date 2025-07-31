@@ -210,15 +210,19 @@ const CollectionManagement = () => {
         const response = await axios.get(url);
         console.log("Collections API response:", response);
 
+        // Handle the direct array response from backend
+        const collections = Array.isArray(response.data) ? response.data : [];
+        
+        // Create a properly structured response object
+        const formattedData = {
+          data: collections,
+          totalItems: collections.length
+        };
+        
         // Update total items for pagination
-        if (response.data.totalItems) {
-          setTotalItems(response.data.totalItems);
-        } else {
-          // If API doesn't return total, use the length of the data array
-          setTotalItems(response.data.data?.length || 0);
-        }
-
-        return response.data;
+        setTotalItems(formattedData.totalItems);
+        
+        return formattedData;
       } catch (error) {
         console.error("Fetch collections error:", error);
         toast.error(`Failed to fetch collections: ${error.message}`);
@@ -355,7 +359,7 @@ const CollectionManagement = () => {
             formData.append("image", imageFile);
 
             const uploadResponse = await axios.post(
-              "/upload/product",
+              "/api/products",
               formData,
               {
                 headers: {
@@ -371,11 +375,11 @@ const CollectionManagement = () => {
               }
             );
 
-            if (uploadResponse.data && uploadResponse.data.imageUrl) {
-              collectionData.image = uploadResponse.data.imageUrl;
+            if (uploadResponse.data && uploadResponse.data.data && uploadResponse.data.data.product && uploadResponse.data.data.product.images && uploadResponse.data.data.product.images.length > 0) {
+              collectionData.image = uploadResponse.data.data.product.images[0];
               console.log(
                 "Image uploaded successfully:",
-                uploadResponse.data.imageUrl
+                collectionData.image
               );
             } else {
               throw new Error("Invalid response from image upload server");
@@ -515,7 +519,7 @@ const CollectionManagement = () => {
             formData.append("image", imageFile);
 
             const uploadResponse = await axios.post(
-              "/upload/product",
+              "/api/products",
               formData,
               {
                 headers: {
@@ -531,11 +535,11 @@ const CollectionManagement = () => {
               }
             );
 
-            if (uploadResponse.data && uploadResponse.data.imageUrl) {
-              data.image = uploadResponse.data.imageUrl;
+            if (uploadResponse.data && uploadResponse.data.data && uploadResponse.data.data.product && uploadResponse.data.data.product.images && uploadResponse.data.data.product.images.length > 0) {
+              data.image = uploadResponse.data.data.product.images[0];
               console.log(
                 "Image uploaded successfully:",
-                uploadResponse.data.imageUrl
+                data.image
               );
             } else {
               throw new Error("Invalid response from image upload server");

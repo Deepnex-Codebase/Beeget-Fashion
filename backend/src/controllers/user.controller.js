@@ -367,16 +367,44 @@ export const registerSubadmin = async (req, res, next) => {
     await newUser.save();
     
     // Import the email service
-    const { sendSubadminWelcomeEmail } = await import('../services/email.service.js');
+    logger.info(`Importing email service for sending welcome email to new subadmin: ${email}`);
+    const { sendSubadminWelcomeEmail, testEmailConfiguration } = await import('../services/email.service.js');
+    
+    // Test email configuration first
+    logger.info('Testing email configuration before sending welcome email...');
+    try {
+      const testResult = await testEmailConfiguration();
+      if (testResult.success) {
+        logger.info('Email configuration test successful, proceeding with welcome email');
+      } else {
+        logger.warn(`Email configuration test failed: ${testResult.error}. Will attempt to send welcome email anyway.`);
+      }
+    } catch (testError) {
+      logger.error(`Error testing email configuration: ${testError.message}. Will attempt to send welcome email anyway.`);
+    }
     
     // Send welcome email to the new subadmin
-    await sendSubadminWelcomeEmail(
-      email,
-      name,
-      password, // Send the original password before it's hashed
-      department,
-      permissions
-    );
+    logger.info(`Attempting to send welcome email to subadmin: ${email}`);
+    try {
+      const emailResult = await sendSubadminWelcomeEmail(
+        email,
+        name,
+        password, // Send the original password before it's hashed
+        department,
+        permissions
+      );
+      
+      if (emailResult && emailResult.success) {
+        logger.info(`Welcome email sent successfully to subadmin: ${email}`);
+      } else {
+        logger.warn(`Failed to send welcome email to subadmin: ${email}. Will continue with registration.`);
+        logger.warn(`Email error: ${JSON.stringify(emailResult)}`);
+      }
+    } catch (emailError) {
+      logger.error(`Error sending welcome email to subadmin: ${email}. Error: ${emailError.message}`);
+      logger.error(`Error details: ${JSON.stringify(emailError)}`);
+      // Continue with registration even if email fails
+    }
     
     // Return success response
     res.status(201).json({

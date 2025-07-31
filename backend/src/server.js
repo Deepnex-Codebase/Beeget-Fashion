@@ -1,4 +1,4 @@
-import app from './app.js';
+import app from './app.js'; 
 import { logger } from './utils/logger.js';
 import { connectToMongoDB } from './config/database.js';
 import { connectToRedis } from './config/redis.js';

@@ -505,6 +505,11 @@ const EnquirySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  responseMessage: {
+    type: String,
+    trim: true,
+    default: null
+  },
   status: {
     type: String,
     enum: ['new', 'read', 'replied', 'archived'],

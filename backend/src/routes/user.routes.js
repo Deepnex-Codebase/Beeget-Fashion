@@ -11,6 +11,8 @@ import {
   registerSubadmin,
   updateSubadminDepartment
 } from '../controllers/user.controller.js';
+import { testEmailConfiguration } from '../services/email.service.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -32,5 +34,36 @@ router.put('/:userId/unban', unbanUser);
 router.post('/register-subadmin', registerSubadmin);
 // Admin can update subadmin's department and permissions
 router.patch('/subadmin/:userId/department', updateSubadminDepartment);
+
+// Test email configuration
+router.get('/test-email', async (req, res) => {
+  try {
+    logger.info('Testing email configuration...');
+    const result = await testEmailConfiguration();
+    
+    if (result.success) {
+      logger.info('Email test successful');
+      return res.status(200).json({
+        success: true,
+        message: 'Email test successful',
+        data: result
+      });
+    } else {
+      logger.error(`Email test failed: ${result.error}`);
+      return res.status(500).json({
+        success: false,
+        message: 'Email test failed',
+        error: result.error
+      });
+    }
+  } catch (error) {
+    logger.error(`Error testing email configuration: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: 'Error testing email configuration',
+      error: error.message
+    });
+  }
+});
 
 export default router;

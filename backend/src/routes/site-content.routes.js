@@ -16,7 +16,8 @@ import {
   autosaveFooter,
   submitEnquiry,
   getEnquiries,
-  updateEnquiryStatus
+  updateEnquiryStatus,
+  deleteEnquiry
 } from '../controllers/site-content.controller.js';
 
 const router = express.Router();
@@ -45,5 +46,6 @@ router.post('/footer/autosave', verifyToken, isEditor, preventDeletion, autosave
 router.post('/enquiries', submitEnquiry); // Public route for form submissions
 router.get('/enquiries', verifyToken, isViewer, getEnquiries);
 router.put('/enquiries/:id/status', verifyToken, isEditor, updateEnquiryStatus);
+router.delete('/enquiries/:id', verifyToken, isEditor, deleteEnquiry);
 
 export default router;

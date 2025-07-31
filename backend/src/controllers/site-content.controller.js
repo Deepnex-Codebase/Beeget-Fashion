@@ -497,17 +497,25 @@ export const getEnquiries = async (req, res, next) => {
 export const updateEnquiryStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, responseMessage } = req.body;
     
     // Validate status
     if (!['new', 'read', 'replied', 'archived'].includes(status)) {
       throw new AppError('Invalid status', 400);
     }
     
+    // Prepare update object
+    const updateData = { status };
+    
+    // If response message is provided, add it to the update
+    if (responseMessage) {
+      updateData.responseMessage = responseMessage;
+    }
+    
     // Find and update enquiry
     const enquiry = await Enquiry.findByIdAndUpdate(
       id,
-      { status },
+      updateData,
       { new: true }
     );
     
@@ -515,9 +523,56 @@ export const updateEnquiryStatus = async (req, res, next) => {
       throw new AppError('Enquiry not found', 404);
     }
     
+    // If status is 'replied' and we have a response message, send email to user
+    if (status === 'replied' && responseMessage) {
+      try {
+        // Import email service
+        const { sendEnquiryResponseEmail } = await import('../services/email.service.js');
+        
+        // Send email to user
+        await sendEnquiryResponseEmail(
+          enquiry.email,
+          enquiry.name,
+          enquiry.subject,
+          responseMessage
+        );
+        
+        logger.info(`Response email sent to ${enquiry.email} for enquiry ${enquiry._id}`);
+      } catch (emailError) {
+        logger.error(`Failed to send response email: ${emailError.message}`);
+        // We don't want to fail the status update if email sending fails
+        // So we just log the error and continue
+      }
+    }
+    
     res.status(200).json(enquiry);
   } catch (error) {
     logger.error('Error updating enquiry status:', error);
+    next(error);
+  }
+};
+
+/**
+ * Delete an enquiry
+ */
+export const deleteEnquiry = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    // Find and delete the enquiry
+    const enquiry = await Enquiry.findByIdAndDelete(id);
+    
+    if (!enquiry) {
+      throw new AppError('Enquiry not found', 404);
+    }
+    
+    logger.info(`Enquiry ${id} deleted successfully`);
+    res.status(200).json({
+      success: true,
+      message: 'Enquiry deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Error deleting enquiry:', error);
     next(error);
   }
 };
