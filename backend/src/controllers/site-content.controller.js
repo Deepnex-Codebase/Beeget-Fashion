@@ -1,6 +1,7 @@
 import { HomePage, AboutPage, ContactPage, Enquiry, Footer } from '../models/cms.model.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { logger } from '../utils/logger.js';
+import { getFileUrl } from '../config/multer.js';
 
 /**
  * Get the Home Page content
@@ -573,6 +574,45 @@ export const deleteEnquiry = async (req, res, next) => {
     });
   } catch (error) {
     logger.error('Error deleting enquiry:', error);
+    next(error);
+  }
+};
+
+/**
+ * Upload CMS Image
+ */
+export const uploadCmsImage = async (req, res, next) => {
+  try {
+    logger.info('CMS image upload request received');
+    logger.info('Request headers:', req.headers);
+    logger.info('Request files:', req.files);
+    logger.info('Request file:', req.file);
+    
+    if (!req.file) {
+      logger.error('No image file provided in request');
+      throw new AppError('No image file provided', 400);
+    }
+
+    logger.info(`File received: ${req.file.originalname}, size: ${req.file.size}, mimetype: ${req.file.mimetype}`);
+
+    // Generate the file URL
+    const imageUrl = getFileUrl(req.file.path);
+    
+    logger.info(`CMS image uploaded successfully: ${req.file.filename}`);
+    logger.info(`Generated URL: ${imageUrl}`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Image uploaded successfully',
+      data: {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        url: imageUrl,
+        path: req.file.path
+      }
+    });
+  } catch (error) {
+    logger.error('Error uploading CMS image:', error);
     next(error);
   }
 };

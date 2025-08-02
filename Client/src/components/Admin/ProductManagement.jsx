@@ -20,6 +20,14 @@ const ProductManagement = () => {
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, success, error
+  
+  // Bulk image upload state
+  const [showBulkImageUploadModal, setShowBulkImageUploadModal] = useState(false);
+  const [bulkImageFiles, setBulkImageFiles] = useState([]);
+  const [imageUploadProgress, setImageUploadProgress] = useState(0);
+  const [imageUploadStatus, setImageUploadStatus] = useState('idle'); // idle, uploading, success, error
+  const [uploadedImageUrls, setUploadedImageUrls] = useState([]);
+  const [csvDownloadUrl, setCsvDownloadUrl] = useState('');
 
   // Product form data
   const [formData, setFormData] = useState({
@@ -237,6 +245,41 @@ const ProductManagement = () => {
     }
   });
   
+  // Bulk upload images mutation
+  const bulkImageUploadMutation = useMutation({
+    mutationFn: async (files) => {
+      setImageUploadStatus('uploading');
+      const formData = new FormData();
+      
+      // Add all image files
+      for (let i = 0; i < files.length; i++) {
+        formData.append('images', files[i]);
+      }
+      
+      const response = await axios.post('/products/bulk-upload-images', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setImageUploadProgress(percentCompleted);
+        }
+      });
+      
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setImageUploadStatus('success');
+      toast.success(`${data.message}`);
+      setUploadedImageUrls(data.data.images);
+      setCsvDownloadUrl(data.data.csvUrl);
+    },
+    onError: (error) => {
+      setImageUploadStatus('error');
+      toast.error(error.response?.data?.message || 'Failed to upload images');
+    }
+  });
+  
   // Handle basic form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -386,6 +429,17 @@ const ProductManagement = () => {
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleImageFilesChange({ target: { files: e.dataTransfer.files } });
+    }
+  };
+  
+  // Handle drag and drop for bulk images
+  const handleBulkImageDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('bg-teal-50', 'border-teal-500');
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleBulkImageFilesChange({ target: { files: e.dataTransfer.files } });
     }
   };
   
@@ -598,10 +652,32 @@ const ProductManagement = () => {
     setUploadStatus('idle');
   };
   
+  // Reset bulk image upload state
+  const resetBulkImageUpload = () => {
+    setBulkImageFiles([]);
+    setImageUploadProgress(0);
+    setImageUploadStatus('idle');
+    setUploadedImageUrls([]);
+    setCsvDownloadUrl('');
+  };
+  
   // Generate sample CSV
   const generateSampleCSV = () => {
-    const headers = 'title,description,category_id,sku,price,stock,color,size,images,gstRate';
-    const sampleData = 'मेन्स कॉटन टी-शर्ट,Cotton T-Shirt,507f1f77bcf86cd799439011,TSHIRT-RED-L,499,100,Red,L,"https://example.com/img1.jpg,https://example.com/img2.jpg",5';
+    const headers = 'title,description,category,sku,price,stock,color,size,images,gstRate';
+    
+    // Get first category ID from the available categories
+    let categoryId = '';
+    if (flatCategories && flatCategories.length > 0) {
+      categoryId = flatCategories[0]._id;
+    }
+    
+    // Sample data with multiple variants of the same product
+    const sampleData = [
+      `Mens Cotton T-Shirt,Cotton T-Shirt,${categoryId},TSHIRT-RED-L,499,100,Red,L,"https://example.com/img1.jpg,https://example.com/img2.jpg",5`,
+      `Mens Cotton T-Shirt,Cotton T-Shirt,${categoryId},TSHIRT-RED-M,499,150,Red,M,"https://example.com/img1.jpg,https://example.com/img2.jpg",5`,
+      `Mens Cotton T-Shirt,Cotton T-Shirt,${categoryId},TSHIRT-BLUE-L,499,80,Blue,L,"https://example.com/img3.jpg,https://example.com/img4.jpg",5`,
+      `Mens Cotton T-Shirt,Cotton T-Shirt,${categoryId},TSHIRT-BLUE-M,499,120,Blue,M,"https://example.com/img3.jpg,https://example.com/img4.jpg",5`
+    ].join('\n');
     
     const csvContent = `${headers}\n${sampleData}`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -610,6 +686,163 @@ const ProductManagement = () => {
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', 'product_upload_sample.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  // Generate sample JSON
+  const generateSampleJSON = () => {
+    // Get first category ID from the available categories
+    let categoryId = '';
+    if (flatCategories && flatCategories.length > 0) {
+      categoryId = flatCategories[0]._id;
+    }
+    
+    // Sample data with multiple variants for the same product
+    const sampleData = [
+      {
+        title: 'मेन्स कॉटन टी-शर्ट',
+        description: 'Cotton T-Shirt',
+        category: categoryId, // Use category ID instead of name
+        gstRate: 5,
+        images: [
+          'https://example.com/img1.jpg',
+          'https://example.com/img2.jpg'
+        ],
+        variants: [
+          {
+            sku: 'TSHIRT-RED-L',
+            price: 499,
+            stock: 100,
+            attributes: {
+              Color: 'Red',
+              Size: 'L'
+            }
+          },
+          {
+            sku: 'TSHIRT-RED-M',
+            price: 499,
+            stock: 150,
+            attributes: {
+              Color: 'Red',
+              Size: 'M'
+            }
+          },
+          {
+            sku: 'TSHIRT-BLUE-L',
+            price: 499,
+            stock: 80,
+            attributes: {
+              Color: 'Blue',
+              Size: 'L'
+            }
+          },
+          {
+            sku: 'TSHIRT-BLUE-M',
+            price: 499,
+            stock: 120,
+            attributes: {
+              Color: 'Blue',
+              Size: 'M'
+            }
+          }
+        ]
+      }
+    ];
+    
+    const jsonContent = JSON.stringify(sampleData, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'product_upload_sample.json');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  // Handle bulk image file change
+  const handleBulkImageFilesChange = (e) => {
+    const newFiles = Array.from(e.target.files || []);
+    
+    if (newFiles.length === 0) return;
+    
+    // Show loading toast for large number of files
+    let loadingToastId;
+    if (newFiles.length > 10) {
+      loadingToastId = toast.loading(`Processing ${newFiles.length} images...`);
+    }
+    
+    // Validate file types and sizes
+    const validFiles = newFiles.filter(file => {
+      // Check file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error(`File "${file.name}" is not a supported image format`);
+        return false;
+      }
+      
+      // Check file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast.error(`File "${file.name}" exceeds 5MB size limit`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    // Add new files to existing ones
+    setBulkImageFiles(prev => {
+      const updatedImageFiles = [...prev, ...validFiles];
+      
+      // Show success toast
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+      }
+      
+      if (validFiles.length > 0) {
+        toast.success(`Added ${validFiles.length} image${validFiles.length !== 1 ? 's' : ''}`);
+      }
+      
+      return updatedImageFiles;
+    });
+    
+    // Reset the input value to allow selecting the same files again
+    e.target.value = '';
+  };
+  
+  // Handle bulk image upload
+  const handleBulkImageUpload = () => {
+    if (!bulkImageFiles.length) {
+      toast.error('Please select images to upload');
+      return;
+    }
+    
+    bulkImageUploadMutation.mutate(bulkImageFiles);
+  };
+  
+  // Handle removing a file from the selected bulk image files
+  const handleBulkImageFileRemove = (indexToRemove) => {
+    setBulkImageFiles(prev => {
+      const updatedImageFiles = prev.filter((_, index) => index !== indexToRemove);
+      toast.success('Image removed from selection');
+      return updatedImageFiles;
+    });
+  };
+  
+  // Download CSV with image URLs
+  const downloadImageUrlsCsv = () => {
+    if (!csvDownloadUrl) {
+      toast.error('No CSV file available for download');
+      return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = csvDownloadUrl;
+    link.setAttribute('download', 'image_urls.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -855,19 +1088,8 @@ const ProductManagement = () => {
             newErrors.variants = 'Please fix errors in variant details';
           }
         }
-      } else if (currentStep === 3) {
+      } else if (step === 3) {
         // Validate images
-        const hasExistingImages = formData.images && formData.images.length > 0;
-        const hasNewImages = formData.imageFiles && formData.imageFiles.length > 0;
-        
-        // Only validate if this is a new product (for edit, images are optional)
-        if (!currentProduct && !hasExistingImages && !hasNewImages) {
-          newErrors.images = 'At least one product image is required';
-        }
-      }
-      // Step 3 (images) validation
-      else if (step === 3) {
-        // Check if there are any images (either existing or new)
         const hasExistingImages = formData.images && formData.images.length > 0;
         const hasNewImages = formData.imageFiles && formData.imageFiles.length > 0;
         
@@ -881,11 +1103,26 @@ const ProductManagement = () => {
       return Object.keys(newErrors).length === 0;
     };
     
+    // Initialize form with no validation errors
+    useEffect(() => {
+      // Reset errors when modal opens
+      setErrors({});
+    }, [showAddModal, showEditModal]);
+    
     // Check if current step is valid (to avoid infinite renders)
     const [isCurrentStepValid, setIsCurrentStepValid] = useState(true);
     
     // Update validation state when step or form data changes
     useEffect(() => {
+      // Only validate after user interaction (form submission attempt or next button click)
+      // This prevents showing errors when the form first loads
+      const shouldValidate = Object.keys(errors).length > 0;
+      
+      if (!shouldValidate) {
+        setIsCurrentStepValid(true);
+        return;
+      }
+      
       const newErrors = {};
       
       if (currentStep === 1) {
@@ -917,15 +1154,23 @@ const ProductManagement = () => {
           });
           
           if (hasVariantErrors) {
-
             newErrors.variants = 'Please fix errors in variant details';
           }
+        }
+      } else if (currentStep === 3) {
+        // Validate images
+        const hasExistingImages = formData.images && formData.images.length > 0;
+        const hasNewImages = formData.imageFiles && formData.imageFiles.length > 0;
+        
+        // Only validate if this is a new product (for edit, images are optional)
+        if (!currentProduct && !hasExistingImages && !hasNewImages) {
+          newErrors.images = 'At least one product image is required';
         }
       }
       
       setErrors(newErrors);
       setIsCurrentStepValid(Object.keys(newErrors).length === 0);
-    }, [currentStep, formData]);
+    }, [currentStep, formData, errors]);
     
     // Validate all steps for final submission
     const validateForm = () => {
@@ -939,7 +1184,8 @@ const ProductManagement = () => {
     
     // Handle next step
     const handleNextStep = () => {
-      if (isCurrentStepValid) {
+      // Explicitly validate the current step before proceeding
+      if (validateStep(currentStep)) {
         setCurrentStep(prev => Math.min(prev + 1, totalSteps));
       } else {
         // Scroll to the first error
@@ -952,7 +1198,10 @@ const ProductManagement = () => {
     
     // Handle previous step
     const handlePrevStep = () => {
-      setCurrentStep(prev => Math.max(prev - 1, 1));
+      // Use setTimeout to ensure state updates properly
+      setTimeout(() => {
+        setCurrentStep(prev => Math.max(prev - 1, 1));
+      }, 10);
     };
     
     // Enhanced submit handler with validation
@@ -1006,6 +1255,17 @@ const ProductManagement = () => {
                 name="title"
                 value={formData.title}
                 onChange={handleInputChange}
+                onBlur={() => {
+                  if (!formData.title.trim()) {
+                    setErrors(prev => ({ ...prev, title: 'Title is required' }));
+                  } else {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.title;
+                      return newErrors;
+                    });
+                  }
+                }}
                 placeholder="Enter product title"
                 className={`w-full focus:border-teal-500 ${errors.title ? 'border-red-500 bg-red-50' : ''}`}
               />
@@ -1022,6 +1282,17 @@ const ProductManagement = () => {
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
+                onBlur={() => {
+                  if (!formData.category) {
+                    setErrors(prev => ({ ...prev, category: 'Category is required' }));
+                  } else {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.category;
+                      return newErrors;
+                    });
+                  }
+                }}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.category ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
               >
                 <option value="">Select a category</option>
@@ -1045,6 +1316,17 @@ const ProductManagement = () => {
               name="description"
               value={formData.description}
               onChange={handleInputChange}
+              onBlur={() => {
+                if (!formData.description.trim()) {
+                  setErrors(prev => ({ ...prev, description: 'Description is required' }));
+                } else {
+                  setErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors.description;
+                    return newErrors;
+                  });
+                }
+              }}
               rows="4"
               placeholder="Describe your product in detail"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.description ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
@@ -1149,6 +1431,17 @@ const ProductManagement = () => {
                       type="text"
                       value={variant.sku}
                       onChange={(e) => handleVariantChange(index, 'sku', e.target.value)}
+                      onBlur={() => {
+                        if (!variant.sku || !variant.sku.trim()) {
+                          setErrors(prev => ({ ...prev, [`variant_${index}_sku`]: 'SKU is required' }));
+                        } else {
+                          setErrors(prev => {
+                            const newErrors = { ...prev };
+                            delete newErrors[`variant_${index}_sku`];
+                            return newErrors;
+                          });
+                        }
+                      }}
                       placeholder="Unique product code"
                       className={`block w-full border rounded-md shadow-sm p-2 focus:ring-teal-500 focus:border-teal-500 ${errors[`variant_${index}_sku`] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       required
@@ -1169,6 +1462,17 @@ const ProductManagement = () => {
                         type="number"
                         value={variant.price}
                         onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                        onBlur={() => {
+                          if (!variant.price || isNaN(variant.price) || parseFloat(variant.price) <= 0) {
+                            setErrors(prev => ({ ...prev, [`variant_${index}_price`]: 'Valid price is required' }));
+                          } else {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors[`variant_${index}_price`];
+                              return newErrors;
+                            });
+                          }
+                        }}
                         placeholder="0.00"
                         className={`block w-full border rounded-md shadow-sm p-2 pl-7 focus:ring-teal-500 focus:border-teal-500 ${errors[`variant_${index}_price`] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                         min="0"
@@ -1189,6 +1493,17 @@ const ProductManagement = () => {
                         type="number"
                         value={variant.stock}
                         onChange={(e) => handleVariantChange(index, 'stock', e.target.value)}
+                        onBlur={() => {
+                          if (variant.stock === '' || isNaN(variant.stock) || parseInt(variant.stock) < 0) {
+                            setErrors(prev => ({ ...prev, [`variant_${index}_stock`]: 'Valid stock quantity is required' }));
+                          } else {
+                            setErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors[`variant_${index}_stock`];
+                              return newErrors;
+                            });
+                          }
+                        }}
                         placeholder="Available quantity"
                         className={`block w-full border rounded-md shadow-sm p-2 focus:ring-teal-500 focus:border-teal-500 ${errors[`variant_${index}_stock`] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                         min="0"
@@ -1432,7 +1747,12 @@ const ProductManagement = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={handlePrevStep}
+                onClick={() => {
+                  // Use setTimeout to ensure state updates properly
+                  setTimeout(() => {
+                    setCurrentStep(prev => Math.max(prev - 1, 1));
+                  }, 10);
+                }}
                 className="w-full sm:w-auto px-6 py-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center">
@@ -1467,7 +1787,21 @@ const ProductManagement = () => {
             {currentStep < totalSteps ? (
               <Button
                 type="button"
-                onClick={handleNextStep}
+                onClick={() => {
+                  // Explicitly validate current step before proceeding
+                  if (validateStep(currentStep)) {
+                    // Use setTimeout to ensure state updates properly
+                    setTimeout(() => {
+                      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+                    }, 10);
+                  } else {
+                    // Scroll to the first error
+                    const firstErrorField = document.querySelector('.error-field');
+                    if (firstErrorField) {
+                      firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }
+                }}
                 disabled={!isCurrentStepValid}
                 className={`w-full sm:w-auto px-6 py-2 transition-colors shadow-sm ${!isCurrentStepValid ? 'bg-gray-400 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700'}`}
               >
@@ -1529,7 +1863,15 @@ const ProductManagement = () => {
             className="flex items-center gap-2"
           >
             <FiUpload className="h-4 w-4" />
-            Bulk Upload
+            Bulk Upload Products
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setShowBulkImageUploadModal(true)}
+            className="flex items-center gap-2"
+          >
+            <FiUpload className="h-4 w-4" />
+            Bulk Upload Images
           </Button>
           <Button onClick={() => {
             setCurrentStep(1); // Always start at step 1
@@ -1621,9 +1963,12 @@ const ProductManagement = () => {
       <Modal
         isOpen={showAddModal}
         onClose={() => {
-          setShowAddModal(false);
-          resetForm();
+          // First reset the step, then close the modal to prevent UI flicker
           setCurrentStep(1); // Reset to first step when closing
+          resetForm();
+          setTimeout(() => {
+            setShowAddModal(false);
+          }, 50); // Small delay to ensure state updates before modal closes
         }}
         title={`${currentProduct ? 'Edit' : 'Add New'} Product - ${stepTitles[currentStep - 1]}`}
         size="xxl"
@@ -1635,10 +1980,13 @@ const ProductManagement = () => {
       <Modal
         isOpen={showEditModal}
         onClose={() => {
-          setShowEditModal(false);
-          setCurrentProduct(null);
-          resetForm();
+          // First reset the step, then close the modal to prevent UI flicker
           setCurrentStep(1); // Reset to first step when closing
+          resetForm();
+          setCurrentProduct(null);
+          setTimeout(() => {
+            setShowEditModal(false);
+          }, 50); // Small delay to ensure state updates before modal closes
         }}
         title={`Edit Product - ${stepTitles[currentStep - 1]}`}
         size="xxl"
@@ -1920,15 +2268,49 @@ const ProductManagement = () => {
               Upload a CSV or JSON file containing product data. Download the sample template below for reference.
             </p>
             
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={generateSampleCSV}
-              className="flex items-center gap-2 mb-4 text-sm"
-            >
-              <FiDownload className="h-4 w-4" />
-              Download Sample CSV
-            </Button>
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">Multiple Variants Support</h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>You can now upload products with multiple variants:</p>
+                    <ul className="list-disc pl-5 mt-1 space-y-1">
+                      <li>For CSV: Use the same title, description, and category for all variants of the same product, but with unique SKUs.</li>
+                      <li>For JSON: Group variants under a single product object in an array format.</li>
+                      <li>Each SKU must be unique across all products.</li>
+                      <li><strong>Important:</strong> Use category name directly (e.g., "मेन्स वियर") instead of category ID.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-3 mb-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={generateSampleCSV}
+                className="flex items-center gap-2 text-sm"
+              >
+                <FiDownload className="h-4 w-4" />
+                Download Sample CSV
+              </Button>
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={generateSampleJSON}
+                className="flex items-center gap-2 text-sm"
+              >
+                <FiDownload className="h-4 w-4" />
+                Download Sample JSON
+              </Button>
+            </div>
             
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
               {bulkUploadFile ? (
@@ -2006,6 +2388,178 @@ const ProductManagement = () => {
               disabled={!bulkUploadFile || uploadStatus === 'loading' || uploadStatus === 'success'}
             >
               {uploadStatus === 'loading' ? 'Uploading...' : 'Upload Products'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      
+      {/* Bulk Image Upload Modal */}
+      <Modal
+        isOpen={showBulkImageUploadModal}
+        onClose={() => {
+          if (imageUploadStatus !== 'loading') {
+            setShowBulkImageUploadModal(false);
+            resetBulkImageUpload();
+          }
+        }}
+        title="Bulk Upload Images"
+        size="lg"
+      >
+        <div className="p-6">
+          <div className="mb-6">
+            <p className="text-sm text-gray-600 mb-4">
+              Upload multiple images at once. The images will be stored on the server and you'll receive a CSV file with all image URLs.
+            </p>
+            
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.add('bg-teal-50', 'border-teal-500');
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.remove('bg-teal-50', 'border-teal-500');
+              }}
+              onDrop={handleBulkImageDrop}
+            >
+              {bulkImageFiles.length > 0 ? (
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center mb-3">
+                    <span className="text-sm font-medium mr-2">{bulkImageFiles.length} image{bulkImageFiles.length !== 1 ? 's' : ''} selected</span>
+                    <span className="text-xs text-gray-500">({Math.round(bulkImageFiles.reduce((total, file) => total + file.size, 0) / 1024)} KB total)</span>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setBulkImageFiles([])}
+                    className="text-xs"
+                    disabled={imageUploadStatus === 'loading'}
+                  >
+                    Clear Selection
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <FiUpload className="h-10 w-10 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600 mb-2">Drag & drop your images here or</p>
+                  <label className="cursor-pointer text-sm text-blue-600 hover:text-blue-800">
+                    Browse Files
+                    <input 
+                      type="file" 
+                      multiple
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden" 
+                      onChange={handleBulkImageFilesChange}
+                    />
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">Supported formats: JPEG, PNG, GIF, WebP (Max 5MB per image)</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Preview of Selected Images */}
+            {bulkImageFiles.length > 0 && (
+              <div className="mt-6 bg-white p-4 rounded-lg border border-teal-200">
+                <div className="flex justify-between items-center mb-3">
+                  <h5 className="text-sm font-medium text-teal-700 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                    Images to Upload
+                  </h5>
+                  <div className="flex items-center">
+                    <span className="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded-full">
+                      {bulkImageFiles.length} file{bulkImageFiles.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {bulkImageFiles.map((file, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square overflow-hidden rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow bg-gray-50">
+                        <img 
+                          src={URL.createObjectURL(file)} 
+                          alt={`Upload Preview ${index + 1}`} 
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleBulkImageFileRemove(index)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-sm opacity-90 hover:opacity-100 transition-opacity"
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs py-1 px-2 rounded-b-lg flex justify-between">
+                        <span>#{index + 1}</span>
+                        <span className="truncate max-w-[80px]" title={file.name}>{file.name}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {imageUploadStatus === 'loading' && (
+            <div className="mb-4">
+              <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-600 rounded-full transition-all duration-300" 
+                  style={{ width: `${imageUploadProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-center mt-1 text-gray-600">{imageUploadProgress}% Uploaded</p>
+            </div>
+          )}
+          
+          {imageUploadStatus === 'error' && (
+            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+              <p>An error occurred during upload. Please try again.</p>
+            </div>
+          )}
+          
+          {imageUploadStatus === 'success' && (
+            <div className="mb-4">
+              <div className="p-3 bg-green-50 text-green-700 rounded-md text-sm mb-4">
+                <p>Images uploaded successfully! {uploadedImageUrls.length} image{uploadedImageUrls.length !== 1 ? 's' : ''} uploaded.</p>
+              </div>
+              
+              {csvDownloadUrl && (
+                <div className="flex justify-center">
+                  <Button
+                    onClick={downloadImageUrlsCsv}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <FiDownload className="h-4 w-4" />
+                    Download CSV with Image URLs
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowBulkImageUploadModal(false);
+                resetBulkImageUpload();
+              }}
+              disabled={imageUploadStatus === 'loading'}
+            >
+              {imageUploadStatus === 'success' ? 'Close' : 'Cancel'}
+            </Button>
+            <Button
+              onClick={handleBulkImageUpload}
+              disabled={bulkImageFiles.length === 0 || imageUploadStatus === 'loading' || imageUploadStatus === 'success'}
+            >
+              {imageUploadStatus === 'loading' ? 'Uploading...' : 'Upload Images'}
             </Button>
           </div>
         </div>

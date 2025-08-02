@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../utils/api';
 import Button from '../components/Common/Button';
+import Image from '../components/Common/Image';
 import { toast } from 'react-hot-toast';
 import Modal from '../components/Common/Modal';
 import useCart from '../hooks/useCart';
@@ -24,6 +25,15 @@ const AccountOrders = () => {
   const [cashfreeLoaded, setCashfreeLoaded] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentOrderId, setPaymentOrderId] = useState('');
+  const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [orderToCancel, setOrderToCancel] = useState(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [orderToReturn, setOrderToReturn] = useState(null);
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
+  const [exchangeReason, setExchangeReason] = useState('');
+  const [orderToExchange, setOrderToExchange] = useState(null);
   const { addToCart, cart } = useCart();
   
   // Load paid orders from localStorage on component mount
@@ -84,8 +94,8 @@ const AccountOrders = () => {
   // Cancel order mutation
   const queryClient = useQueryClient();
   const cancelOrder = useMutation({
-    mutationFn: async (orderId) => {
-      const response = await axios.post(`/orders/${orderId}/cancel`);
+    mutationFn: async ({ orderId, reason }) => {
+      const response = await axios.post(`/orders/${orderId}/cancel`, { reason });
       return response.data;
     },
     onSuccess: () => {
@@ -179,11 +189,28 @@ const AccountOrders = () => {
     setSelectedOrder(orderId);
   };
 
-  // Handle cancel order
+  // Handle cancel order - now opens a modal to ask for reason
   const handleCancelOrder = (orderId) => {
-    if (window.confirm('Are you sure you want to cancel this order?')) {
-      cancelOrder.mutate(orderId);
+    setOrderToCancel(orderId);
+    setShowCancelReasonModal(true);
+  };
+  
+  // Submit cancel order with reason
+  const submitCancelOrder = () => {
+    if (!cancelReason.trim()) {
+      toast.error('Please provide a reason for cancellation');
+      return;
     }
+    
+    cancelOrder.mutate({
+      orderId: orderToCancel,
+      reason: cancelReason
+    });
+    
+    // Reset and close modal
+    setCancelReason('');
+    setOrderToCancel(null);
+    setShowCancelReasonModal(false);
   };
   
   // Handle delete order
@@ -351,6 +378,101 @@ const AccountOrders = () => {
   const canDeleteOrder = (order) => {
     const paymentStatus = (order.payment?.status || order.paymentStatus || '').toUpperCase();
     return paymentStatus === 'PENDING';
+  };
+  
+  // Check if order can be returned or exchanged (only DELIVERED orders)
+  const canReturnOrExchange = (order) => {
+    const orderStatus = (order.statusHistory && order.statusHistory.length > 0 
+      ? order.statusHistory[order.statusHistory.length - 1].status 
+      : order.orderStatus || '').toUpperCase();
+    
+    return orderStatus === 'DELIVERED';
+  };
+  
+  // Handle return order request
+  const handleReturnOrder = (orderId) => {
+    setOrderToReturn(orderId);
+    setShowReturnModal(true);
+  };
+  
+  // Return order mutation
+  const returnOrder = useMutation({
+    mutationFn: async ({ orderId, reason }) => {
+      const response = await axios.post(`/orders/${orderId}/return`, { reason });
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch orders query
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (selectedOrder) {
+        refetchOrderDetails();
+      }
+      toast.success('Return request submitted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to submit return request');
+    }
+  });
+  
+  // Submit return order request
+  const submitReturnOrder = () => {
+    if (!returnReason.trim()) {
+      toast.error('Please provide a reason for return');
+      return;
+    }
+    
+    returnOrder.mutate({
+      orderId: orderToReturn,
+      reason: returnReason
+    });
+    
+    // Reset and close modal
+    setReturnReason('');
+    setOrderToReturn(null);
+    setShowReturnModal(false);
+  };
+  
+  // Handle exchange order request
+  const handleExchangeOrder = (orderId) => {
+    setOrderToExchange(orderId);
+    setShowExchangeModal(true);
+  };
+  
+  // Exchange order mutation
+  const exchangeOrder = useMutation({
+    mutationFn: async ({ orderId, reason }) => {
+      const response = await axios.post(`/orders/${orderId}/exchange`, { reason });
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch orders query
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (selectedOrder) {
+        refetchOrderDetails();
+      }
+      toast.success('Exchange request submitted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to submit exchange request');
+    }
+  });
+  
+  // Submit exchange order request
+  const submitExchangeOrder = () => {
+    if (!exchangeReason.trim()) {
+      toast.error('Please provide details for exchange');
+      return;
+    }
+    
+    exchangeOrder.mutate({
+      orderId: orderToExchange,
+      reason: exchangeReason
+    });
+    
+    // Reset and close modal
+    setExchangeReason('');
+    setOrderToExchange(null);
+    setShowExchangeModal(false);
   };
 
   if (isLoading) {
@@ -553,10 +675,11 @@ const AccountOrders = () => {
                       <td className="px-4 py-4">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-md overflow-hidden">
-                            <img 
-                              src={item.productId?.images?.[0]} 
+                            <Image 
+                              src={item.productId?.images?.[0] || '/image_default.png'} 
                               alt={item.productId?.title} 
-                              className="w-full h-full object-cover" 
+                              className="w-full h-full object-cover"
+                              fallbackSrc="/image_default.png"
                             />
                           </div>
                           <div className="ml-4">
@@ -642,6 +765,26 @@ const AccountOrders = () => {
                 >
                   Cancel Order
                 </Button>
+              )}
+              
+              {/* Return and Exchange buttons for delivered orders */}
+              {canReturnOrExchange(orders.find(o => o._id === selectedOrder)) && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => handleReturnOrder(selectedOrder)}
+                  >
+                    Return Order
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => handleExchangeOrder(selectedOrder)}
+                  >
+                    Exchange Order
+                  </Button>
+                </div>
               )}
               
               {/* Download Invoice Button - This would need a backend endpoint to generate invoices */}
@@ -755,6 +898,27 @@ const AccountOrders = () => {
                           </Button>
                         )}
                         
+                        {canReturnOrExchange(order) && (
+                          <>
+                            <Button 
+                              variant="secondary" 
+                              size="xs" 
+                              onClick={() => handleReturnOrder(order._id)}
+                              className="inline-flex items-center"
+                            >
+                              Return
+                            </Button>
+                            <Button 
+                              variant="secondary" 
+                              size="xs" 
+                              onClick={() => handleExchangeOrder(order._id)}
+                              className="inline-flex items-center"
+                            >
+                              Exchange
+                            </Button>
+                          </>
+                        )}
+                        
                         {canDeleteOrder(order) && (
                           <Button 
                             variant="danger" 
@@ -775,6 +939,219 @@ const AccountOrders = () => {
         </div>
       )}
 
+      {/* Cancel Reason Modal */}
+      {showCancelReasonModal && (
+        <Modal
+          isOpen={showCancelReasonModal}
+          onClose={() => {
+            setShowCancelReasonModal(false);
+            setCancelReason('');
+            setOrderToCancel(null);
+          }}
+          title="Cancel Order"
+          size="md"
+        >
+          <div className="p-4">
+            <p className="mb-4">Please provide a reason for cancelling this order:</p>
+            <div className="mb-4">
+              <select 
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              >
+                <option value="">Select a reason</option>
+                <option value="Changed my mind">Changed my mind</option>
+                <option value="Found better price elsewhere">Found better price elsewhere</option>
+                <option value="Ordered by mistake">Ordered by mistake</option>
+                <option value="Shipping takes too long">Shipping takes too long</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            {(cancelReason === 'Other' || cancelReason.startsWith('Other:')) && (
+              <div className="mb-4">
+                <textarea
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  rows="3"
+                  placeholder="Please specify your reason"
+                  value={cancelReason.startsWith('Other:') ? cancelReason.substring(6).trim() : ''}
+                  onChange={(e) => setCancelReason(`Other: ${e.target.value}`)}
+                ></textarea>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowCancelReasonModal(false);
+                  setCancelReason('');
+                  setOrderToCancel(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="danger" 
+                onClick={submitCancelOrder}
+                disabled={!cancelReason}
+              >
+                Confirm Cancellation
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      
+      {/* Return Order Modal */}
+      {showReturnModal && (
+        <Modal
+          isOpen={showReturnModal}
+          onClose={() => {
+            setShowReturnModal(false);
+            setReturnReason('');
+            setOrderToReturn(null);
+          }}
+          title="Return Order"
+          size="md"
+        >
+          <div className="p-4">
+            <p className="mb-4">Please provide a reason for returning this order:</p>
+            <div className="mb-4">
+              <select 
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+              >
+                <option value="">Select a reason</option>
+                <option value="Damaged product">Damaged product</option>
+                <option value="Wrong item received">Wrong item received</option>
+                <option value="Item doesn't match description">Item doesn't match description</option>
+                <option value="Size/fit issue">Size/fit issue</option>
+                <option value="Quality issue">Quality issue</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            {(returnReason === 'Other' || returnReason.startsWith('Other:')) && (
+              <div className="mb-4">
+                <textarea
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  rows="3"
+                  placeholder="Please specify your reason"
+                  value={returnReason.startsWith('Other:') ? returnReason.substring(6).trim() : ''}
+                  onChange={(e) => setReturnReason(`Other: ${e.target.value}`)}
+                ></textarea>
+              </div>
+            )}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Return Instructions:</p>
+              <ol className="list-decimal pl-5 text-sm text-gray-600">
+                <li className="mb-1">Pack the item(s) securely in the original packaging if possible.</li>
+                <li className="mb-1">Include a copy of your order receipt or order number.</li>
+                <li className="mb-1">Our team will contact you with return shipping instructions.</li>
+                <li className="mb-1">Refund will be processed once we receive and inspect the returned item(s).</li>
+              </ol>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setReturnReason('');
+                  setOrderToReturn(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={submitReturnOrder}
+                disabled={!returnReason}
+              >
+                Submit Return Request
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      
+      {/* Exchange Order Modal */}
+      {showExchangeModal && (
+        <Modal
+          isOpen={showExchangeModal}
+          onClose={() => {
+            setShowExchangeModal(false);
+            setExchangeReason('');
+            setOrderToExchange(null);
+          }}
+          title="Exchange Order"
+          size="md"
+        >
+          <div className="p-4">
+            <p className="mb-4">Please provide details for your exchange request:</p>
+            <div className="mb-4">
+              <select 
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                value={exchangeReason}
+                onChange={(e) => setExchangeReason(e.target.value)}
+              >
+                <option value="">Select a reason</option>
+                <option value="Wrong size">Wrong size</option>
+                <option value="Wrong color">Wrong color</option>
+                <option value="Defective item">Defective item</option>
+                <option value="Not as described">Not as described</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <textarea
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                rows="3"
+                placeholder="Please provide details about what you'd like to exchange for (size, color, etc.)"
+                value={exchangeReason && exchangeReason.includes(':') ? exchangeReason.split(':')[1].trim() : ''}
+                onChange={(e) => {
+                  if (!exchangeReason) {
+                    setExchangeReason(`: ${e.target.value}`);
+                  } else if (exchangeReason === 'Other' || exchangeReason.startsWith('Other:')) {
+                    setExchangeReason(`Other: ${e.target.value}`);
+                  } else if (exchangeReason.includes(':')) {
+                    setExchangeReason(`${exchangeReason.split(':')[0]}: ${e.target.value}`);
+                  } else {
+                    setExchangeReason(`${exchangeReason}: ${e.target.value}`);
+                  }
+                }}
+              ></textarea>
+            </div>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Exchange Instructions:</p>
+              <ol className="list-decimal pl-5 text-sm text-gray-600">
+                <li className="mb-1">Pack the item(s) securely in the original packaging if possible.</li>
+                <li className="mb-1">Include a copy of your order receipt or order number.</li>
+                <li className="mb-1">Our team will contact you to confirm exchange details.</li>
+                <li className="mb-1">The replacement item will be shipped once we receive and process your return.</li>
+              </ol>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowExchangeModal(false);
+                  setExchangeReason('');
+                  setOrderToExchange(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={submitExchangeOrder}
+                disabled={!exchangeReason}
+              >
+                Submit Exchange Request
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      
       {/* Order Details Modal */}
       {showOrderModal && orderDetails && (
         <Modal
@@ -912,10 +1289,11 @@ const AccountOrders = () => {
                       <td className="px-4 py-4">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-md overflow-hidden">
-                            <img 
-                              src={item.productId?.images?.[0]} 
+                            <Image 
+                              src={item.productId?.images?.[0] || '/image_default.png'} 
                               alt={item.productId?.title} 
-                              className="w-full h-full object-cover" 
+                              className="w-full h-full object-cover"
+                              fallbackSrc="/image_default.png"
                             />
                           </div>
                           <div className="ml-4">
@@ -1030,6 +1408,32 @@ const AccountOrders = () => {
                 >
                   Delete Order
                 </Button>
+              )}
+              
+              {/* Return and Exchange buttons for delivered orders */}
+              {canReturnOrExchange(orderDetails) && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => {
+                      handleReturnOrder(orderDetails._id);
+                      setShowOrderModal(false);
+                    }}
+                  >
+                    Return Order
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => {
+                      handleExchangeOrder(orderDetails._id);
+                      setShowOrderModal(false);
+                    }}
+                  >
+                    Exchange Order
+                  </Button>
+                </div>
               )}
               
               {/* Download Invoice Button - This would need a backend endpoint to generate invoices */}

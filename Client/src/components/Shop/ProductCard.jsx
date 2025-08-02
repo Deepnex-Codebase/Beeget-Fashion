@@ -6,6 +6,7 @@ import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import useCart from '../../hooks/useCart'
 import useWishlist from '../../hooks/useWishlist'
 import { toast } from 'react-hot-toast'
+import Image from '../Common/Image'
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart()
@@ -69,23 +70,12 @@ const ProductCard = ({ product }) => {
       <Link to={`/product/${product.slug || product._id}`} className="block">
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">
-          {product.images && product.images.length > 0 ? (
-            <img 
-              src={product.images[0]} 
-              alt={product.title} 
-              className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-              onError={(e) => {
-                e.target.onerror = null
-                e.target.src = '/placeholder-product.jpg'
-              }}
-            />
-          ) : (
-            <img 
-              src="/placeholder-product.jpg" 
-              alt="Product placeholder" 
-              className="w-full h-full object-cover object-center"
-            />
-          )}
+          <Image 
+            src={product.images && product.images.length > 0 ? product.images[0] : null}
+            alt={product.title || 'Product image'}
+            fallbackSrc="/image_default.png"
+            className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+          />
           
           {/* Sale badge if on sale */}
           {product.onSale && (

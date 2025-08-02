@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import User from '../models/user.model.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { logger } from '../utils/logger.js';
-import { generateOTP, sendOTPEmail } from '../services/email.service.js';
+import { generateOTP, sendOTPEmail, sendPasswordResetEmail } from '../services/email.service.js';
 import { sendOTPSMS } from '../services/sms.service.js';
 import { storeOTP, verifyOTP } from '../config/redis.js';
 
@@ -296,24 +296,27 @@ export const forgotPassword = async (req, res, next) => {
       throw new AppError('User not found', 404);
     }
     
-    // Generate OTP
-    const otp = generateOTP();
+    // Generate reset token (JWT with 1 hour expiration)
+    const resetToken = jwt.sign(
+      { 
+        userId: user._id, 
+        email: user.email,
+        type: 'password_reset'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
     
-    // Store OTP in Redis
-    await storeOTP(email, otp);
+    // Store reset token in Redis with 1 hour expiration
+    await storeOTP(email, resetToken, 60); // 1 hour = 60 minutes
     
-    // Send OTP via email
-    await sendOTPEmail(email, otp);
-    
-    // Send OTP via SMS if whatsapp number is available
-    if (user.whatsappNumber) {
-      await sendOTPSMS(user.whatsappNumber, otp);
-    }
+    // Send reset link via email
+    await sendPasswordResetEmail(email, resetToken, user.name);
     
     // Return success response
     res.status(200).json({
       success: true,
-      message: 'Password reset OTP sent to your email',
+      message: 'Password reset link sent to your email',
       data: {
         email: user.email
       }
@@ -324,37 +327,68 @@ export const forgotPassword = async (req, res, next) => {
 };
 
 /**
- * Reset password with OTP
+ * Reset password with token
  */
 export const resetPassword = async (req, res, next) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { token, newPassword } = req.body;
     
     // Validate required fields
-    if (!email || !otp || !newPassword) {
-      throw new AppError('Email, OTP and new password are required', 400);
+    if (!token || !newPassword) {
+      throw new AppError('Token and new password are required', 400);
+    }
+    
+    // Verify and decode the reset token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // Check if it's a password reset token
+      if (decoded.type !== 'password_reset') {
+        throw new AppError('Invalid token type', 400);
+      }
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        throw new AppError('Reset token has expired', 400);
+      } else {
+        throw new AppError('Invalid reset token', 400);
+      }
     }
     
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findById(decoded.userId);
     if (!user) {
       throw new AppError('User not found', 404);
     }
     
-    // Verify OTP
-    const otpVerification = await verifyOTP(email, otp);
-    
-    if (!otpVerification.valid) {
-      if (otpVerification.reason === 'EXPIRED_OTP') {
-        throw new AppError('OTP has expired', 400);
-      } else {
-        throw new AppError('Invalid OTP', 400);
-      }
+    // Verify token is still in Redis (additional security)
+    const storedToken = await verifyOTP(decoded.email, token);
+    if (!storedToken.valid) {
+      throw new AppError('Invalid or expired reset token', 400);
     }
     
     // Update password
-    user.password = newPassword; // Will be hashed by pre-save hook
+    console.log('DEBUG - Reset Password - Before update:', {
+      userId: user._id,
+      email: user.email,
+      oldPasswordHash: user.passwordHash ? 'exists' : 'null'
+    });
+    
+    user.passwordHash = newPassword; // Will be hashed by pre-save hook
     await user.save();
+    
+    console.log('DEBUG - Reset Password - After update:', {
+      userId: user._id,
+      email: user.email,
+      newPasswordHash: user.passwordHash ? 'exists' : 'null'
+    });
+    
+    // Test if the new password works
+    const testPasswordValid = await user.comparePassword(newPassword);
+    console.log('DEBUG - Password test result:', testPasswordValid);
+    
+    // Clear the reset token from Redis
+    await storeOTP(decoded.email, '', 1); // Set to expire immediately
     
     // Return success response
     res.status(200).json({
@@ -394,7 +428,7 @@ export const changePassword = async (req, res, next) => {
     }
     
     // Update password
-    user.password = newPassword; // Will be hashed by pre-save hook
+    user.passwordHash = newPassword; // Will be hashed by pre-save hook
     await user.save();
     
     // Return success response

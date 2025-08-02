@@ -77,8 +77,11 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
               {cart.length === 0 ? (
                 <div className="text-center py-8">
                   <ShoppingBagIcon className="h-12 w-12 mx-auto text-java-400 mb-4" />
-                  <p className="text-gray-600 mb-4">Your cart is empty</p>
-                  <Button onClick={onClose} size="sm" className="bg-java-600 hover:bg-java-700 text-white">Continue Shopping</Button>
+                  <p onClick={onClose} className="text-gray-600 mb-4">Your cart is empty</p>
+                  <Link to="/shop" size="sm" className="bg-java-600 hover:bg-java-700 text-white p-1 px-3 rounded-md">
+                    Continue Shopping
+                  </Link>
+                  {/* <Button onClick={onClose} size="sm" className="bg-java-600 hover:bg-java-700 text-white">Continue Shopping</Button> */}
                 </div>
               ) : (
                 <ul className="space-y-4">
@@ -87,9 +90,12 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                       {/* Product image */}
                       <div className="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                         <img 
-                          src={item.image} 
+                          src={item.image || '/image_default.png'} 
                           alt={item.name} 
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = '/image_default.png';
+                          }}
                         />
                       </div>
                       

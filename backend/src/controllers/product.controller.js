@@ -1,4 +1,5 @@
 import Product from '../models/product.model.js';
+import Category from '../models/category.model.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { logger } from '../utils/logger.js';
 import { deleteFile, getFileUrl } from '../config/multer.js';
@@ -453,31 +454,54 @@ export const bulkUploadProducts = async (req, res, next) => {
       });
 
       // Process CSV data
-      products = results.map(row => {
-        // Parse images (comma-separated URLs)
-        const images = row.images ? row.images.split(',').map(img => img.trim()) : [];
+      // Group rows by product title to handle multiple variants of the same product
+      const productGroups = {};
+      
+      results.forEach(row => {
+        // Create a unique key for each product (title + description + category)
+        const productKey = `${row.title}__${row.description}__${row.category}`;
         
         // Parse variant attributes
         const attributes = {};
         if (row.color) attributes.color = row.color;
         if (row.size) attributes.size = row.size;
         
-        return {
-          title: row.title,
-          description: row.description,
-          category: row.category_id,
-          variants: [
-            {
-              sku: row.sku,
-              price: parseFloat(row.price),
-              stock: parseInt(row.stock, 10),
-              attributes
-            }
-          ],
-          images,
-          gstRate: row.gstRate ? parseFloat(row.gstRate) : 18
+        // Create variant object
+        const variant = {
+          sku: row.sku,
+          price: parseFloat(row.price),
+          stock: parseInt(row.stock, 10),
+          attributes
         };
+        
+        // Parse images (comma-separated URLs)
+        const images = row.images ? row.images.split(',').map(img => img.trim()) : [];
+        
+        // If this product already exists in our groups, add the variant
+        if (productGroups[productKey]) {
+          productGroups[productKey].variants.push(variant);
+          
+          // Add any new images that aren't already in the product
+          images.forEach(img => {
+            if (!productGroups[productKey].images.includes(img)) {
+              productGroups[productKey].images.push(img);
+            }
+          });
+        } else {
+          // Create a new product entry
+          productGroups[productKey] = {
+            title: row.title,
+            description: row.description,
+            category: row.category,
+            variants: [variant],
+            images: images,
+            gstRate: row.gstRate ? parseFloat(row.gstRate) : 18
+          };
+        }
       });
+      
+      // Convert the grouped products object to an array
+      products = Object.values(productGroups);
     } 
     // Parse JSON file
     else if (fileExtension === '.json') {
@@ -485,6 +509,26 @@ export const bulkUploadProducts = async (req, res, next) => {
       const jsonData = JSON.parse(fileContent);
       
       if (Array.isArray(jsonData)) {
+        // Validate each product in the JSON array
+        jsonData.forEach((product, index) => {
+          // Check required fields
+          if (!product.title || !product.description || !product.category) {
+            throw new AppError(`Product at index ${index} is missing required fields (title, description, or category)`, 400);
+          }
+          
+          // Ensure variants is an array
+          if (!product.variants || !Array.isArray(product.variants) || product.variants.length === 0) {
+            throw new AppError(`Product '${product.title}' at index ${index} must have at least one variant`, 400);
+          }
+          
+          // Check each variant
+          product.variants.forEach((variant, vIndex) => {
+            if (!variant.sku || variant.price === undefined || variant.stock === undefined) {
+              throw new AppError(`Variant at index ${vIndex} for product '${product.title}' is missing required fields (sku, price, or stock)`, 400);
+            }
+          });
+        });
+        
         products = jsonData;
       } else {
         throw new AppError('JSON file must contain an array of products', 400);
@@ -502,11 +546,13 @@ export const bulkUploadProducts = async (req, res, next) => {
     // Check for duplicate SKUs within the upload
     const skus = new Set();
     const duplicates = [];
+    const duplicateDetails = [];
     
     products.forEach(product => {
       product.variants.forEach(variant => {
         if (skus.has(variant.sku)) {
           duplicates.push(variant.sku);
+          duplicateDetails.push(`SKU: ${variant.sku} (Product: ${product.title})`);
         } else {
           skus.add(variant.sku);
         }
@@ -514,22 +560,48 @@ export const bulkUploadProducts = async (req, res, next) => {
     });
 
     if (duplicates.length > 0) {
-      throw new AppError(`Duplicate SKUs found in upload: ${duplicates.join(', ')}`, 400);
+      throw new AppError(`Duplicate SKUs found in upload:\n${duplicateDetails.join('\n')}\n\nNote: Each SKU must be unique across all products. If you want to add multiple variants of the same product, use the same title, description, and category but different SKUs.`, 400);
     }
 
     // Check for existing SKUs in database
     const existingSkus = [];
+    const existingSkuDetails = [];
+    
     for (const sku of skus) {
       const existingProduct = await Product.findOne({ 'variants.sku': sku });
       if (existingProduct) {
         existingSkus.push(sku);
+        existingSkuDetails.push(`SKU: ${sku} (Found in product: ${existingProduct.title})`);
       }
     }
 
     if (existingSkus.length > 0) {
-      throw new AppError(`SKUs already exist in database: ${existingSkus.join(', ')}`, 400);
+      throw new AppError(`The following SKUs already exist in the database:\n${existingSkuDetails.join('\n')}\n\nPlease use unique SKUs for each variant.`, 400);
     }
 
+    // Process categories - convert category names to category IDs
+    for (const product of products) {
+      // If category is a string (name) and not an ObjectId, try to find the category by name
+      if (product.category && typeof product.category === 'string' && !mongoose.Types.ObjectId.isValid(product.category)) {
+        // Try to find category by name
+        const category = await Category.findOne({ 
+          $or: [
+            { name: { $regex: new RegExp('^' + product.category + '$', 'i') } },
+            { name_hi: { $regex: new RegExp('^' + product.category + '$', 'i') } }
+          ]
+        });
+        
+        if (category) {
+          // Replace category name with category ID
+          product.category = category._id;
+        } else {
+          // If category not found, create a warning but don't fail the upload
+          logger.warn(`Category not found: ${product.category} for product: ${product.title}`);
+          // Keep the category as is - it will be handled as uncategorized
+        }
+      }
+    }
+    
     // Insert products in bulk
     const result = await Product.insertMany(products);
 
@@ -547,6 +619,59 @@ export const bulkUploadProducts = async (req, res, next) => {
     // Delete the temporary file if it exists
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
+    }
+    next(error);
+  }
+};
+
+/**
+ * Bulk upload images and return URLs
+ */
+export const bulkUploadImages = async (req, res, next) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      throw new AppError('No images uploaded', 400);
+    }
+
+    // Process uploaded images
+    const imageUrls = [];
+    
+    // Generate URLs for each uploaded image
+    req.files.forEach(file => {
+      imageUrls.push({
+        filename: file.filename,
+        originalname: file.originalname,
+        url: getFileUrl(file.path)
+      });
+    });
+
+    // Generate CSV content with image URLs
+    const csvHeader = 'original_filename,image_url';
+    const csvRows = imageUrls.map(img => `${img.originalname},${img.url}`);
+    const csvContent = [csvHeader, ...csvRows].join('\n');
+
+    // Import uploadDir from multer config
+    const { uploadDir } = await import('../config/multer.js');
+    
+    // Create a temporary CSV file
+    const csvFilename = `image_urls_${Date.now()}.csv`;
+    const csvPath = path.join(uploadDir, 'temp', csvFilename);
+    fs.writeFileSync(csvPath, csvContent);
+
+    res.status(200).json({
+      success: true,
+      message: `${imageUrls.length} images uploaded successfully`,
+      data: {
+        images: imageUrls,
+        csvUrl: getFileUrl(csvPath)
+      }
+    });
+  } catch (error) {
+    // Delete uploaded files if there was an error
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        deleteFile(file.path);
+      });
     }
     next(error);
   }

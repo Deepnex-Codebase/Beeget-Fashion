@@ -505,7 +505,7 @@ export const AuthProvider = ({ children }) => {
       if (response.data.success) {
         return { 
           success: true, 
-          message: response.data.message || 'If your email exists in our system, you will receive a password reset link.'
+          message: response.data.message || 'If your email exists in our system, you will receive a password reset link in your email.'
         }
       } else {
         // This shouldn't happen as API should throw error on failure

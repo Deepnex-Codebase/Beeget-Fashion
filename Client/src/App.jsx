@@ -23,6 +23,8 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
 const Account = lazy(() => import('./pages/Account'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const CityAnalytics = lazy(() => import('./components/Admin/CityAnalytics'))
+const GSTReports = lazy(() => import('./components/Admin/GSTReports'))
 const OrderDetails = lazy(() => import('./pages/OrderDetails'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const PaymentCallback = lazy(() => import('./pages/PaymentCallback'))
@@ -86,12 +88,16 @@ function App() {
               {/* Protected Admin Routes */}
               <Route path="admin" element={<ProtectedRoute adminOnly={true} />}>
                 <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="city-analytics" element={<CityAnalytics />} />
+                <Route path="gst-reports" element={<GSTReports />} />
                 <Route path="orders/:orderId" element={<OrderDetails />} />
               </Route>
               
               {/* Protected SubAdmin Routes */}
               <Route path="subadmin" element={<ProtectedRoute subAdminOnly={true} />}>
                 <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="city-analytics" element={<CityAnalytics />} />
+                <Route path="gst-reports" element={<GSTReports />} />
               </Route>
               
               {/* Permission-based Routes - Example */}

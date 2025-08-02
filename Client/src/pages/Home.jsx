@@ -6,6 +6,7 @@ import { SiteContentContext } from "../contexts/SiteContentContext";
 import api from "../utils/api";
 import useCart from "../hooks/useCart";
 import { toast } from "react-toastify";
+import Image from "../components/Common/Image";
 
 // Animation variants
 const containerVariants = {
@@ -909,9 +910,6 @@ const Home = () => {
                   ))}
                 </div>
                 {/* Debug info - remove in production */}
-                <div className="absolute top-2 right-2 bg-black/50 text-white text-xs p-1 rounded z-30">
-                  Slide: {currentSlide + 1}/{heroSection.slides.length}
-                </div>
               </>
             )}
           </>
@@ -1050,12 +1048,10 @@ const Home = () => {
                           to={`/product/${product.slug || product.id}`}
                           className="block"
                         >
-                          <img
-                            src={
-                              product.image ||
-                              "https://via.placeholder.com/400x500"
-                            }
+                          <Image
+                            src={product.image}
                             alt={product.title || "Product Image"}
+                            fallbackSrc="/image_default.png"
                             className="w-full h-56 xs:h-64 sm:h-72 md:h-80 object-cover transition-transform group-hover:scale-105 duration-500 ease-in-out"
                             loading="lazy"
                           />
@@ -1640,9 +1636,10 @@ const Home = () => {
                       {/* Product Image Container */}
                       <div className="relative overflow-hidden">
                         <Link to={`/product/${product.slug}`} className="block">
-                          <img
+                          <Image
                             src={product.image}
                             alt={product.name}
+                            fallbackSrc="/image_default.png"
                             className="w-full h-56 xs:h-64 sm:h-72 md:h-80 object-cover transition-transform group-hover:scale-105 duration-500 ease-in-out"
                             loading="lazy"
                           />

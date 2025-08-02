@@ -102,6 +102,69 @@ export const sendOTPEmail = async (email, otp, name = '') => {
 };
 
 /**
+ * Send password reset link email
+ * @param {string} email - Recipient email
+ * @param {string} resetToken - Reset token
+ * @param {string} name - Recipient name
+ */
+export const sendPasswordResetEmail = async (email, resetToken, name = '') => {
+  try {
+    if (!transporter) {
+      transporter = initializeEmailTransporter();
+      if (!transporter) {
+        throw new Error('Email transporter not initialized');
+      }
+    }
+    
+    const fromEmail = process.env.FROM_EMAIL || process.env.EMAIL_FROM;
+    const brandName = process.env.EMAIL_FROM_NAME || 'Begget Fashion';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+    
+    const mailOptions = {
+      from: fromEmail,
+      to: email,
+      subject: `Reset Your Password - ${brandName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2 style="color: #333; text-align: center;">${brandName}</h2>
+          <p>Hello ${name || 'there'},</p>
+          <p>We received a request to reset your password. Click the button below to create a new password:</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetLink}" style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+              Reset Password
+            </a>
+          </div>
+          
+          <p style="font-size: 14px; color: #666;">
+            If the button doesn't work, copy and paste this link into your browser:<br>
+            <a href="${resetLink}" style="color: #007bff; word-break: break-all;">${resetLink}</a>
+          </p>
+          
+          <p style="font-size: 14px; color: #666;">
+            This link will expire in 1 hour for security reasons.
+          </p>
+          
+          <p style="font-size: 14px; color: #666;">
+            If you didn't request a password reset, please ignore this email. Your password will remain unchanged.
+          </p>
+          
+          <p>Thanks,<br>${brandName} Team</p>
+        </div>
+      `
+    };
+    
+    const info = await transporter.sendMail(mailOptions);
+    logger.info(`Password reset email sent to ${email}: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    logger.error(`Error sending password reset email: ${error.message}`);
+    return false;
+  }
+};
+
+/**
  * Send order confirmation email
  * @param {string} email - Recipient email
  * @param {Object} order - Order details

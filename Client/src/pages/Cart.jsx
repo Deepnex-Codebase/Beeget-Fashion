@@ -127,9 +127,12 @@ const Cart = () => {
                   <div className="col-span-6 flex items-center space-x-4">
                     <Link to={`/product/${item.slug}`}>
                       <img 
-                        src={item.image || '/placeholder-product.jpg'} 
+                        src={item.image || '/image_default.png'} 
                         alt={item.name || item.title} 
                         className="w-16 h-16 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
+                        onError={(e) => {
+                          e.target.src = '/image_default.png';
+                        }}
                       />
                     </Link>
                     <div>

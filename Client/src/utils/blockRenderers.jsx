@@ -136,7 +136,7 @@ export const renderHomePageBlocks = (blocks, isEditing, handleNestedFormChange) 
                           <a href="#" className="block">
                             <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-100">
                               <img
-                                src={category.image || '/placeholder-product.jpg'}
+                                src={category.image || '/image_default.png'}
                                 alt={category.name}
                                 className="h-full w-full object-cover object-center group-hover:opacity-75"
                               />
@@ -205,7 +205,7 @@ export const renderHomePageBlocks = (blocks, isEditing, handleNestedFormChange) 
                       ) : (
                         <>
                           <img
-                            src={banner.image || '/placeholder-product.jpg'}
+                            src={banner.image || '/image_default.png'}
                             alt={banner.title}
                             className="w-full h-64 object-cover"
                           />
@@ -275,7 +275,7 @@ export const renderHomePageBlocks = (blocks, isEditing, handleNestedFormChange) 
                         <>
                           <div className="aspect-w-1 aspect-h-1 w-full">
                             <img
-                              src={product.image || '/placeholder-product.jpg'}
+                              src={product.image || '/image_default.png'}
                               alt={product.name}
                               className="w-full h-48 object-cover"
                             />
@@ -391,7 +391,7 @@ export const renderAboutPageBlocks = (blocks, isEditing, handleNestedFormChange)
                       ) : (
                         <img
                           className="object-cover shadow-lg rounded-lg"
-                          src={block.image?.url || '/placeholder-product.jpg'}
+                          src={block.image?.url || '/image_default.png'}
                           alt={block.image?.alt || 'Our story'}
                         />
                       )}
@@ -512,7 +512,7 @@ export const renderAboutPageBlocks = (blocks, isEditing, handleNestedFormChange)
                           <div className="h-48 w-full">
                             <img
                               className="h-full w-full object-cover"
-                              src={member.photo?.url || '/placeholder-product.jpg'}
+                              src={member.photo?.url || '/image_default.png'}
                               alt={member.photo?.alt || member.name}
                             />
                           </div>

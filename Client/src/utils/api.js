@@ -55,5 +55,4 @@ api.setAuthToken = function(tokens) {
   }
 };
 
-
 export default api;

@@ -1,0 +1,7 @@
+title,description,category,sku,price,stock,color,size,images,gstRate
+Mens Cotton T-Shirt,Cotton T-Shirt,Men,TSHIRT-RED-L,499,100,Red,L,"http://localhost:8000/uploads/products/0f288ccd-cad4-405a-a0cb-a2a88b0e95c3.png",5
+Mens Cotton T-Shirt,Cotton T-Shirt,Men,TSHIRT-RED-M,499,150,Red,M,"http://localhost:8000/uploads/products/0f288ccd-cad4-405a-a0cb-a2a88b0e95c3.png",5
+Mens Cotton T-Shirt,Cotton T-Shirt,Men,TSHIRT-BLUE-L,499,80,Blue,L,"http://localhost:8000/uploads/products/0f288ccd-cad4-405a-a0cb-a2a88b0e95c3.png",5
+Mens Cotton T-Shirt,Cotton T-Shirt,Men,TSHIRT-BLUE-M,499,120,Blue,M,"http://localhost:8000/uploads/products/0f288ccd-cad4-405a-a0cb-a2a88b0e95c3.png",5
+Woman Pents,Woman Pents,Women,PENTS-RED-XL,200,129,Red,XL,"http://localhost:8000/uploads/products/0f288ccd-cad4-405a-a0cb-a2a88b0e95c3.png",23
+Woman Pents,Woman Pents,Women,PENTS-BLACK-XL,200,121,Black,XL,"http://localhost:8000/uploads/products/0f288ccd-cad4-405a-a0cb-a2a88b0e95c3.png",12

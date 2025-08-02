@@ -9,7 +9,8 @@ import {
   deleteProduct,
   updateStock as updateProductStock,
   getCategories as getProductCategories,
-  bulkUploadProducts
+  bulkUploadProducts,
+  bulkUploadImages
 } from '../controllers/product.controller.js';
 import { productUpload, tempUpload } from '../config/multer.js';
 
@@ -26,6 +27,7 @@ router.use(verifyToken);
 // Admin/SubAdmin only routes
 router.post('/', isAdmin, productUpload.array('images', 10), createProduct);
 router.post('/bulk-upload', isAdmin, tempUpload.single('file'), bulkUploadProducts);
+router.post('/bulk-upload-images', isAdmin, productUpload.array('images', 50), bulkUploadImages);
 router.put('/:id', isAdmin, productUpload.array('images', 10), updateProduct);
 router.delete('/:id', isAdmin, deleteProduct);
 router.patch('/:id/stock', isSubAdmin, hasDepartmentPermission('products', 'manage_products'), updateProductStock);

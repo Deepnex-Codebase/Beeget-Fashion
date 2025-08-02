@@ -8,6 +8,7 @@ import Button from '../components/Common/Button'
 import productImages from '../assets/product-images'
 import { toast } from 'react-toastify'
 import api from '../utils/api'
+import Image from '../components/Common/Image'
 
 const ProductDetail = () => {
   const { slug } = useParams()
@@ -625,7 +626,7 @@ const ProductDetail = () => {
       id: product._id,
       name: product.title,
       price: selectedVariant.price ? parseFloat(selectedVariant.price) : 0,
-      image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/placeholder-product.jpg',
+      image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/image_default.png',
       variantId: selectedVariant._id,
       sku: selectedVariant.sku,
       variantSku: selectedVariant.sku, // Explicitly set variantSku to match the backend expectation
@@ -671,7 +672,7 @@ const ProductDetail = () => {
         id: product._id,
         name: product.title,
         price: product.variants && product.variants.length > 0 && product.variants[0].price ? parseFloat(product.variants[0].price) : 0,
-        image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/placeholder-product.jpg',
+        image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/image_default.png',
         slug: product.slug
       })
       toast.success(`${product.title} added to wishlist!`, {
@@ -787,14 +788,11 @@ const ProductDetail = () => {
                       >
                         {product.images && Array.isArray(product.images) && product.images.map((image, index) => (
                           <div key={index} className="flex-shrink-0 w-full snap-center p-2 flex items-center justify-center">
-                            <img 
-                              src={image ? image.trim().replace(/`/g, '') : '/placeholder-product.svg'} 
+                            <Image 
+                              src={image ? image.trim().replace(/`/g, '') : null} 
                               alt={`${product.title} view ${index + 1}`} 
+                              fallbackSrc="/image_default.png"
                               className="w-full object-contain hover:scale-105 transition-transform duration-300 p-2"
-                              onError={(e) => {
-                                console.error('Image failed to load:', e.target.src);
-                                e.target.src = '/placeholder-product.svg';
-                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedImageIndex(index);
@@ -809,14 +807,11 @@ const ProductDetail = () => {
                       <div className="hidden md:grid grid-cols-2 gap-4 p-3 w-full">
                         {product.images && Array.isArray(product.images) && product.images.map((image, index) => (
                           <div key={index} className="relative rounded-lg overflow-hidden border-2 border-java-200 shadow-md hover:shadow-lg transition-all duration-300">
-                            <img 
-                              src={image ? image.trim().replace(/`/g, '') : '/placeholder-product.svg'} 
+                            <Image 
+                              src={image ? image.trim().replace(/`/g, '') : null} 
                               alt={`${product.title} view ${index + 1}`} 
+                              fallbackSrc="/image_default.png"
                               className="w-full object-contain hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                console.error('Image failed to load:', e.target.src);
-                                e.target.src = '/placeholder-product.svg';
-                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedImageIndex(index);
@@ -832,7 +827,7 @@ const ProductDetail = () => {
                         style={{
                           backgroundImage: `url(${product.images && Array.isArray(product.images) && product.images.length > 0 
                             ? product.images[selectedImageIndex].trim().replace(/`/g, '') // Remove backticks and trim whitespace
-                            : '/placeholder-product.svg'})`,
+                            : '/image_default.png'})`,
                           backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
                           backgroundSize: '150%',
                           backgroundRepeat: 'no-repeat'
@@ -1797,9 +1792,10 @@ const ProductDetail = () => {
                                 <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
                                   {review.images.map((image, imgIndex) => (
                                     <div key={imgIndex} className="w-16 h-16 sm:w-20 sm:h-20 rounded-md overflow-hidden border border-java-200">
-                                      <img 
+                                      <Image 
                                         src={image.url || image} 
                                         alt={`Review image ${imgIndex + 1}`} 
+                                        fallbackSrc="/image_default.png"
                                         className="w-full h-full object-cover"
                                         onClick={() => handleImageZoom()}
                                       />

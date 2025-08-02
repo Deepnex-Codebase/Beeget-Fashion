@@ -1,6 +1,7 @@
 import express from 'express';
 import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
 import { isEditor, isViewer, preventDeletion } from '../middlewares/cms-permissions.middleware.js';
+import { cmsUpload } from '../config/multer.js';
 import {
   getHomePage,
   updateHomePage,
@@ -17,7 +18,8 @@ import {
   submitEnquiry,
   getEnquiries,
   updateEnquiryStatus,
-  deleteEnquiry
+  deleteEnquiry,
+  uploadCmsImage
 } from '../controllers/site-content.controller.js';
 
 const router = express.Router();
@@ -47,5 +49,8 @@ router.post('/enquiries', submitEnquiry); // Public route for form submissions
 router.get('/enquiries', verifyToken, isViewer, getEnquiries);
 router.put('/enquiries/:id/status', verifyToken, isEditor, updateEnquiryStatus);
 router.delete('/enquiries/:id', verifyToken, isEditor, deleteEnquiry);
+
+// Image upload route
+router.post('/upload-image', verifyToken, isEditor, cmsUpload.single('image'), uploadCmsImage);
 
 export default router;

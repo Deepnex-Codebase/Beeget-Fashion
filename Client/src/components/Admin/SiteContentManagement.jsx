@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import Button from "../Common/Button";
 import Input from "../Common/Input";
 import Spinner from "../Common/Spinner";
+import ImageUpload from "../Common/ImageUpload";
 import { Tab } from "@headlessui/react";
 import {
   PencilIcon,
@@ -3052,67 +3053,46 @@ const SiteContentManagement = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Desktop Background Image
                       </label>
-                      <div className="flex items-center space-x-4">
-                        {/* Show image preview if either desktop_image or background_image has a URL */}
-                        {((slide.desktop_image && slide.desktop_image.url) || 
-                          (slide.background_image && slide.background_image.url)) && (
-                          <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                            <img
-                              src={(slide.desktop_image && slide.desktop_image.url) ? 
-                                slide.desktop_image.url : 
-                                (slide.background_image && slide.background_image.url) ? 
-                                  slide.background_image.url : ""}
-                              alt={(slide.desktop_image && slide.desktop_image.alt) ? 
-                                slide.desktop_image.alt : 
-                                (slide.background_image && slide.background_image.alt) ? 
-                                  slide.background_image.alt : "Hero background"}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <Input
-                            label="Image URL"
-                            value={(slide.desktop_image && slide.desktop_image.url) ? 
-                              slide.desktop_image.url : 
-                              (slide.background_image && slide.background_image.url) ? 
-                                slide.background_image.url : ""}
-                            onChange={(e) =>
-                              handleNestedFormChange(
-                                "blocks",
-                                "slides",
-                                ["desktop_image", "url"],
-                                e.target.value,
-                                0,
-                                "home",
-                                slideIndex
-                              )
-                            }
-                            disabled={!isEditing}
-                            placeholder="Enter image URL"
-                          />
-                          <Input
-                            label="Alt Text"
-                            value={(slide.desktop_image && slide.desktop_image.alt) ? 
-                              slide.desktop_image.alt : 
-                              (slide.background_image && slide.background_image.alt) ? 
-                                slide.background_image.alt : ""}
-                            onChange={(e) =>
-                              handleNestedFormChange(
-                                "blocks",
-                                "slides",
-                                ["desktop_image", "alt"],
-                                e.target.value,
-                                0,
-                                "home",
-                                slideIndex
-                              )
-                            }
-                            disabled={!isEditing}
-                            className="mt-2"
-                            placeholder="Enter image description"
-                          />
-                        </div>
+                      <div className="space-y-3">
+                        <ImageUpload
+                          label=""
+                          value={(slide.desktop_image && slide.desktop_image.url) ? 
+                            slide.desktop_image.url : 
+                            (slide.background_image && slide.background_image.url) ? 
+                              slide.background_image.url : ""}
+                          onChange={(url) =>
+                            handleNestedFormChange(
+                              "blocks",
+                              "slides",
+                              ["desktop_image", "url"],
+                              url,
+                              0,
+                              "home",
+                              slideIndex
+                            )
+                          }
+                          disabled={!isEditing}
+                        />
+                        <Input
+                          label="Alt Text"
+                          value={(slide.desktop_image && slide.desktop_image.alt) ? 
+                            slide.desktop_image.alt : 
+                            (slide.background_image && slide.background_image.alt) ? 
+                              slide.background_image.alt : ""}
+                          onChange={(e) =>
+                            handleNestedFormChange(
+                              "blocks",
+                              "slides",
+                              ["desktop_image", "alt"],
+                              e.target.value,
+                              0,
+                              "home",
+                              slideIndex
+                            )
+                          }
+                          disabled={!isEditing}
+                          placeholder="Enter image description"
+                        />
                       </div>
                     </div>
 
@@ -3120,67 +3100,46 @@ const SiteContentManagement = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Mobile Background Image
                       </label>
-                      <div className="flex items-center space-x-4">
-                        {/* Show image preview if either mobile_image or mobile_background_image has a URL */}
-                        {((slide.mobile_image && slide.mobile_image.url) || 
-                          (slide.mobile_background_image && slide.mobile_background_image.url)) && (
-                          <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                            <img
-                              src={(slide.mobile_image && slide.mobile_image.url) ? 
-                                slide.mobile_image.url : 
-                                (slide.mobile_background_image && slide.mobile_background_image.url) ? 
-                                  slide.mobile_background_image.url : ""}
-                              alt={(slide.mobile_image && slide.mobile_image.alt) ? 
-                                slide.mobile_image.alt : 
-                                (slide.mobile_background_image && slide.mobile_background_image.alt) ? 
-                                  slide.mobile_background_image.alt : "Hero mobile background"}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <Input
-                            label="Image URL"
-                            value={(slide.mobile_image && slide.mobile_image.url) ? 
-                              slide.mobile_image.url : 
-                              (slide.mobile_background_image && slide.mobile_background_image.url) ? 
-                                slide.mobile_background_image.url : ""}
-                            onChange={(e) =>
-                              handleNestedFormChange(
-                                "blocks",
-                                "slides",
-                                ["mobile_image", "url"],
-                                e.target.value,
-                                0,
-                                "home",
-                                slideIndex
-                              )
-                            }
-                            disabled={!isEditing}
-                            placeholder="Enter mobile image URL"
-                          />
-                          <Input
-                            label="Alt Text"
-                            value={(slide.mobile_image && slide.mobile_image.alt) ? 
-                              slide.mobile_image.alt : 
-                              (slide.mobile_background_image && slide.mobile_background_image.alt) ? 
-                                slide.mobile_background_image.alt : ""}
-                            onChange={(e) =>
-                              handleNestedFormChange(
-                                "blocks",
-                                "slides",
-                                ["mobile_image", "alt"],
-                                e.target.value,
-                                0,
-                                "home",
-                                slideIndex
-                              )
-                            }
-                            disabled={!isEditing}
-                            className="mt-2"
-                            placeholder="Enter mobile image description"
-                          />
-                        </div>
+                      <div className="space-y-3">
+                        <ImageUpload
+                          label=""
+                          value={(slide.mobile_image && slide.mobile_image.url) ? 
+                            slide.mobile_image.url : 
+                            (slide.mobile_background_image && slide.mobile_background_image.url) ? 
+                              slide.mobile_background_image.url : ""}
+                          onChange={(url) =>
+                            handleNestedFormChange(
+                              "blocks",
+                              "slides",
+                              ["mobile_image", "url"],
+                              url,
+                              0,
+                              "home",
+                              slideIndex
+                            )
+                          }
+                          disabled={!isEditing}
+                        />
+                        <Input
+                          label="Alt Text"
+                          value={(slide.mobile_image && slide.mobile_image.alt) ? 
+                            slide.mobile_image.alt : 
+                            (slide.mobile_background_image && slide.mobile_background_image.alt) ? 
+                              slide.mobile_background_image.alt : ""}
+                          onChange={(e) =>
+                            handleNestedFormChange(
+                              "blocks",
+                              "slides",
+                              ["mobile_image", "alt"],
+                              e.target.value,
+                              0,
+                              "home",
+                              slideIndex
+                            )
+                          }
+                          disabled={!isEditing}
+                          placeholder="Enter mobile image description"
+                        />
                       </div>
                     </div>
                   </div>
@@ -3352,51 +3311,40 @@ const SiteContentManagement = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Category Image
                           </label>
-                          <div className="flex items-center space-x-4">
-                            {category.image?.url && (
-                              <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                                <img
-                                  src={category.image.url}
-                                  alt={category.image.alt || category.label}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            )}
-                            <div className="flex-1">
-                              <Input
-                                label="Image URL"
-                                value={category.image?.url || ""}
-                                onChange={(e) =>
-                                  handleNestedFormChange(
-                                    "blocks",
-                                    "categories",
-                                    "url",
-                                    e.target.value,
-                                    1,
-                                    "home",
-                                    index
-                                  )
-                                }
-                                disabled={!isEditing}
-                              />
-                              <Input
-                                label="Alt Text"
-                                value={category.image?.alt || ""}
-                                onChange={(e) =>
-                                  handleNestedFormChange(
-                                    "blocks",
-                                    "categories",
-                                    "alt",
-                                    e.target.value,
-                                    1,
-                                    "home",
-                                    index
-                                  )
-                                }
-                                disabled={!isEditing}
-                                className="mt-2"
-                              />
-                            </div>
+                          <div className="space-y-3">
+                            <ImageUpload
+                              label=""
+                              value={category.image?.url || ""}
+                              onChange={(url) =>
+                                handleNestedFormChange(
+                                  "blocks",
+                                  "categories",
+                                  "url",
+                                  url,
+                                  1,
+                                  "home",
+                                  index
+                                )
+                              }
+                              disabled={!isEditing}
+                            />
+                            <Input
+                              label="Alt Text"
+                              value={category.image?.alt || ""}
+                              onChange={(e) =>
+                                handleNestedFormChange(
+                                  "blocks",
+                                  "categories",
+                                  "alt",
+                                  e.target.value,
+                                  1,
+                                  "home",
+                                  index
+                                )
+                              }
+                              disabled={!isEditing}
+                              placeholder="Enter image description"
+                            />
                           </div>
                         </div>
                       </div>
@@ -3683,57 +3631,44 @@ const SiteContentManagement = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Banner Image
                       </label>
-                      <div className="flex items-center space-x-4">
-                        {banner.banner_image?.url && (
-                          <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                            <img
-                              src={banner.banner_image.url}
-                              alt={
-                                banner.banner_image.alt || "Promotional banner"
-                              }
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <Input
-                            label="Image URL"
-                            value={banner.banner_image?.url || ""}
-                            onChange={(e) => {
-                              // Find the actual index in the blocks array
-                              const blockIndex = homePageForm.blocks.findIndex(
-                                (block, idx) => block.blockType === "promotional_banner" && 
-                                homePageForm.blocks.filter(b => b.blockType === "promotional_banner").indexOf(block) === i
-                              );
-                              handleBlockImageChange(
-                                blockIndex,
-                                "banner_image",
-                                "url",
-                                e.target.value
-                              );
-                            }}
-                            disabled={!isEditing}
-                          />
-                          <Input
-                            label="Alt Text"
-                            value={banner.banner_image?.alt || ""}
-                            onChange={(e) => {
-                              // Find the actual index in the blocks array
-                              const blockIndex = homePageForm.blocks.findIndex(
-                                (block, idx) => block.blockType === "promotional_banner" && 
-                                homePageForm.blocks.filter(b => b.blockType === "promotional_banner").indexOf(block) === i
-                              );
-                              handleBlockImageChange(
-                                blockIndex,
-                                "banner_image",
-                                "alt",
-                                e.target.value
-                              );
-                            }}
-                            disabled={!isEditing}
-                            className="mt-2"
-                          />
-                        </div>
+                      <div className="space-y-3">
+                        <ImageUpload
+                          label=""
+                          value={banner.banner_image?.url || ""}
+                          onChange={(url) => {
+                            // Find the actual index in the blocks array
+                            const blockIndex = homePageForm.blocks.findIndex(
+                              (block, idx) => block.blockType === "promotional_banner" && 
+                              homePageForm.blocks.filter(b => b.blockType === "promotional_banner").indexOf(block) === i
+                            );
+                            handleBlockImageChange(
+                              blockIndex,
+                              "banner_image",
+                              "url",
+                              url
+                            );
+                          }}
+                          disabled={!isEditing}
+                        />
+                        <Input
+                          label="Alt Text"
+                          value={banner.banner_image?.alt || ""}
+                          onChange={(e) => {
+                            // Find the actual index in the blocks array
+                            const blockIndex = homePageForm.blocks.findIndex(
+                              (block, idx) => block.blockType === "promotional_banner" && 
+                              homePageForm.blocks.filter(b => b.blockType === "promotional_banner").indexOf(block) === i
+                            );
+                            handleBlockImageChange(
+                              blockIndex,
+                              "banner_image",
+                              "alt",
+                              e.target.value
+                            );
+                          }}
+                          disabled={!isEditing}
+                          placeholder="Enter image description"
+                        />
                       </div>
                     </div>
                   </div>
@@ -3970,47 +3905,36 @@ const SiteContentManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Background Image
                   </label>
-                  <div className="flex items-center space-x-4">
-                    {aboutPageForm.blocks[0]?.background_image?.url && (
-                      <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                        <img
-                          src={aboutPageForm.blocks[0].background_image.url}
-                          alt={aboutPageForm.blocks[0].background_image.alt || "Page header background"}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <Input
-                        label="Image URL"
-                        value={aboutPageForm.blocks[0]?.background_image?.url || ""}
-                        onChange={(e) =>
-                          handleNestedFormChange(
-                            "blocks",
-                            "background_image",
-                            "url",
-                            e.target.value,
-                            0
-                          )
-                        }
-                        disabled={!isEditing}
-                      />
-                      <Input
-                        label="Alt Text"
-                        value={aboutPageForm.blocks[0]?.background_image?.alt || ""}
-                        onChange={(e) =>
-                          handleNestedFormChange(
-                            "blocks",
-                            "background_image",
-                            "alt",
-                            e.target.value,
-                            0
-                          )
-                        }
-                        disabled={!isEditing}
-                        className="mt-2"
-                      />
-                    </div>
+                  <div className="space-y-3">
+                    <ImageUpload
+                      label=""
+                      value={aboutPageForm.blocks[0]?.background_image?.url || ""}
+                      onChange={(url) =>
+                        handleNestedFormChange(
+                          "blocks",
+                          "background_image",
+                          "url",
+                          url,
+                          0
+                        )
+                      }
+                      disabled={!isEditing}
+                    />
+                    <Input
+                      label="Alt Text"
+                      value={aboutPageForm.blocks[0]?.background_image?.alt || ""}
+                      onChange={(e) =>
+                        handleNestedFormChange(
+                          "blocks",
+                          "background_image",
+                          "alt",
+                          e.target.value,
+                          0
+                        )
+                      }
+                      disabled={!isEditing}
+                      placeholder="Enter image description"
+                    />
                   </div>
                 </div>
               </div>
@@ -4165,50 +4089,36 @@ const SiteContentManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Side Image
                   </label>
-                  <div className="flex items-center space-x-4">
-                    {aboutPageForm.blocks[1]?.side_image?.url && (
-                      <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                        <img
-                          src={aboutPageForm.blocks[1].side_image.url}
-                          alt={
-                            aboutPageForm.blocks[1].side_image.alt ||
-                            "Our story"
-                          }
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <Input
-                        label="Image URL"
-                        value={aboutPageForm.blocks[1]?.side_image?.url || ""}
-                        onChange={(e) =>
-                          handleNestedFormChange(
-                            "blocks",
-                            "side_image",
-                            "url",
-                            e.target.value,
-                            1
-                          )
-                        }
-                        disabled={!isEditing}
-                      />
-                      <Input
-                        label="Alt Text"
-                        value={aboutPageForm.blocks[1]?.side_image?.alt || ""}
-                        onChange={(e) =>
-                          handleNestedFormChange(
-                            "blocks",
-                            "side_image",
-                            "alt",
-                            e.target.value,
-                            1
-                          )
-                        }
-                        disabled={!isEditing}
-                        className="mt-2"
-                      />
-                    </div>
+                  <div className="space-y-3">
+                    <ImageUpload
+                      label=""
+                      value={aboutPageForm.blocks[1]?.side_image?.url || ""}
+                      onChange={(url) =>
+                        handleNestedFormChange(
+                          "blocks",
+                          "side_image",
+                          "url",
+                          url,
+                          1
+                        )
+                      }
+                      disabled={!isEditing}
+                    />
+                    <Input
+                      label="Alt Text"
+                      value={aboutPageForm.blocks[1]?.side_image?.alt || ""}
+                      onChange={(e) =>
+                        handleNestedFormChange(
+                          "blocks",
+                          "side_image",
+                          "alt",
+                          e.target.value,
+                          1
+                        )
+                      }
+                      disabled={!isEditing}
+                      placeholder="Enter image description"
+                    />
                   </div>
                 </div>
               </div>
@@ -4844,62 +4754,44 @@ const SiteContentManagement = () => {
                   />
                 </div>
 
-                <div className="mb-4 mt-4">
+                {/* <div className="mb-4 mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Background Image
                   </label>
-                  <div className="flex items-center space-x-4">
-                    {pageHeaderBlock?.background_image?.url && (
-                      <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                        <img
-                          src={pageHeaderBlock.background_image.url}
-                          alt={
-                            pageHeaderBlock.background_image.alt ||
-                            "Page header background"
-                          }
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <Input
-                        label="Image URL"
-                        value={
-                          pageHeaderBlock?.background_image?.url || ""
-                        }
-                        onChange={(e) =>
-                          handleNestedFormChange(
-                            "blocks",
-                            null,
-                            "background_image",
-                            "url",
-                            e.target.value,
-                            getBlockIndex('page_header')
-                          )
-                        }
-                        disabled={!isEditing}
-                      />
-                      <Input
-                        label="Alt Text"
-                        value={
-                          pageHeaderBlock?.background_image?.alt || ""
-                        }
-                        onChange={(e) =>
-                          handleNestedFormChange(
-                            "blocks",
-                            null,
-                            "background_image",
-                            "alt",
-                            e.target.value,
-                            getBlockIndex('page_header')
-                          )
-                        }
-                        disabled={!isEditing}
-                        className="mt-2"
-                      />
-                    </div>
+                  <div className="space-y-3">
+                    <ImageUpload
+                      label=""
+                      value={pageHeaderBlock?.background_image?.url || ""}
+                      onChange={(url) =>
+                        handleNestedFormChange(
+                          "blocks",
+                          null,
+                          "background_image",
+                          "url",
+                          url,
+                          getBlockIndex('page_header')
+                        )
+                      }
+                      disabled={!isEditing}
+                    />
+                    <Input
+                      label="Alt Text"
+                      value={pageHeaderBlock?.background_image?.alt || ""}
+                      onChange={(e) =>
+                        handleNestedFormChange(
+                          "blocks",
+                          null,
+                          "background_image",
+                          "alt",
+                          e.target.value,
+                          getBlockIndex('page_header')
+                        )
+                      }
+                      disabled={!isEditing}
+                      placeholder="Enter image description"
+                    />
                   </div>
-                </div>
+                </div> */}
               </div>
 
               {/* Contact Information Section */}
@@ -5433,13 +5325,11 @@ const SiteContentManagement = () => {
                     label="Brand Name"
                     value={footerForm.brand_info?.name || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "brand_info",
                         null,
                         "name",
-                        e.target.value,
-                        null,
-                        "footerForm"
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -5454,13 +5344,11 @@ const SiteContentManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                     value={footerForm.brand_info?.description || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "brand_info",
                         null,
                         "description",
-                        e.target.value,
-                        null,
-                        "footerForm"
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -5484,13 +5372,11 @@ const SiteContentManagement = () => {
                         label="Logo URL"
                         value={footerForm.brand_info?.logo_url || ""}
                         onChange={(e) =>
-                          handleNestedFormChange(
+                          handleFooterNestedFormChange(
                             "brand_info",
-                            undefined,
+                            null,
                             "logo_url",
-                            e.target.value,
-                            undefined,
-                            "footerForm"
+                            e.target.value
                           )
                         }
                         disabled={!isEditing}
@@ -5499,13 +5385,11 @@ const SiteContentManagement = () => {
                         label="Logo Alt Text"
                         value={footerForm.brand_info?.logo_alt || ""}
                         onChange={(e) =>
-                          handleNestedFormChange(
+                          handleFooterNestedFormChange(
                             "brand_info",
-                            undefined,
+                            null,
                             "logo_alt",
-                            e.target.value,
-                            undefined,
-                            "footerForm"
+                            e.target.value
                           )
                         }
                         disabled={!isEditing}
@@ -5520,13 +5404,11 @@ const SiteContentManagement = () => {
                     label="Copyright Text"
                     value={footerForm.brand_info?.copyright_text || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "brand_info",
-                        undefined,
+                        null,
                         "copyright_text",
-                        e.target.value,
-                        undefined,
-                        "footerForm"
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -5549,13 +5431,11 @@ const SiteContentManagement = () => {
                     label="Section Title"
                     value={footerForm.quickLinksTitle || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "quickLinksTitle",
-                        undefined,
-                        undefined,
-                        e.target.value,
-                        undefined,
-                        "footerForm"
+                        null,
+                        null,
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -5633,13 +5513,13 @@ const SiteContentManagement = () => {
                           label="Link Text"
                           value={link.label || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "quickLinks",
-                              undefined,
+                              null,
                               "label",
                               e.target.value,
-                              linkIndex,
-                              "footerForm"
+                              null,
+                              linkIndex
                             )
                           }
                           disabled={!isEditing}
@@ -5648,13 +5528,13 @@ const SiteContentManagement = () => {
                           label="Link URL"
                           value={link.url || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "quickLinks",
-                              undefined,
+                              null,
                               "url",
                               e.target.value,
-                              linkIndex,
-                              "footerForm"
+                              null,
+                              linkIndex
                             )
                           }
                           disabled={!isEditing}
@@ -5668,15 +5548,13 @@ const SiteContentManagement = () => {
                     type="button"
                     className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
                     onClick={() =>
-                      handleAddArrayItem(
+                      handleFooterAddArrayItem(
                         "quickLinks",
-                        undefined,
+                        null,
                         {
                           label: "",
                           url: "",
-                        },
-                        undefined,
-                        "footerForm"
+                        }
                       )
                     }
                   >
@@ -5700,13 +5578,11 @@ const SiteContentManagement = () => {
                     label="Section Title"
                     value={footerForm.informationTitle || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "informationTitle",
-                        undefined,
-                        undefined,
-                        e.target.value,
-                        undefined,
-                        "footerForm"
+                        null,
+                        null,
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -5784,13 +5660,13 @@ const SiteContentManagement = () => {
                           label="Link Text"
                           value={link.label || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "informationLinks",
-                              undefined,
+                              null,
                               "label",
                               e.target.value,
-                              linkIndex,
-                              "footerForm"
+                              null,
+                              linkIndex
                             )
                           }
                           disabled={!isEditing}
@@ -5799,13 +5675,13 @@ const SiteContentManagement = () => {
                           label="Link URL"
                           value={link.url || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "informationLinks",
-                              undefined,
+                              null,
                               "url",
                               e.target.value,
-                              linkIndex,
-                              "footerForm"
+                              null,
+                              linkIndex
                             )
                           }
                           disabled={!isEditing}
@@ -5819,15 +5695,13 @@ const SiteContentManagement = () => {
                     type="button"
                     className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
                     onClick={() =>
-                      handleAddArrayItem(
+                      handleFooterAddArrayItem(
                         "informationLinks",
-                        undefined,
+                        null,
                         {
                           label: "",
                           url: "",
-                        },
-                        undefined,
-                        "footerForm"
+                        }
                       )
                     }
                   >
@@ -5920,9 +5794,9 @@ const SiteContentManagement = () => {
                           label="Column Title"
                           value={column.title || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "navigation_columns",
-                              undefined,
+                              null,
                               "title",
                               e.target.value,
                               columnIndex,
@@ -6011,13 +5885,12 @@ const SiteContentManagement = () => {
                                   label="Link Text"
                                   value={link.text || ""}
                                   onChange={(e) =>
-                                    handleNestedFormChange(
+                                    handleFooterNestedFormChange(
                                       "navigation_columns",
                                       "links",
                                       "text",
                                       e.target.value,
                                       columnIndex,
-                                      "footerForm",
                                       linkIndex
                                     )
                                   }
@@ -6027,13 +5900,12 @@ const SiteContentManagement = () => {
                                   label="Link URL"
                                   value={link.url || ""}
                                   onChange={(e) =>
-                                    handleNestedFormChange(
+                                    handleFooterNestedFormChange(
                                       "navigation_columns",
                                       "links",
                                       "url",
                                       e.target.value,
                                       columnIndex,
-                                      "footerForm",
                                       linkIndex
                                     )
                                   }
@@ -6073,15 +5945,13 @@ const SiteContentManagement = () => {
                     type="button"
                     className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
                     onClick={() =>
-                      handleAddArrayItem(
+                      handleFooterAddArrayItem(
                         "navigation_columns",
-                        undefined,
+                        null,
                         {
                           title: "",
                           links: [{ text: "", url: "" }],
-                        },
-                        undefined,
-                        "footerForm"
+                        }
                       )
                     }
                   >
@@ -6108,13 +5978,11 @@ const SiteContentManagement = () => {
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                       checked={footerForm.newsletter?.enabled || false}
                       onChange={(e) =>
-                        handleNestedFormChange(
+                        handleFooterNestedFormChange(
                           "newsletter",
-                          undefined,
+                          null,
                           "enabled",
-                          e.target.checked,
-                          undefined,
-                          "footerForm"
+                          e.target.checked
                         )
                       }
                       disabled={!isEditing}
@@ -6133,13 +6001,11 @@ const SiteContentManagement = () => {
                     label="Newsletter Headline"
                     value={footerForm.newsletterHeadline || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "newsletterHeadline",
-                        undefined,
-                        undefined,
-                        e.target.value,
-                        undefined,
-                        "footerForm"
+                        null,
+                        null,
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -6154,13 +6020,11 @@ const SiteContentManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                     value={footerForm.newsletterSubtext || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "newsletterSubtext",
-                        undefined,
-                        undefined,
-                        e.target.value,
-                        undefined,
-                        "footerForm"
+                        null,
+                        null,
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -6173,13 +6037,11 @@ const SiteContentManagement = () => {
                     label="Button Text"
                     value={footerForm.newsletter?.button_text || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "newsletter",
-                        undefined,
+                        null,
                         "button_text",
-                        e.target.value,
-                        undefined,
-                        "footerForm"
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -6191,13 +6053,11 @@ const SiteContentManagement = () => {
                     label="Success Message"
                     value={footerForm.newsletter?.success_message || ""}
                     onChange={(e) =>
-                      handleNestedFormChange(
+                      handleFooterNestedFormChange(
                         "newsletter",
-                        undefined,
+                        null,
                         "success_message",
-                        e.target.value,
-                        undefined,
-                        "footerForm"
+                        e.target.value
                       )
                     }
                     disabled={!isEditing}
@@ -6284,13 +6144,13 @@ const SiteContentManagement = () => {
                           label="Platform"
                           value={link.platform || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "socialLinks",
-                              undefined,
+                              null,
                               "platform",
                               e.target.value,
-                              index,
-                              "footerForm"
+                              null,
+                              index
                             )
                           }
                           disabled={!isEditing}
@@ -6299,13 +6159,13 @@ const SiteContentManagement = () => {
                           label="URL"
                           value={link.url || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "socialLinks",
-                              undefined,
+                              null,
                               "url",
                               e.target.value,
-                              index,
-                              "footerForm"
+                              null,
+                              index
                             )
                           }
                           disabled={!isEditing}
@@ -6317,13 +6177,13 @@ const SiteContentManagement = () => {
                           label="Icon"
                           value={link.icon || ""}
                           onChange={(e) =>
-                            handleNestedFormChange(
+                            handleFooterNestedFormChange(
                               "socialLinks",
-                              undefined,
+                              null,
                               "icon",
                               e.target.value,
-                              index,
-                              "footerForm"
+                              null,
+                              index
                             )
                           }
                           disabled={!isEditing}
@@ -6341,16 +6201,14 @@ const SiteContentManagement = () => {
                     type="button"
                     className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
                     onClick={() =>
-                      handleAddArrayItem(
+                      handleFooterAddArrayItem(
                         "socialLinks",
-                        undefined,
+                        null,
                         {
                           platform: "",
                           url: "",
                           icon: "",
-                        },
-                        undefined,
-                        "footerForm"
+                        }
                       )
                     }
                   >

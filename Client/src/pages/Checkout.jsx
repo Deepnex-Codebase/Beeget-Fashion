@@ -634,7 +634,7 @@ const Checkout = () => {
           }
         } else {
           // For other payment methods, show order confirmation
-          setOrderId(result.data.orderId || (result.data.order && result.data.order._id) || result.data._id);
+          setOrderId(result.data.order_id || (result.data.order && result.data.order._id) || result.data.order_id);
           setOrderPlaced(true);
           clearCart();
         }
@@ -1095,59 +1095,6 @@ const Checkout = () => {
                   </div>
                   
                   {errors.paymentMethod && <p className="text-red-500 text-xs mt-1">{errors.paymentMethod.message}</p>}
-                  
-                  {paymentMethod === 'credit-card' && (
-                    <div className="mt-4 p-4 border border-gray-200 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label htmlFor="cardName" className="block text-sm font-medium text-gray-700 mb-1">Name on Card</label>
-                          <input
-                            type="text"
-                            id="cardName"
-                            {...register('cardName')}
-                            className={`w-full px-3 py-2 border rounded-md text-sm ${errors.cardName ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-teal focus:border-teal'}`}
-                          />
-                          {errors.cardName && <p className="text-red-500 text-xs mt-1">{errors.cardName.message}</p>}
-                        </div>
-                        
-                        <div className="md:col-span-2">
-                          <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-                          <input
-                            type="text"
-                            id="cardNumber"
-                            placeholder="XXXX XXXX XXXX XXXX"
-                            {...register('cardNumber')}
-                            className={`w-full px-3 py-2 border rounded-md text-sm ${errors.cardNumber ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-teal focus:border-teal'}`}
-                          />
-                          {errors.cardNumber && <p className="text-red-500 text-xs mt-1">{errors.cardNumber.message}</p>}
-                        </div>
-                        
-                        <div>
-                          <label htmlFor="cardExpiry" className="block text-sm font-medium text-gray-700 mb-1">Expiration Date</label>
-                          <input
-                            type="text"
-                            id="cardExpiry"
-                            placeholder="MM/YY"
-                            {...register('cardExpiry')}
-                            className={`w-full px-3 py-2 border rounded-md text-sm ${errors.cardExpiry ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-teal focus:border-teal'}`}
-                          />
-                          {errors.cardExpiry && <p className="text-red-500 text-xs mt-1">{errors.cardExpiry.message}</p>}
-                        </div>
-                        
-                        <div>
-                          <label htmlFor="cardCvc" className="block text-sm font-medium text-gray-700 mb-1">CVC</label>
-                          <input
-                            type="text"
-                            id="cardCvc"
-                            placeholder="XXX"
-                            {...register('cardCvc')}
-                            className={`w-full px-3 py-2 border rounded-md text-sm ${errors.cardCvc ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-teal focus:border-teal'}`}
-                          />
-                          {errors.cardCvc && <p className="text-red-500 text-xs mt-1">{errors.cardCvc.message}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                   
                   {paymentMethod === 'paypal' && (
                     <div className="mt-4 p-4 border border-gray-200 rounded-md bg-gray-50 text-center">

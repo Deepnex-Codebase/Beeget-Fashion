@@ -1,6 +1,6 @@
 import { useEffect, useContext } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { XMarkIcon, HomeIcon, ShoppingBagIcon, UserIcon, InformationCircleIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, HomeIcon, ShoppingBagIcon, UserIcon, InformationCircleIcon, EnvelopeIcon, SparklesIcon, HeartIcon, StarIcon, FireIcon, ClipboardDocumentListIcon, HeartIcon as HeartIconSolid } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
 import AuthContext from '../../contexts/AuthContext'
 
@@ -69,7 +69,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
           {({ isActive }) => (
             <>
               <span className={`absolute -top-2 w-10 h-1 rounded-full bg-java-600 ${isActive ? 'opacity-100' : 'opacity-0'}`}></span>
-              <ShoppingBagIcon className="h-6 w-6" />
+              <HeartIcon className="h-6 w-6" />
               <span className="text-xs mt-1">Plus Size</span>
             </>
           )}
@@ -216,7 +216,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       }
                       onClick={onClose}
                     >
-                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      <HeartIcon className="h-5 w-5 mr-3" />
                       Plus Size
                     </NavLink>
                   </motion.div>
@@ -236,7 +236,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       }
                       onClick={onClose}
                     >
-                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      <SparklesIcon className="h-5 w-5 mr-3" />
                       New Arrivals
                     </NavLink>
                   </motion.div>
@@ -256,7 +256,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       }
                       onClick={onClose}
                     >
-                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      <StarIcon className="h-5 w-5 mr-3" />
                       Collection
                     </NavLink>
                   </motion.div>
@@ -276,29 +276,11 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       }
                       onClick={onClose}
                     >
-                      <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                      <FireIcon className="h-5 w-5 mr-3" />
                       Best Seller
                     </NavLink>
                   </motion.div>
-                  
-                  <motion.div
-                    variants={{
-                      hidden: { x: -20, opacity: 0 },
-                      visible: { x: 0, opacity: 1 }
-                    }}
-                    whileHover={{ scale: 1.03 }}
-                  >
-                    <NavLink 
-                      to="/about" 
-                      className={({ isActive }) => 
-                        `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
-                      }
-                      onClick={onClose}
-                    >
-                      <InformationCircleIcon className="h-5 w-5 mr-3" />
-                      About
-                    </NavLink>
-                  </motion.div>
+                
                   
                   {/* Contact link removed from upper navigation */}
                 </motion.div>
@@ -413,7 +395,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                           }
                           onClick={onClose}
                         >
-                          <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                          <ClipboardDocumentListIcon className="h-5 w-5 mr-3" />
                           My Orders
                         </NavLink>
                       </motion.div>
@@ -432,7 +414,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                           }
                           onClick={onClose}
                         >
-                          <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                          <HeartIconSolid className="h-5 w-5 mr-3" />
                           My Wishlist
                         </NavLink>
                       </motion.div>

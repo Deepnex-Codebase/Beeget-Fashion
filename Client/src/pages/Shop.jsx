@@ -12,6 +12,7 @@ import { HeartIcon as HeartIconSolid, StarIcon as StarIconSolid, FireIcon as Fir
 import { FaHeart, FaRegHeart, FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa'
 import FilterSidebar from '../components/Shop/FilterSidebar'
 import api from '../utils/api'
+import Image from '../components/Common/Image'
 
 const Shop = () => {
   const { isAuthenticated } = useAuth()
@@ -24,9 +25,14 @@ const Shop = () => {
     sort: searchParams.get('sort') || 'newest',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
+    search: searchParams.get('search') || '',
     page: parseInt(searchParams.get('page') || '1', 10),
     limit: parseInt(searchParams.get('limit') || '9', 10)
   })
+  
+  // Debounced search state
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
+  const [isSearching, setIsSearching] = useState(false)
   
   // Update URL when filters change
   useEffect(() => {
@@ -36,15 +42,43 @@ const Shop = () => {
     if (filters.sort) params.set('sort', filters.sort)
     if (filters.minPrice) params.set('minPrice', filters.minPrice)
     if (filters.maxPrice) params.set('maxPrice', filters.maxPrice)
+    if (filters.search) params.set('search', filters.search)
     params.set('page', filters.page.toString())
     params.set('limit', filters.limit.toString())
     
     setSearchParams(params)
   }, [filters, setSearchParams])
   
+  // Update page title when search is active
+  useEffect(() => {
+    if (filters.search) {
+      document.title = `Search: "${filters.search}" - Beeget Fashion`
+    } else {
+      document.title = 'Shop - Beeget Fashion'
+    }
+  }, [filters.search])
+  
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== filters.search) {
+        setIsSearching(true)
+        handleFilterChange('search', searchInput)
+      }
+    }, 500) // 500ms delay
+
+    return () => clearTimeout(timer)
+  }, [searchInput])
+  
+  // Update search input when filters.search changes (from URL)
+  useEffect(() => {
+    setSearchInput(filters.search)
+  }, [filters.search])
+  
   // State for products and pagination
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingRatings, setIsLoadingRatings] = useState(false)
   const [error, setError] = useState(null)
   const [totalProducts, setTotalProducts] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -62,6 +96,7 @@ const Shop = () => {
         if (filters.category) queryParams.append('category', filters.category)
         if (filters.minPrice) queryParams.append('minPrice', filters.minPrice)
         if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice)
+        if (filters.search) queryParams.append('search', filters.search)
         
         // Map frontend sort values to backend sort parameters
         let sortField = 'createdAt'
@@ -123,12 +158,43 @@ const Shop = () => {
               [...new Set(product.variants.map(v => 
                 v.attributes && v.attributes.color ? v.attributes.color : null
               ).filter(Boolean))] : [],
-            inStock: product.variants && product.variants.some(v => v.stock > 0)
+            inStock: product.variants && product.variants.some(v => v.stock > 0),
+            // Initialize rating data
+            rating: 0,
+            totalReviews: 0
           }))
           
-          setProducts(backendProducts)
+          // Fetch ratings for all products
+          setIsLoadingRatings(true)
+          const productsWithRatings = await Promise.all(
+            backendProducts.map(async (product, index) => {
+              try {
+                // Add a small delay to avoid overwhelming the server
+                if (index > 0) {
+                  await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                const ratingResponse = await api.get(`/reviews/product/${product._id}?limit=1`)
+                if (ratingResponse.data && ratingResponse.data.success && ratingResponse.data.data) {
+                  const { stats } = ratingResponse.data.data
+                  return {
+                    ...product,
+                    rating: stats.averageRating || 0,
+                    totalReviews: stats.totalReviews || 0
+                  }
+                }
+              } catch (error) {
+                console.error(`Error fetching rating for product ${product._id}:`, error)
+                // Keep default values if rating fetch fails
+              }
+              return product
+            })
+          )
+          
+          setProducts(productsWithRatings)
           setTotalProducts(response.data.data.pagination.total)
           setTotalPages(response.data.data.pagination.pages)
+          setIsLoadingRatings(false)
         } else {
           throw new Error('Failed to fetch products')
         }
@@ -137,6 +203,7 @@ const Shop = () => {
         setError('Failed to load products. Please try again later.')
       } finally {
         setIsLoading(false)
+        setIsSearching(false)
       }
     }
     
@@ -223,8 +290,42 @@ const Shop = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Header Section */}
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-java-500 to-java-700 text-transparent bg-clip-text">Fashion Collection</h1>
+          
+          {/* Search Input */}
+          <div className="w-full lg:w-96">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-java-400 focus:border-java-400 text-sm"
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                {isSearching ? (
+                  <svg className="h-5 w-5 text-java-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
+              </div>
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          </div>
+          
           <div className="flex items-center space-x-2">
             <div className="relative">
               <button 
@@ -354,12 +455,20 @@ const Shop = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-medium mb-2 text-gray-800">No Products Found</h3>
-              <p className="text-gray-500 mb-6 text-sm max-w-md mx-auto">We couldn't find any products matching your current filter criteria. Try adjusting your filters or browse our entire collection.</p>
+              <h3 className="text-xl font-medium mb-2 text-gray-800">
+                {filters.search ? `No products found for "${filters.search}"` : 'No Products Found'}
+              </h3>
+              <p className="text-gray-500 mb-6 text-sm max-w-md mx-auto">
+                {filters.search 
+                  ? `We couldn't find any products matching "${filters.search}". Try different keywords or browse our entire collection.`
+                  : 'We couldn\'t find any products matching your current filter criteria. Try adjusting your filters or browse our entire collection.'
+                }
+              </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
                   className="px-6 py-2.5 bg-java-500 text-white text-sm font-medium rounded-full hover:bg-java-600 transition-colors shadow-sm hover:shadow flex items-center justify-center gap-2"
                   onClick={() => {
+                    setSearchInput('')
                     setFilters({
                       category: '',
                       sort: 'newest',
@@ -390,10 +499,28 @@ const Shop = () => {
           ) : (
             <>
               <div className="flex justify-between items-center mb-4 bg-white p-2 xs:p-3 rounded-xl shadow-sm border border-gray-200">
-                <div className="flex items-center">
+                <div className="flex items-center gap-3">
                   <p className="text-xs xs:text-sm text-gray-700">
                     <span className="font-medium text-java-700">{pagination.total}</span> products found
                   </p>
+                  
+                  {/* Search indicator */}
+                  {filters.search && (
+                    <div className="flex items-center gap-2 bg-java-50 px-3 py-1.5 rounded-full border border-java-100">
+                      <span className="text-xs text-java-700 font-medium">Search:</span>
+                      <span className="text-xs text-java-800">"{filters.search}"</span>
+                      <button
+                        onClick={() => {
+                          setSearchInput('')
+                          handleFilterChange('search', '')
+                        }}
+                        className="text-java-600 hover:text-java-800 transition-colors"
+                        aria-label="Clear search"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Sort indicator */}
@@ -518,15 +645,12 @@ const Shop = () => {
                       {/* Product Image Container */}
                       <div className="relative overflow-hidden">
                         <Link to={`/product/${product.slug}`} className="block">
-                          <img 
-                            src={product.images && product.images.length > 0 ? product.images[0] : productImages.tshirtWhite} 
-                            alt={productName} 
+                          <Image 
+                            src={product.images && product.images.length > 0 ? product.images[0] : null}
+                            alt={productName}
+                            fallbackSrc="/image_default.png"
                             className="w-full h-48 xs:h-56 sm:h-64 md:h-72 object-cover transition-transform group-hover:scale-105 duration-500 ease-in-out"
                             loading="lazy"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = productImages.tshirtWhite;
-                            }}
                           />
                           
                           {/* Product Image Overlay with subtle gradient */}
@@ -543,9 +667,35 @@ const Shop = () => {
                           </Link>
                           
                           {/* Rating Stars */}
-                          <div className="flex items-center bg-gradient-to-r from-java-100 to-java-200 px-1.5 xs:px-2 py-0.5 rounded-full ml-1 xs:ml-2">
-                            <StarIconSolid className="h-3 w-3 xs:h-3.5 xs:w-3.5 text-java-600 mr-0.5" />
-                            <span className="text-[10px] xs:text-xs font-medium text-java-800">4.0</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <div className="flex items-center bg-gradient-to-r from-java-100 to-java-200 px-1.5 xs:px-2 py-0.5 rounded-full">
+                              {isLoadingRatings ? (
+                                <div className="flex items-center">
+                                  <div className="h-3 w-3 xs:h-3.5 xs:w-3.5 bg-gray-300 rounded-full animate-pulse mr-0.5"></div>
+                                  <span className="text-[10px] xs:text-xs font-medium text-gray-400">--</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <StarIconSolid className={`h-3 w-3 xs:h-3.5 xs:w-3.5 mr-0.5 ${
+                                    product.rating >= 4 ? 'text-green-600' : 
+                                    product.rating >= 3 ? 'text-yellow-600' : 
+                                    'text-red-600'
+                                  }`} />
+                                  <span className={`text-[10px] xs:text-xs font-medium ${
+                                    product.rating >= 4 ? 'text-green-800' : 
+                                    product.rating >= 3 ? 'text-yellow-800' : 
+                                    'text-red-800'
+                                  }`}>
+                                    {product.rating ? product.rating.toFixed(1) : '0.0'}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            {!isLoadingRatings && product.totalReviews > 0 && (
+                              <span className="text-[8px] xs:text-[9px] text-gray-500">
+                                {product.totalReviews} review{product.totalReviews !== 1 ? 's' : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
                         
@@ -560,9 +710,7 @@ const Shop = () => {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-baseline gap-1 xs:gap-1.5">
                             <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">₹{product.price.toFixed(2)}</p>
-                            {product.originalPrice && (
-                              <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">₹{product.originalPrice.toFixed(2)}</p>
-                            )}
+                           
                           </div>
                           {discountPercentage > 0 && (
                             <span className="text-[9px] xs:text-[10px] sm:text-xs bg-green-50 text-green-600 font-bold px-1 xs:px-1.5 py-0.5 rounded-full border border-green-100">

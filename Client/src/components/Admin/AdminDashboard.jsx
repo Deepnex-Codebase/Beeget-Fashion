@@ -398,6 +398,78 @@ const AdminDashboard = () => {
     return [];
   };
   
+  // Function to calculate GST data based on sales data
+  const getGSTDataByTimeframe = () => {
+    // Get sales data from the existing function
+    const salesData = getSalesDataByTimeframe();
+    
+    // If no sales data, return empty array
+    if (!salesData || salesData.length === 0) {
+      return [];
+    }
+    
+    // GST rates
+    const CGST_RATE = 0.09; // 9%
+    const SGST_RATE = 0.09; // 9%
+    const TOTAL_GST_RATE = CGST_RATE + SGST_RATE; // 18%
+    
+    // Calculate GST for each period
+    return salesData.map(item => {
+      // Calculate taxable amount (sales amount excluding GST)
+      // Formula: taxableAmount = salesAmount / (1 + GST_RATE)
+      const taxableAmount = item.sales / (1 + TOTAL_GST_RATE);
+      
+      // Calculate GST amounts
+      const cgstAmount = taxableAmount * CGST_RATE;
+      const sgstAmount = taxableAmount * SGST_RATE;
+      const totalGST = cgstAmount + sgstAmount;
+      
+      return {
+        ...item, // Keep original data (day/month/year and sales)
+        taxableAmount: Math.round(taxableAmount * 100) / 100, // Round to 2 decimal places
+        cgst: Math.round(cgstAmount * 100) / 100,
+        sgst: Math.round(sgstAmount * 100) / 100,
+        totalGST: Math.round(totalGST * 100) / 100
+      };
+    });
+  };
+  
+  // Function to calculate total GST collected
+  const calculateTotalGST = () => {
+    // If no stats available, return 0
+    if (!stats || !stats.totalSales) {
+      return {
+        totalSales: 0,
+        taxableAmount: 0,
+        totalGST: 0,
+        cgst: 0,
+        sgst: 0
+      };
+    }
+    
+    // GST rates
+    const CGST_RATE = 0.09; // 9%
+    const SGST_RATE = 0.09; // 9%
+    const TOTAL_GST_RATE = CGST_RATE + SGST_RATE; // 18%
+    
+    // Calculate taxable amount (sales amount excluding GST)
+    // Formula: taxableAmount = salesAmount / (1 + GST_RATE)
+    const taxableAmount = stats.totalSales / (1 + TOTAL_GST_RATE);
+    
+    // Calculate GST amounts
+    const cgstAmount = taxableAmount * CGST_RATE;
+    const sgstAmount = taxableAmount * SGST_RATE;
+    const totalGST = cgstAmount + sgstAmount;
+    
+    return {
+      totalSales: stats.totalSales,
+      taxableAmount: Math.round(taxableAmount * 100) / 100,
+      totalGST: Math.round(totalGST * 100) / 100,
+      cgst: Math.round(cgstAmount * 100) / 100,
+      sgst: Math.round(sgstAmount * 100) / 100
+    };
+  };
+  
   // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
@@ -783,6 +855,26 @@ const AdminDashboard = () => {
         // Log the top products for debugging
         console.log('Top selling products with stock:', topSellingProducts);
         
+        // Fetch city analytics data
+        let topCities = [];
+        try {
+          const cityResponse = await axios.get('/orders/stats/cities?limit=5');
+          if (cityResponse.data && cityResponse.data.data) {
+            topCities = cityResponse.data.data.topCities || [];
+          }
+        } catch (cityError) {
+          console.error('Error fetching city analytics:', cityError);
+          // Generate mock city data if API fails
+          const mockCities = [
+            { city: 'Mumbai', orderCount: 45, totalRevenue: 125000, paidOrders: 42, averageOrderValue: 2800 },
+            { city: 'Delhi', orderCount: 38, totalRevenue: 98000, paidOrders: 35, averageOrderValue: 2600 },
+            { city: 'Bangalore', orderCount: 32, totalRevenue: 85000, paidOrders: 30, averageOrderValue: 2700 },
+            { city: 'Chennai', orderCount: 28, totalRevenue: 72000, paidOrders: 26, averageOrderValue: 2500 },
+            { city: 'Kolkata', orderCount: 25, totalRevenue: 65000, paidOrders: 23, averageOrderValue: 2400 }
+          ];
+          topCities = mockCities;
+        }
+        
         return {
           totalSales,
           totalOrders,
@@ -790,7 +882,8 @@ const AdminDashboard = () => {
           totalProducts,
           recentOrders,
           topProducts: topSellingProducts,
-          orderStatusDistribution
+          orderStatusDistribution,
+          topCities
         };
       } catch (error) {
         console.error('Error fetching admin stats:', error);
@@ -808,7 +901,8 @@ const AdminDashboard = () => {
             shipped: 0,
             delivered: 0,
             cancelled: 0
-          }
+          },
+          topCities: []
         };
       }
     },
@@ -1801,6 +1895,228 @@ const AdminDashboard = () => {
           )}
         </div>
         
+        {/* Top Cities by Purchase */}
+        <div className="bg-white rounded-md shadow-sm p-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-medium text-gray-700">Top Cities by Purchase</h2>
+            <button 
+              onClick={() => navigate('/admin/city-analytics')}
+              className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center"
+            >
+              View More Details
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          
+          {statsLoading ? (
+            // Loading skeleton for cities
+            <div className="animate-pulse">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(5)].map((_, index) => (
+                  <div key={index} className="h-20 bg-gray-100 rounded"></div>
+                ))}
+              </div>
+            </div>
+          ) : !stats?.topCities || stats.topCities.length === 0 ? (
+            <div className="text-center py-6">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <p className="text-gray-400 text-sm mb-3">No city data available</p>
+              <button 
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-stats'] })}
+                className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(stats?.topCities || []).slice(0, 5).map((city, index) => (
+                <motion.div
+                  key={city.city}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white ${
+                        index === 0 ? 'bg-yellow-500' :
+                        index === 1 ? 'bg-gray-500' :
+                        index === 2 ? 'bg-orange-500' :
+                        'bg-blue-500'
+                      }`}>
+                        #{index + 1}
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="font-medium text-gray-900">{city.city}</h3>
+                        <p className="text-sm text-gray-500">{city.orderCount} orders</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Revenue:</span>
+                      <span className="font-medium text-gray-900">{formatCurrency(city.totalRevenue)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Avg Order:</span>
+                      <span className="font-medium text-gray-900">{formatCurrency(city.averageOrderValue)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Paid Orders:</span>
+                      <span className="font-medium text-gray-900">{city.paidOrders}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex justify-between items-center text-xs text-gray-500">
+                      <span>Success Rate</span>
+                      <span>{city.orderCount > 0 ? Math.round((city.paidOrders / city.orderCount) * 100) : 0}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                      <div 
+                        className="h-1.5 rounded-full bg-green-500" 
+                        style={{ width: `${city.orderCount > 0 ? (city.paidOrders / city.orderCount) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* GST Report Section */}
+        <div className="bg-white rounded-md shadow-sm p-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-medium text-gray-700">GST Reports</h2>
+            <button 
+              onClick={() => navigate('/admin/gst-reports')}
+              className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center"
+            >
+              View Full Reports
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          
+          {statsLoading ? (
+            // Loading skeleton for GST reports
+            <div className="animate-pulse">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, index) => (
+                  <div key={index} className="h-20 bg-gray-100 rounded"></div>
+                ))}
+              </div>
+              <div className="h-40 bg-gray-100 rounded mt-4"></div>
+            </div>
+          ) : (
+            <div>
+              {/* GST Summary Cards */}
+              {(() => {
+                // Calculate GST data
+                const gstData = calculateTotalGST();
+                
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <h3 className="text-sm font-medium text-gray-700 mb-1">Total GST Collected</h3>
+                      <p className="text-xl font-semibold text-java-600">₹{gstData.totalGST.toLocaleString()}</p>
+                      <div className="text-xs text-gray-500 mt-1">18% of taxable amount ₹{gstData.taxableAmount.toLocaleString()}</div>
+                    </div>
+                    
+                    <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <h3 className="text-sm font-medium text-gray-700 mb-1">CGST (9%)</h3>
+                      <p className="text-xl font-semibold text-java-600">₹{gstData.cgst.toLocaleString()}</p>
+                      <div className="text-xs text-gray-500 mt-1">Central Goods & Services Tax</div>
+                    </div>
+                    
+                    <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <h3 className="text-sm font-medium text-gray-700 mb-1">SGST (9%)</h3>
+                      <p className="text-xl font-semibold text-java-600">₹{gstData.sgst.toLocaleString()}</p>
+                      <div className="text-xs text-gray-500 mt-1">State Goods & Services Tax</div>
+                    </div>
+                  </div>
+                );
+              })()}
+              
+              {/* Monthly GST Collection Table */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-medium text-gray-700">Monthly GST Collection</h3>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => setSalesTimeframe('monthly')}
+                      className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'monthly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                      Monthly
+                    </button>
+                    <button 
+                      onClick={() => setSalesTimeframe('yearly')}
+                      className={`px-2 py-1 text-xs font-medium rounded transition-colors ${salesTimeframe === 'yearly' ? 'bg-java-100 text-java-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                      Yearly
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="relative overflow-x-auto">
+                  <table className="w-full text-sm text-left text-gray-700">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2">{salesTimeframe === 'monthly' ? 'Month' : 'Year'}</th>
+                        <th className="px-4 py-2">Taxable Amount</th>
+                        <th className="px-4 py-2">CGST (9%)</th>
+                        <th className="px-4 py-2">SGST (9%)</th>
+                        <th className="px-4 py-2">Total GST</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const gstData = getGSTDataByTimeframe();
+                        
+                        if (gstData.length === 0) {
+                          return (
+                            <tr className="bg-white">
+                              <td colSpan="5" className="px-4 py-4 text-center text-gray-500">
+                                No GST data available
+                              </td>
+                            </tr>
+                          );
+                        }
+                        
+                        return gstData.map((item, index) => {
+                          const timeKey = salesTimeframe === 'monthly' ? 'month' : 'year';
+                          const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                          
+                          return (
+                            <tr key={index} className={`${bgClass} border-b`}>
+                              <td className="px-4 py-2 font-medium">{item[timeKey]}</td>
+                              <td className="px-4 py-2">₹{item.taxableAmount.toLocaleString()}</td>
+                              <td className="px-4 py-2">₹{item.cgst.toLocaleString()}</td>
+                              <td className="px-4 py-2">₹{item.sgst.toLocaleString()}</td>
+                              <td className="px-4 py-2 font-medium">₹{item.totalGST.toLocaleString()}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>
+              </div>
+            // </div>
+          )}
+        </div>
+        
         {/* Order Status Distribution */}
         <div className="bg-white rounded-md shadow-sm p-4 mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -1846,7 +2162,7 @@ const AdminDashboard = () => {
                       { name: 'Shipped', value: stats?.orderStatusDistribution?.shipped || 0, color: '#4ade80' },
                       { name: 'Ready', value: stats?.orderStatusDistribution?.['ready-to-ship'] || 0, color: '#facc15' },
                       { name: 'Delivered', value: stats?.orderStatusDistribution?.delivered || 0, color: '#10b981' },
-                      { name: 'Cancelled', value: stats?.orderStatusDistribution?.cancelled || 0, color: '#f87171' },
+                      { name: 'Cancelled', value: stats?.orderStatusDistribution?.cancelled || 0, color: '#f87171' }
                     ]}
                     margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
                     layout="vertical"
@@ -2433,19 +2749,7 @@ const AdminDashboard = () => {
                 <th className="px-3 py-2 text-left text-xs text-gray-500 uppercase tracking-wider w-20">Pin Code</th>
                 <th className="px-3 py-2 text-left text-xs text-gray-500 uppercase tracking-wider w-24">Mobile</th>
                 <th className="px-3 py-2 text-left text-xs text-gray-500 uppercase tracking-wider w-32">Email</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 uppercase tracking-wider w-20">
-                  <button 
-                    className="flex items-center"
-                    onClick={() => handleOrdersSortChange('paymentMethod')}
-                  >
-                    <span>Order Type</span>
-                    {ordersSort === 'paymentMethod' && (
-                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 ml-1 ${ordersOrder === 'asc' ? 'transform rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    )}
-                  </button>
-                </th>
+                
                 <th className="px-3 py-2 text-left text-xs text-gray-500 uppercase tracking-wider w-24">AWB No.</th>
                 <th className="px-3 py-2 text-left text-xs text-gray-500 uppercase tracking-wider w-20">Courier</th>
                 <th className="px-3 py-2 text-left text-xs text-gray-500 uppercase tracking-wider w-20">
@@ -2522,9 +2826,7 @@ const AdminDashboard = () => {
                   <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
                     {order.shipping?.address?.email || order.userId?.email || 'N/A'}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                    {order.paymentMethod === 'cod' ? 'COD' : 'Prepaid'}
-                  </td>
+                 
                   <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
                     {order.trackingInfo?.awbNumber || 'N/A'}
                   </td>

@@ -169,7 +169,7 @@ const OrderDetails = () => {
               <div className="flex flex-col md:flex-row md:justify-between md:items-center">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                    Order #{orderDetails._id}
+                    Order #{orderDetails.order_id}
                   </h2>
                   <p className="text-gray-500 text-sm">
                     Placed on {formatDate(orderDetails.createdAt)}
@@ -244,7 +244,7 @@ const OrderDetails = () => {
                       orderDetails.paymentMethod ||
                       "N/A"}
                   </p>
-                  <p className="text-gray-600">Order ID: {orderDetails._id}</p>
+                  <p className="text-gray-600">Order ID: {orderDetails.order_id}</p>
                 </div>
               </div>
 

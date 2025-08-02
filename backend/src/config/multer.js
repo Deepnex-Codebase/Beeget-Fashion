@@ -96,6 +96,20 @@ const tempStorage = multer.diskStorage({
   }
 });
 
+// Storage configuration for CMS/site content images
+const cmsStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dest = path.join(uploadDir, 'cms');
+    createDirectoryIfNotExists(dest);
+    cb(null, dest);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with original extension
+    const uniqueFilename = `${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueFilename);
+  }
+});
+
 // File filter for images
 const imageFileFilter = (req, file, cb) => {
   // Accept only image files
@@ -130,7 +144,8 @@ const maxSize = {
   user: 2 * 1024 * 1024,    // 2MB
   invoice: 10 * 1024 * 1024, // 10MB
   review: 3 * 1024 * 1024,   // 3MB
-  temp: 20 * 1024 * 1024     // 20MB
+  temp: 20 * 1024 * 1024,    // 20MB
+  cms: 5 * 1024 * 1024       // 5MB for CMS images
 };
 
 // Configure multer instances
@@ -163,6 +178,12 @@ const reviewUpload = multer({
   fileFilter: imageFileFilter
 });
 
+const cmsUpload = multer({
+  storage: cmsStorage,
+  limits: { fileSize: maxSize.cms },
+  fileFilter: imageFileFilter
+});
+
 // Helper function to delete a file
 export const deleteFile = (filePath) => {
   try {
@@ -192,5 +213,6 @@ export {
   invoiceUpload,
   reviewUpload,
   tempUpload,
+  cmsUpload,
   uploadDir
 };

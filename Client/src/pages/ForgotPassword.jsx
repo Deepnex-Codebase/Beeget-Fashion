@@ -55,8 +55,8 @@ const ForgotPassword = () => {
           <h1 className="text-3xl font-heading font-bold text-java-800">Forgot Password</h1>
           <p className="mt-2 text-gray-600">
             {isSubmitted 
-              ? 'Check your email for reset instructions' 
-              : 'Enter your email to reset your password'}
+              ? 'Check your email for the password reset link' 
+              : 'Enter your email to receive a password reset link'}
           </p>
         </div>
         
@@ -69,7 +69,7 @@ const ForgotPassword = () => {
         {isSubmitted ? (
           <div className="mt-6 space-y-6">
             <div className="bg-green-50 text-green-700 p-4 rounded-md">
-              <p>We've sent a password reset link to your email address. Please check your inbox and follow the instructions to reset your password.</p>
+              <p>We've sent a password reset link to your email address. Please check your inbox and click the link to reset your password.</p>
             </div>
             
             <div className="text-center space-y-4">

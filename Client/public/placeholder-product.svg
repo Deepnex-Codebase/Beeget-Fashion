@@ -1,5 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
-  <rect width="400" height="400" fill="#f0f0f0"/>
-  <text x="50%" y="50%" font-family="Arial" font-size="24" text-anchor="middle" fill="#888888">Product Image</text>
-  <text x="50%" y="58%" font-family="Arial" font-size="16" text-anchor="middle" fill="#888888">Placeholder</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
+  <rect width="400" height="500" fill="#f8f9fa"/>
+  <rect x="50" y="50" width="300" height="400" fill="#e9ecef" stroke="#dee2e6" stroke-width="2"/>
+  <circle cx="200" cy="150" r="40" fill="#dee2e6"/>
+  <rect x="120" y="220" width="160" height="20" fill="#dee2e6" rx="10"/>
+  <rect x="140" y="260" width="120" height="15" fill="#dee2e6" rx="7"/>
+  <rect x="160" y="290" width="80" height="15" fill="#dee2e6" rx="7"/>
+  <text x="200" y="420" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#6c757d">Product Image</text>
+  <text x="200" y="440" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#6c757d">Not Available</text>
 </svg>

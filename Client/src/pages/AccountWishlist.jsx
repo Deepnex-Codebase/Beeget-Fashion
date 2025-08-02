@@ -112,7 +112,7 @@ const AccountWishlist = () => {
               // Get image from product or productDetails
               const productImage = item.productId.images?.[0] || 
                 item.productDetails?.image || 
-                '/placeholder-product.jpg';
+                '/image_default.png';
               
               return (
                 <div key={item._id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300">

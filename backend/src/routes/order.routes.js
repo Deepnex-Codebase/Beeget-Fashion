@@ -14,6 +14,7 @@ import {
   requestReturnExchange as requestExchange,
   processReturnExchange as processReturnExchangeRequest,
   getOrderStats,
+  getCityAnalytics,
   markOrderDelivered,
   markOrderShipped,
   markOrderOutForDelivery,
@@ -47,15 +48,15 @@ const logMiddleware = (req, res, next) => {
   next();
 };
 
-// Orders list route with debugging
-router.get('/', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), getOrders);
+// Orders list route - accessible to all authenticated users (controller handles access control)
+router.get('/', logMiddleware, getOrders);
 
-router.get('/:id', isOwnerOrAdmin, getOrderById);
-router.post('/:id/cancel', isOwnerOrAdmin, cancelOrder);
-router.delete('/:id', isOwnerOrAdmin, deleteOrder);
-router.post('/:id/return', isOwnerOrAdmin, requestReturn);
-router.post('/:id/exchange', isOwnerOrAdmin, requestExchange);
-router.post('/:id/pay', isOwnerOrAdmin, createPaymentForOrder);
+router.get('/:id', getOrderById);
+router.post('/:id/cancel', cancelOrder);
+router.delete('/:id', deleteOrder);
+router.post('/:id/return', requestReturn);
+router.post('/:id/exchange', requestExchange);
+router.post('/:id/pay', createPaymentForOrder);
 
 // Admin/SubAdmin only routes
 // Add logging middleware to all admin routes
@@ -67,5 +68,6 @@ router.patch('/:id/mark-delivered', logMiddleware, hasDepartmentPermission('orde
 // These routes should also be accessible to subadmins with proper permissions
 router.patch('/:id/return-exchange', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), processReturnExchangeRequest);
 router.get('/stats/dashboard', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), getOrderStats);
+router.get('/stats/cities', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), getCityAnalytics);
 
 export default router;

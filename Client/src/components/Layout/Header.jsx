@@ -58,6 +58,15 @@ const Header = () => {
     }
   }
   
+  // Extract search query from URL when component mounts
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const searchParam = urlParams.get('search')
+    if (searchParam) {
+      setSearchQuery(searchParam)
+    }
+  }, [])
+  
   // Listen for custom openCart event
   useEffect(() => {
     const handleOpenCart = () => {

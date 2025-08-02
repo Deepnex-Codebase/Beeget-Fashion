@@ -2306,3 +2306,162 @@ export const createPaymentForOrder = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get city-based analytics for orders
+ */
+export const getCityAnalytics = async (req, res, next) => {
+  try {
+    const { startDate, endDate, limit = 10 } = req.query;
+
+    // Build date range query
+    const dateQuery = {};
+    if (startDate || endDate) {
+      dateQuery.createdAt = {};
+      if (startDate) dateQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        dateQuery.createdAt.$lte = endDateTime;
+      }
+    }
+
+    // Get city-based analytics
+    const cityAnalytics = await Order.aggregate([
+      {
+        $match: {
+          ...dateQuery,
+          "shipping.address.city": { $exists: true, $ne: null, $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: "$shipping.address.city",
+          orderCount: { $sum: 1 },
+          totalRevenue: { 
+            $sum: {
+              $cond: [
+                { $eq: ["$payment.status", "PAID"] }, 
+                { $add: ["$total", { $ifNull: ["$totalGST", 0] }] }, 
+                0
+              ]
+            }
+          },
+          paidOrders: {
+            $sum: {
+              $cond: [{ $eq: ["$payment.status", "PAID"] }, 1, 0]
+            }
+          },
+          averageOrderValue: {
+            $avg: {
+              $cond: [
+                { $eq: ["$payment.status", "PAID"] }, 
+                { $add: ["$total", { $ifNull: ["$totalGST", 0] }] }, 
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          city: "$_id",
+          orderCount: 1,
+          totalRevenue: 1,
+          paidOrders: 1,
+          averageOrderValue: 1,
+          _id: 0
+        }
+      },
+      {
+        $sort: { orderCount: -1 }
+      },
+      {
+        $limit: parseInt(limit)
+      }
+    ]);
+
+    // Get detailed city data for the top cities
+    const topCities = cityAnalytics.slice(0, 5);
+    const detailedCityData = [];
+
+    for (const cityData of topCities) {
+      // Get recent orders for this city
+      const recentOrders = await Order.find({
+        ...dateQuery,
+        "shipping.address.city": cityData.city
+      })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('userId', 'name email')
+      .select('order_id total totalGST createdAt payment.status statusHistory userId');
+
+      // Get order status distribution for this city
+      const cityOrderStatuses = await Order.aggregate([
+        {
+          $match: {
+            ...dateQuery,
+            "shipping.address.city": cityData.city
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $cond: [
+                { $gt: [{ $size: "$statusHistory" }, 0] },
+                { $arrayElemAt: ["$statusHistory.status", -1] },
+                "processing"
+              ]
+            },
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const statusDistribution = {};
+      cityOrderStatuses.forEach(status => {
+        statusDistribution[status._id] = status.count;
+      });
+
+      detailedCityData.push({
+        ...cityData,
+        recentOrders,
+        statusDistribution
+      });
+    }
+
+    // Get overall statistics
+    const totalOrders = await Order.countDocuments(dateQuery);
+    const totalRevenue = await Order.aggregate([
+      {
+        $match: {
+          ...dateQuery,
+          "payment.status": "PAID"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $add: ["$total", { $ifNull: ["$totalGST", 0] }] } }
+        }
+      }
+    ]);
+
+    const overallStats = {
+      totalOrders,
+      totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
+      totalCities: cityAnalytics.length
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        topCities: detailedCityData,
+        allCities: cityAnalytics,
+        overallStats
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
