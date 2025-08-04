@@ -42,7 +42,7 @@ const ForgotPassword = () => {
       }
     } catch (error) {
       setServerError('An unexpected error occurred. Please try again.')
-      console.error('Password reset request error:', error)
+      // console.error('Password reset request error:', error)
     } finally {
       setIsLoading(false)
     }

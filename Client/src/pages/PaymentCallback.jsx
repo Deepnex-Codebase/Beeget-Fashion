@@ -32,7 +32,7 @@ const PaymentCallback = () => {
     
     // Wait for 2 seconds before retrying
     setTimeout(() => {
-      console.log(`Retrying payment status check (attempt ${retryCount + 1})...`);
+      // console.log(`Retrying payment status check (attempt ${retryCount + 1})...`);
       
       // Call API to check payment status
       axios.post('/orders/payment/callback', {
@@ -45,7 +45,7 @@ const PaymentCallback = () => {
         }
       })
         .then(response => {
-          console.log(`Retry ${retryCount + 1} response:`, response.data);
+          // console.log(`Retry ${retryCount + 1} response:`, response.data);
           if (response.data.success) {
             const paymentStatus = response.data.data.paymentStatus;
             const orderStatus = response.data.data.orderStatus;
@@ -77,7 +77,7 @@ const PaymentCallback = () => {
           }
         })
         .catch(err => {
-          console.error(`Retry ${retryCount + 1} error:`, err);
+          // console.error(`Retry ${retryCount + 1} error:`, err);
           // If API error, retry
           checkOrderStatus(orderId, retryCount + 1);
         });
@@ -108,7 +108,7 @@ const PaymentCallback = () => {
     };
     
     setDebugInfo(debugData);
-    console.log('Payment Callback Debug Info:', debugData);
+    // console.log('Payment Callback Debug Info:', debugData);
     
     if (finalOrderId) {
       setOrderId(finalOrderId);
@@ -134,7 +134,7 @@ const PaymentCallback = () => {
         }
       })
         .then(response => {
-          console.log('Payment verification response:', response.data);
+          // console.log('Payment verification response:', response.data);
           setLoading(false);
           
           if (response.data.success) {
@@ -168,7 +168,7 @@ const PaymentCallback = () => {
           }
         })
         .catch(err => {
-          console.error('Error verifying payment:', err);
+          // console.error('Error verifying payment:', err);
           setLoading(false);
           setStatus('failed');
           setError('Error verifying payment. Please contact customer support.');

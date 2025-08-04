@@ -6,6 +6,7 @@ import Button from "../Common/Button";
 import Input from "../Common/Input";
 import Spinner from "../Common/Spinner";
 import ImageUpload from "../Common/ImageUpload";
+import VideoUpload from "../Common/VideoUpload";
 import { Tab } from "@headlessui/react";
 import {
   PencilIcon,
@@ -128,7 +129,7 @@ const SiteContentManagement = () => {
       } else {
         // Fix any incorrect '[object Object]' array that might be present
         if (heroBlock['[object Object]'] && Array.isArray(heroBlock['[object Object]'])) {
-          console.log("Fixing incorrect [object Object] array in hero section");
+          // console.log("Fixing incorrect [object Object] array in hero section");
           delete heroBlock['[object Object]'];
         }
         
@@ -208,7 +209,7 @@ const SiteContentManagement = () => {
         });
       }
 
-      console.log("Initialized home page form with data:", formData);
+      // console.log("Initialized home page form with data:", formData);
       setHomePageForm(formData);
     } else {
       // If no data is available, fetch it
@@ -259,7 +260,7 @@ const SiteContentManagement = () => {
         };
       }
 
-      console.log("Initialized about page form with data:", formData);
+      // console.log("Initialized about page form with data:", formData);
       setAboutPageForm(formData);
     } else {
       // If no data is available, fetch it
@@ -332,7 +333,7 @@ const SiteContentManagement = () => {
         });
       }
 
-      console.log("Initialized contact page form with data:", formData);
+      // console.log("Initialized contact page form with data:", formData);
       setContactPageForm(formData);
     } else {
       // If no data is available, fetch it
@@ -413,7 +414,7 @@ const SiteContentManagement = () => {
         };
       }
 
-      console.log("Initialized footer form with data:", formData);
+      // console.log("Initialized footer form with data:", formData);
       setFooterForm(formData);
     } else {
       // If no data is available, fetch it
@@ -469,66 +470,66 @@ const SiteContentManagement = () => {
   const handleAutosave = async () => {
     try {
       if (!isEditing) {
-        console.log("Not in editing mode, skipping autosave");
+        // console.log("Not in editing mode, skipping autosave");
         return;
       }
 
-      console.log("Autosave triggered for tab:", activeTab);
+      // console.log("Autosave triggered for tab:", activeTab);
 
       let result;
 
       switch (activeTab) {
         case "home":
           if (homePageForm) {
-            console.log("Autosaving home page data");
+            // console.log("Autosaving home page data");
             result = await autosaveHomePageData(homePageForm);
-            console.log(
-              "Home page autosave result:",
-              result ? "Success" : "No result"
-            );
+            // console.log(
+            //   "Home page autosave result:",
+            //   result ? "Success" : "No result"
+            // );
             if (result) {
               // We don't update the form here to avoid UI flickering during autosave
               // But we could if needed: setHomePageForm(JSON.parse(JSON.stringify(result)));
             }
           } else {
-            console.warn("No home page form data to autosave");
+            // console.warn("No home page form data to autosave");
           }
           break;
         case "about":
           if (aboutPageForm) {
-            console.log("Autosaving about page data");
+            // console.log("Autosaving about page data");
             result = await autosaveAboutPageData(aboutPageForm);
-            console.log(
-              "About page autosave result:",
-              result ? "Success" : "No result"
-            );
+            // console.log(
+            //   "About page autosave result:",
+            //   result ? "Success" : "No result"
+            // );
             if (result) {
               // We don't update the form here to avoid UI flickering during autosave
               // But we could if needed: setAboutPageForm(JSON.parse(JSON.stringify(result)));
             }
           } else {
-            console.warn("No about page form data to autosave");
+            // console.warn("No about page form data to autosave");
           }
           break;
         case "contact":
           if (contactPageForm) {
-            console.log("Autosaving contact page data");
+            // console.log("Autosaving contact page data");
             result = await autosaveContactPageData(contactPageForm);
-            console.log(
-              "Contact page autosave result:",
-              result ? "Success" : "No result"
-            );
+            // console.log(
+            //   "Contact page autosave result:",
+            //   result ? "Success" : "No result"
+            // );
             if (result) {
               // We don't update the form here to avoid UI flickering during autosave
               // But we could if needed: setContactPageForm(JSON.parse(JSON.stringify(result)));
             }
           } else {
-            console.warn("No contact page form data to autosave");
+            // console.warn("No contact page form data to autosave");
           }
           break;
         case "footer":
           if (footerForm) {
-            console.log("Autosaving footer data");
+            // console.log("Autosaving footer data");
             // Create a copy of the footer form for autosave
             const footerFormCopy = JSON.parse(JSON.stringify(footerForm));
             
@@ -546,36 +547,36 @@ const SiteContentManagement = () => {
             if (!footerFormCopy.informationLinks) footerFormCopy.informationLinks = [];
             
             result = await autosaveFooterData(footerFormCopy);
-            console.log(
-              "Footer autosave result:",
-              result ? "Success" : "No result"
-            );
+            // console.log(
+            //   "Footer autosave result:",
+            //   result ? "Success" : "No result"
+            // );
             if (result) {
               // We don't update the form here to avoid UI flickering during autosave
               // But we could if needed: setFooterForm(JSON.parse(JSON.stringify(result)));
             }
           } else {
-            console.warn("No footer form data to autosave");
+            // console.warn("No footer form data to autosave");
           }
           break;
         default:
-          console.warn("Unknown tab for autosave:", activeTab);
+          // console.warn("Unknown tab for autosave:", activeTab);
           break;
       }
 
       if (result) {
         setLastAutosaved(new Date());
-        console.log("Autosave successful, timestamp updated");
+        // console.log("Autosave successful, timestamp updated");
         // Don't show toast for autosave to avoid disrupting user experience
       } else {
-        console.warn("Autosave completed but no result returned");
+        // console.warn("Autosave completed but no result returned");
       }
     } catch (error) {
-      console.error("Autosave error:", error);
-      console.error(
-        "Autosave error details:",
-        error.response?.data?.error || error.message || "Unknown error"
-      );
+      // console.error("Autosave error:", error);
+      // console.error(
+      //   "Autosave error details:",
+      //   error.response?.data?.error || error.message || "Unknown error"
+      // );
       // Don't show toast for autosave errors to avoid disrupting user experience
     }
   };
@@ -583,16 +584,16 @@ const SiteContentManagement = () => {
   // Handle save changes
   const handleSaveChanges = async () => {
     try {
-      console.log("Save changes triggered for tab:", activeTab);
+      // console.log("Save changes triggered for tab:", activeTab);
 
       let result;
 
       switch (activeTab) {
         case "home":
           if (homePageForm) {
-            console.log("Saving home page data:", homePageForm);
+            // console.log("Saving home page data:", homePageForm);
             result = await updateHomePageData(homePageForm);
-            console.log("Home page save result:", result);
+            // console.log("Home page save result:", result);
             if (result) {
               // Update form with the returned data to ensure it's in sync with the server
               setHomePageForm(JSON.parse(JSON.stringify(result)));
@@ -602,9 +603,9 @@ const SiteContentManagement = () => {
           break;
         case "about":
           if (aboutPageForm) {
-            console.log("Saving about page data:", aboutPageForm);
+            // console.log("Saving about page data:", aboutPageForm);
             result = await updateAboutPageData(aboutPageForm);
-            console.log("About page save result:", result);
+            // console.log("About page save result:", result);
             if (result) {
               // Update form with the returned data to ensure it's in sync with the server
               setAboutPageForm(JSON.parse(JSON.stringify(result)));
@@ -614,9 +615,9 @@ const SiteContentManagement = () => {
           break;
         case "contact":
           if (contactPageForm) {
-            console.log("Saving contact page data:", contactPageForm);
+            // console.log("Saving contact page data:", contactPageForm);
             result = await updateContactPageData(contactPageForm);
-            console.log("Contact page save result:", result);
+            // console.log("Contact page save result:", result);
             if (result) {
               // Update form with the returned data to ensure it's in sync with the server
               setContactPageForm(JSON.parse(JSON.stringify(result)));
@@ -636,10 +637,10 @@ const SiteContentManagement = () => {
           break;
       }
 
-      console.log("Save successful, exiting edit mode");
+      // console.log("Save successful, exiting edit mode");
       setIsEditing(false);
     } catch (error) {
-      console.error("Save changes error:", error);
+      // console.error("Save changes error:", error);
       toast.error(
         "Failed to save changes: " +
           (error.response?.data?.error || error.message || "Unknown error")
@@ -650,7 +651,7 @@ const SiteContentManagement = () => {
   // Handle save footer
   const handleSaveFooter = async () => {
     try {
-      console.log("Saving footer data:", footerForm);
+      // console.log("Saving footer data:", footerForm);
       // Create a copy of the footer form to avoid modifying the original
       const footerFormCopy = JSON.parse(JSON.stringify(footerForm));
       
@@ -667,14 +668,14 @@ const SiteContentManagement = () => {
       if (!footerFormCopy.informationLinks) footerFormCopy.informationLinks = [];
       
       const result = await updateFooterData(footerFormCopy);
-      console.log("Footer save result:", result);
+      // console.log("Footer save result:", result);
       if (result) {
         // Update form with the returned data to ensure it's in sync with the server
         setFooterForm(JSON.parse(JSON.stringify(result)));
       }
       return result;
     } catch (error) {
-      console.error("Save footer error:", error);
+      // console.error("Save footer error:", error);
       toast.error(
         "Failed to save footer: " +
           (error.response?.data?.error || error.message || "Unknown error")
@@ -690,25 +691,25 @@ const SiteContentManagement = () => {
       case "home":
         if (homePageData) {
           setHomePageForm(JSON.parse(JSON.stringify(homePageData)));
-          console.log("Reset home page form to original data");
+          // console.log("Reset home page form to original data");
         }
         break;
       case "about":
         if (aboutPageData) {
           setAboutPageForm(JSON.parse(JSON.stringify(aboutPageData)));
-          console.log("Reset about page form to original data");
+          // console.log("Reset about page form to original data");
         }
         break;
       case "contact":
         if (contactPageData) {
           setContactPageForm(JSON.parse(JSON.stringify(contactPageData)));
-          console.log("Reset contact page form to original data");
+          // console.log("Reset contact page form to original data");
         }
         break;
       case "footer":
         if (footerData) {
           setFooterForm(JSON.parse(JSON.stringify(footerData)));
-          console.log("Reset footer form to original data");
+          // console.log("Reset footer form to original data");
         }
         break;
       default:
@@ -780,15 +781,15 @@ const SiteContentManagement = () => {
     blockIndex,
     index
   ) => {
-    console.log(
-      `handleFooterNestedFormChange called: section=${section}, nestedObject=${nestedObject}, field=${field}, value=${value}, blockIndex=${blockIndex}, index=${index}`
-    );
+    // // console.log(
+    //   `handleFooterNestedFormChange called: section=${section}, nestedObject=${nestedObject}, field=${field}, value=${value}, blockIndex=${blockIndex}, index=${index}`
+    // );
 
     // Create a deep copy of the footer form to avoid direct state mutation
     setFooterForm((prev) => {
       if (!prev) return prev; // Guard against null prev
       
-      console.log("Previous footer form state:", prev);
+      // console.log("Previous footer form state:", prev);
       const updated = JSON.parse(JSON.stringify(prev)); // Deep copy
 
       // Handle different sections of the footer form
@@ -939,7 +940,7 @@ const SiteContentManagement = () => {
         }
       } else if (section === "blocks") {
         // Special handling for blocks array
-        console.log("Handling blocks special case for footer");
+        // console.log("Handling blocks special case for footer");
         // Ensure blocks array exists
         if (!updated.blocks) {
           updated.blocks = [];
@@ -1000,7 +1001,7 @@ const SiteContentManagement = () => {
               updated.blocks[blockIndex].side_image = {};
             }
             updated.blocks[blockIndex].side_image[field] = value;
-            console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
+            // console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
           } else {
             // Simple field in block
             updated.blocks[blockIndex][field] = value;
@@ -1030,7 +1031,7 @@ const SiteContentManagement = () => {
         }
       }
 
-      console.log("Updated footer form state:", updated);
+      // console.log("Updated footer form state:", updated);
       
       // Trigger autosave if editing is enabled
       if (isEditing) {
@@ -1055,9 +1056,9 @@ const SiteContentManagement = () => {
     formType,
     nestedIndex
   ) => {
-    console.log(
-      `handleNestedFormChange called: section=${section}, nestedObject=${nestedObject}, field=${field}, value=${value}, blockIndex=${blockIndex}, formType=${formType}, nestedIndex=${nestedIndex}`
-    );
+    // console.log(
+    //   `handleNestedFormChange called: section=${section}, nestedObject=${nestedObject}, field=${field}, value=${value}, blockIndex=${blockIndex}, formType=${formType}, nestedIndex=${nestedIndex}`
+    // );
 
     // For backward compatibility, if nestedIndex is undefined but blockIndex is a number, assume it's the itemIndex
     let index = nestedIndex;
@@ -1080,16 +1081,16 @@ const SiteContentManagement = () => {
     
     switch (targetForm) {
       case "home":
-        console.log("Updating home page form nested field");
+        // console.log("Updating home page form nested field");
         setHomePageForm((prev) => {
           if (!prev) return prev; // Guard against null prev
 
-          console.log("Previous home page form state:", prev);
+          // console.log("Previous home page form state:", prev);
           const updated = JSON.parse(JSON.stringify(prev)); // Deep copy
 
           // Special handling for blocks array
           if (section === "blocks") {
-            console.log("Handling blocks special case");
+            // console.log("Handling blocks special case");
             // Ensure blocks array exists
             if (!updated.blocks) {
               updated.blocks = [];
@@ -1103,7 +1104,7 @@ const SiteContentManagement = () => {
             // Fix any incorrect '[object Object]' array that might be present
             if (blockIndex !== undefined && updated.blocks[blockIndex]['[object Object]'] && 
                 Array.isArray(updated.blocks[blockIndex]['[object Object]'])) {
-              console.log("Fixing incorrect [object Object] array in block", blockIndex);
+              // console.log("Fixing incorrect [object Object] array in block", blockIndex);
               delete updated.blocks[blockIndex]['[object Object]'];
             }
 
@@ -1128,14 +1129,27 @@ const SiteContentManagement = () => {
                 }
 
                 // Special handling for image fields in categories
-                if (nestedObject === "categories" && (field === "url" || field === "alt")) {
+                if (nestedObject === "categories" && Array.isArray(field)) {
+                  // Handle nested objects like ["image", "url"] or ["video", "url"]
+                  const [objectField, property] = field;
+                  
+                  // Ensure the object exists
+                  if (!updated.blocks[blockIndex][nestedObject][index][objectField]) {
+                    updated.blocks[blockIndex][nestedObject][index][objectField] = {};
+                  }
+                  // Update the property within the object
+                  updated.blocks[blockIndex][nestedObject][index][objectField][property] = value;
+                  console.log(`Updated category ${objectField}:`, updated.blocks[blockIndex][nestedObject][index][objectField]);
+                }
+                // For backward compatibility
+                else if (nestedObject === "categories" && (field === "url" || field === "alt")) {
                   // Ensure image object exists
                   if (!updated.blocks[blockIndex][nestedObject][index]["image"]) {
                     updated.blocks[blockIndex][nestedObject][index]["image"] = {};
                   }
                   // Update the url or alt field within the image object
                   updated.blocks[blockIndex][nestedObject][index]["image"][field] = value;
-                  console.log("Updated category image:", updated.blocks[blockIndex][nestedObject][index]["image"]);
+                  // console.log("Updated category image:", updated.blocks[blockIndex][nestedObject][index]["image"]);
                 } 
                 // Special handling for slides with nested image objects
                 else if (nestedObject === "slides" && Array.isArray(field)) {
@@ -1162,10 +1176,10 @@ const SiteContentManagement = () => {
                     // Update mobile_background_image
                     updated.blocks[blockIndex][nestedObject][index]["mobile_background_image"][imageProperty] = value;
                     
-                    console.log(`Updated slide mobile images:`, {
-                      mobile_image: updated.blocks[blockIndex][nestedObject][index]["mobile_image"],
-                      mobile_background_image: updated.blocks[blockIndex][nestedObject][index]["mobile_background_image"]
-                    });
+                    // console.log(`Updated slide mobile images:`, {
+                    //   mobile_image: updated.blocks[blockIndex][nestedObject][index]["mobile_image"],
+                    //   mobile_background_image: updated.blocks[blockIndex][nestedObject][index]["mobile_background_image"]
+                    // });
                   }
                   
                   // For desktop images
@@ -1185,10 +1199,10 @@ const SiteContentManagement = () => {
                     // Update background_image
                     updated.blocks[blockIndex][nestedObject][index]["background_image"][imageProperty] = value;
                     
-                    console.log(`Updated slide desktop images:`, {
-                      desktop_image: updated.blocks[blockIndex][nestedObject][index]["desktop_image"],
-                      background_image: updated.blocks[blockIndex][nestedObject][index]["background_image"]
-                    });
+                    // console.log(`Updated slide desktop images:`, {
+                  //     desktop_image: updated.blocks[blockIndex][nestedObject][index]["desktop_image"],
+                  //     background_image: updated.blocks[blockIndex][nestedObject][index]["background_image"]
+                  //   });
                   }
                   else {
                     // Ensure the image object exists
@@ -1198,7 +1212,7 @@ const SiteContentManagement = () => {
                     
                     // Update the property within the image object
                     updated.blocks[blockIndex][nestedObject][index][actualImageField][imageProperty] = value;
-                    console.log(`Updated slide ${actualImageField}:`, updated.blocks[blockIndex][nestedObject][index][actualImageField]);
+                    // console.log(`Updated slide ${actualImageField}:`, updated.blocks[blockIndex][nestedObject][index][actualImageField]);
                   }
                 }
                 else if (field && typeof field === 'string' && field.includes(".")) {
@@ -1232,7 +1246,7 @@ const SiteContentManagement = () => {
           }
           // Special handling for promotional_banners which has a nested banners array
           else if (section === "promotional_banners") {
-            console.log("Handling promotional_banners special case");
+            // console.log("Handling promotional_banners special case");
             // Ensure promotional_banners exists
             if (!updated.promotional_banners) {
               updated.promotional_banners = { banners: [] };
@@ -1278,7 +1292,7 @@ const SiteContentManagement = () => {
             // Regular handling for other sections
             // Ensure section exists
             if (!updated[section]) {
-              console.log(`Section ${section} doesn't exist, creating it`);
+              // console.log(`Section ${section} doesn't exist, creating it`);
               updated[section] = {};
             }
 
@@ -1286,16 +1300,16 @@ const SiteContentManagement = () => {
               // Handling array items
               // Ensure array exists
               if (!Array.isArray(updated[section])) {
-                console.log(
-                  `Section ${section} is not an array, converting it`
-                );
+                // console.log(
+                //   `Section ${section} is not an array, converting it`
+                // );
                 updated[section] = [];
               }
               // Ensure array item exists
               if (!updated[section][index]) {
-                console.log(
-                  `Item at index ${index} doesn't exist, creating it`
-                );
+                // console.log(
+                //   `Item at index ${index} doesn't exist, creating it`
+                // );
                 updated[section][index] = {};
               }
 
@@ -1328,7 +1342,7 @@ const SiteContentManagement = () => {
             }
           }
 
-          console.log("Updated home page form state:", updated);
+          // console.log("Updated home page form state:", updated);
           return updated;
         });
         break;
@@ -1340,7 +1354,7 @@ const SiteContentManagement = () => {
           
           // Special handling for blocks array
           if (section === "blocks") {
-            console.log("Handling blocks special case for about page");
+            // console.log("Handling blocks special case for about page");
             // Ensure blocks array exists
             if (!updated.blocks) {
               updated.blocks = [];
@@ -1401,7 +1415,7 @@ const SiteContentManagement = () => {
                   updated.blocks[blockIndex].side_image = {};
                 }
                 updated.blocks[blockIndex].side_image[field] = value;
-                console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
+                // console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
               } else {
                 // Simple field in block
                 updated.blocks[blockIndex][field] = value;
@@ -1454,7 +1468,7 @@ const SiteContentManagement = () => {
             }
           }
 
-          console.log("Updated about page form state:", updated);
+          // console.log("Updated about page form state:", updated);
           return updated;
         });
         break;
@@ -1466,7 +1480,7 @@ const SiteContentManagement = () => {
           
           // Special handling for blocks array
           if (section === "blocks") {
-            console.log("Handling blocks special case for contact page");
+            // console.log("Handling blocks special case for contact page");
             // Ensure blocks array exists
             if (!updated.blocks) {
               updated.blocks = [];
@@ -1527,7 +1541,7 @@ const SiteContentManagement = () => {
                   updated.blocks[blockIndex].side_image = {};
                 }
                 updated.blocks[blockIndex].side_image[field] = value;
-                console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
+                // console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
               } else {
                 // Simple field in block
                 updated.blocks[blockIndex][field] = value;
@@ -1580,7 +1594,7 @@ const SiteContentManagement = () => {
             }
           }
 
-          console.log("Updated contact page form state:", updated);
+          // console.log("Updated contact page form state:", updated);
           return updated;
         });
         break;
@@ -1592,7 +1606,7 @@ const SiteContentManagement = () => {
           
           // Special handling for navigation_columns array
           if (section === "navigation_columns") {
-            console.log("Handling navigation_columns special case for footer");
+            // console.log("Handling navigation_columns special case for footer");
             // Ensure navigation_columns array exists
             if (!updated.navigation_columns) {
               updated.navigation_columns = [];
@@ -1628,7 +1642,7 @@ const SiteContentManagement = () => {
           }
           // Special handling for blocks array
           else if (section === "blocks") {
-            console.log("Handling blocks special case for footer");
+            // console.log("Handling blocks special case for footer");
             // Ensure blocks array exists
             if (!updated.blocks) {
               updated.blocks = [];
@@ -1689,7 +1703,7 @@ const SiteContentManagement = () => {
                   updated.blocks[blockIndex].side_image = {};
                 }
                 updated.blocks[blockIndex].side_image[field] = value;
-                console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
+                // console.log("Updated side_image:", updated.blocks[blockIndex].side_image);
               } else {
                 // Simple field in block
                 updated.blocks[blockIndex][field] = value;
@@ -1698,7 +1712,7 @@ const SiteContentManagement = () => {
           } 
           // Special handling for brand_info section
           else if (section === "brand_info") {
-            console.log("Handling brand_info special case for footer");
+            // console.log("Handling brand_info special case for footer");
             // Ensure brand_info exists
             if (!updated.brand_info) {
               updated.brand_info = {};
@@ -1754,7 +1768,7 @@ const SiteContentManagement = () => {
             }
           }
 
-          console.log("Updated footer form state:", updated);
+          // console.log("Updated footer form state:", updated);
           return updated;
         });
         break;
@@ -1773,16 +1787,16 @@ const SiteContentManagement = () => {
 
   // Specialized handler for adding items to footer arrays
   const handleFooterAddArrayItem = (section, nestedObject, newItem, blockIndex) => {
-    console.log(
-      `handleFooterAddArrayItem called: section=${section}, nestedObject=${nestedObject}, blockIndex=${blockIndex}, newItem=`,
-      newItem
-    );
+    // console.log(
+    //   `handleFooterAddArrayItem called: section=${section}, nestedObject=${nestedObject}, blockIndex=${blockIndex}, newItem=`,
+    //   newItem
+    // );
 
     // Create a deep copy of the footer form to avoid direct state mutation
     setFooterForm((prev) => {
       if (!prev) return prev; // Guard against null prev
       
-      console.log("Previous footer form state:", prev);
+      // console.log("Previous footer form state:", prev);
       const updated = JSON.parse(JSON.stringify(prev)); // Deep copy
 
       // Handle different sections of the footer form
@@ -1877,7 +1891,7 @@ const SiteContentManagement = () => {
         }
       }
 
-      console.log("Updated footer form state:", updated);
+      // console.log("Updated footer form state:", updated);
       
       // Trigger autosave if editing is enabled
       if (isEditing) {
@@ -1894,10 +1908,10 @@ const SiteContentManagement = () => {
 
   // Add item to array in form
   const handleAddArrayItem = (section, nestedArray, template, blockIndex, formType) => {
-    console.log(
-      `handleAddArrayItem called: section=${section}, nestedArray=${nestedArray}, blockIndex=${blockIndex}, formType=${formType}, template=`,
-      template
-    );
+    // console.log(
+    //   `handleAddArrayItem called: section=${section}, nestedArray=${nestedArray}, blockIndex=${blockIndex}, formType=${formType}, template=`,
+    //   template
+    // );
     
     // Use formType if provided, otherwise fall back to activeTab
     const targetForm = formType || activeTab;
@@ -1909,9 +1923,9 @@ const SiteContentManagement = () => {
 
     switch (activeTab) {
       case "home":
-        console.log("Adding item to home page form array");
+        // console.log("Adding item to home page form array");
         setHomePageForm((prev) => {
-          console.log("Previous home page form state:", prev);
+          // console.log("Previous home page form state:", prev);
           const updated = JSON.parse(JSON.stringify(prev)); // Deep copy
 
           // Special handling for blocks array
@@ -1965,7 +1979,7 @@ const SiteContentManagement = () => {
 
               // Add item to nested array
               updated.blocks[blockIndex][nestedArray].push({ ...template });
-              console.log(`Added item to ${nestedArray} array:`, template);
+              // console.log(`Added item to ${nestedArray} array:`, template);
             }
           }
           // For backward compatibility - Special handling for promotional_banners which has a nested banners array
@@ -2023,14 +2037,14 @@ const SiteContentManagement = () => {
             updated[section] = [...(updated[section] || []), { ...template }];
           }
 
-          console.log("Updated home page form state:", updated);
+          // console.log("Updated home page form state:", updated);
           return updated;
         });
         break;
       case "about":
-        console.log("Adding item to about page form array");
+        // console.log("Adding item to about page form array");
         setAboutPageForm((prev) => {
-          console.log("Previous about page form state:", prev);
+          // console.log("Previous about page form state:", prev);
           const updated = JSON.parse(JSON.stringify(prev)); // Deep copy
 
           // If nestedArray is provided, add to nested array
@@ -2052,14 +2066,14 @@ const SiteContentManagement = () => {
             updated[section] = [...(updated[section] || []), { ...template }];
           }
 
-          console.log("Updated about page form state:", updated);
+          // console.log("Updated about page form state:", updated);
           return updated;
         });
         break;
       case "contact":
-        console.log("Adding item to contact page form array");
+        // console.log("Adding item to contact page form array");
         setContactPageForm((prev) => {
-          console.log("Previous contact page form state:", prev);
+          // console.log("Previous contact page form state:", prev);
           const updated = JSON.parse(JSON.stringify(prev)); // Deep copy
 
           // Special handling for blocks array
@@ -2103,14 +2117,14 @@ const SiteContentManagement = () => {
             updated[section] = [...(updated[section] || []), { ...template }];
           }
 
-          console.log("Updated contact page form state:", updated);
+          // console.log("Updated contact page form state:", updated);
           return updated;
         });
         break;
       case "footer":
-        console.log("Adding item to footer form array");
+        // console.log("Adding item to footer form array");
         setFooterForm((prev) => {
-          console.log("Previous footer form state:", prev);
+          // console.log("Previous footer form state:", prev);
           const updated = JSON.parse(JSON.stringify(prev)); // Deep copy
 
           // Special handling for blocks array
@@ -2154,7 +2168,7 @@ const SiteContentManagement = () => {
             updated[section] = [...(updated[section] || []), { ...template }];
           }
 
-          console.log("Updated footer form state:", updated);
+          // console.log("Updated footer form state:", updated);
           return updated;
         });
         break;
@@ -2348,7 +2362,7 @@ const SiteContentManagement = () => {
 
   // Handle block field changes for promotional banners
   const handleBlockChange = (blockIndex, field, value) => {
-    console.log(`handleBlockChange called: blockIndex=${blockIndex}, field=${field}, value=${value}`);
+    // console.log(`handleBlockChange called: blockIndex=${blockIndex}, field=${field}, value=${value}`);
     
     setHomePageForm((prev) => {
       if (!prev) return prev; // Guard against null prev
@@ -2368,7 +2382,7 @@ const SiteContentManagement = () => {
       // Update the field in the block
       updated.blocks[blockIndex][field] = value;
       
-      console.log("Updated home page form state:", updated);
+      // console.log("Updated home page form state:", updated);
       return updated;
     });
     
@@ -2383,7 +2397,7 @@ const SiteContentManagement = () => {
   
   // Handle block image changes for promotional banners
   const handleBlockImageChange = (blockIndex, imageField, field, value) => {
-    console.log(`handleBlockImageChange called: blockIndex=${blockIndex}, imageField=${imageField}, field=${field}, value=${value}`);
+    // console.log(`handleBlockImageChange called: blockIndex=${blockIndex}, imageField=${imageField}, field=${field}, value=${value}`);
     
     setHomePageForm((prev) => {
       if (!prev) return prev; // Guard against null prev
@@ -2408,7 +2422,7 @@ const SiteContentManagement = () => {
       // Update the field in the image object
       updated.blocks[blockIndex][imageField][field] = value;
       
-      console.log("Updated home page form state:", updated);
+      // console.log("Updated home page form state:", updated);
       return updated;
     });
     
@@ -2621,7 +2635,7 @@ const SiteContentManagement = () => {
       // Refresh enquiries list
       fetchEnquiries(enquiryPage, enquiryLimit, enquiryFilters);
     } catch (error) {
-      console.error("Error updating enquiry status:", error);
+      // console.error("Error updating enquiry status:", error);
     }
   };
 
@@ -3309,43 +3323,91 @@ const SiteContentManagement = () => {
 
                         <div className="mb-4">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Category Image
+                            Media Type
                           </label>
-                          <div className="space-y-3">
-                            <ImageUpload
-                              label=""
-                              value={category.image?.url || ""}
-                              onChange={(url) =>
-                                handleNestedFormChange(
-                                  "blocks",
-                                  "categories",
-                                  "url",
-                                  url,
-                                  1,
-                                  "home",
-                                  index
-                                )
-                              }
-                              disabled={!isEditing}
-                            />
-                            <Input
-                              label="Alt Text"
-                              value={category.image?.alt || ""}
-                              onChange={(e) =>
-                                handleNestedFormChange(
-                                  "blocks",
-                                  "categories",
-                                  "alt",
-                                  e.target.value,
-                                  1,
-                                  "home",
-                                  index
-                                )
-                              }
-                              disabled={!isEditing}
-                              placeholder="Enter image description"
-                            />
-                          </div>
+                          <select
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 mb-3"
+                            value={category.media_type || "image"}
+                            onChange={(e) =>
+                              handleNestedFormChange(
+                                "blocks",
+                                "categories",
+                                "media_type",
+                                e.target.value,
+                                1,
+                                "home",
+                                index
+                              )
+                            }
+                            disabled={!isEditing}
+                          >
+                            <option value="image">Image</option>
+                            <option value="video">Video</option>
+                          </select>
+                          
+                          {(category.media_type === "video" || !category.media_type) && (
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Category Image (Fallback)
+                              </label>
+                              <ImageUpload
+                                label=""
+                                value={category.image?.url || ""}
+                                onChange={(url) =>
+                                  handleNestedFormChange(
+                                    "blocks",
+                                    "categories",
+                                    ["image", "url"],
+                                    url,
+                                    1,
+                                    "home",
+                                    index
+                                  )
+                                }
+                                disabled={!isEditing}
+                              />
+                              <Input
+                                label="Alt Text"
+                                value={category.image?.alt || ""}
+                                onChange={(e) =>
+                                  handleNestedFormChange(
+                                    "blocks",
+                                    "categories",
+                                    ["image", "alt"],
+                                    e.target.value,
+                                    1,
+                                    "home",
+                                    index
+                                  )
+                                }
+                                disabled={!isEditing}
+                                placeholder="Enter image description"
+                              />
+                            </div>
+                          )}
+                          
+                          {category.media_type === "video" && (
+                            <div className="space-y-3 mt-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Category Video
+                              </label>
+                              <VideoUpload
+                                value={category.video?.video_url || ""}
+                                onChange={(url) =>
+                                  handleNestedFormChange(
+                                    "blocks",
+                                    "categories",
+                                    ["video", "video_url"],
+                                    url,
+                                    1,
+                                    "home",
+                                    index
+                                  )
+                                }
+                                disabled={!isEditing}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))
@@ -3361,7 +3423,9 @@ const SiteContentManagement = () => {
                         {
                           label: "",
                           collection_link: "",
+                          media_type: "image",
                           image: { url: "", alt: "" },
+                          video: { video_url: "" },
                         },
                         "categories",
                         1

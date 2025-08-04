@@ -86,7 +86,7 @@ const SubAdminManagement = () => {
         const response = await axios.get(`/users?${queryParams}`);
         return response.data;
       } catch (error) {
-        console.error('Error fetching subadmin users:', error);
+        // console.error('Error fetching subadmin users:', error);
         throw error;
       }
     },
@@ -97,26 +97,26 @@ const SubAdminManagement = () => {
   // Mutation for updating user
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, userData }) => {
-      console.log('Updating subadmin with ID:', userId);
-      console.log('Update payload:', userData);
+      // console.log('Updating subadmin with ID:', userId);
+      // console.log('Update payload:', userData);
       try {
         const response = await axios.put(`/users/${userId}`, userData);
-        console.log('Update response:', response.data);
+        // console.log('Update response:', response.data);
         return response.data;
       } catch (error) {
-        console.error('Update error details:', error.response || error);
+        // console.error('Update error details:', error.response || error);
         throw error;
       }
     },
     onSuccess: (data) => {
       // Invalidate and refetch users query
-      console.log('Update successful:', data);
+      // console.log('Update successful:', data);
       queryClient.invalidateQueries({ queryKey: ['subadmins'] });
       toast.success('SubAdmin updated successfully');
       setEditingUser(null);
     },
     onError: (error) => {
-      console.error('Error updating subadmin:', error);
+      // console.error('Error updating subadmin:', error);
       toast.error(error.response?.data?.message || 'Failed to update subadmin');
     }
   });
@@ -135,7 +135,7 @@ const SubAdminManagement = () => {
       setUserToDelete(null);
     },
     onError: (error) => {
-      console.error('Error deleting subadmin:', error);
+      // console.error('Error deleting subadmin:', error);
       toast.error(error.response?.data?.message || 'Failed to delete subadmin');
     }
   });
@@ -155,7 +155,7 @@ const SubAdminManagement = () => {
       setBanReason('');
     },
     onError: (error) => {
-      console.error('Error banning subadmin:', error);
+      // console.error('Error banning subadmin:', error);
       toast.error(error.response?.data?.message || 'Failed to ban subadmin');
     }
   });
@@ -174,7 +174,7 @@ const SubAdminManagement = () => {
       setUserToUnban(null);
     },
     onError: (error) => {
-      console.error('Error unbanning subadmin:', error);
+      // console.error('Error unbanning subadmin:', error);
       toast.error(error.response?.data?.message || 'Failed to unban subadmin');
     }
   });
@@ -182,13 +182,13 @@ const SubAdminManagement = () => {
   // Mutation for creating a new subadmin
   const createSubAdminMutation = useMutation({
     mutationFn: async (userData) => {
-      console.log('Creating new subadmin with data:', { ...userData, password: '***HIDDEN***' });
+      // console.log('Creating new subadmin with data:', { ...userData, password: '***HIDDEN***' });
       const response = await axios.post('/users/register-subadmin', userData);
-      console.log('Subadmin creation response:', response.data);
+      // console.log('Subadmin creation response:', response.data);
       return response.data;
     },
     onSuccess: (data) => {
-      console.log('Subadmin created successfully:', data);
+      // console.log('Subadmin created successfully:', data);
       // Invalidate and refetch users query
       queryClient.invalidateQueries({ queryKey: ['subadmins'] });
       
@@ -216,8 +216,8 @@ const SubAdminManagement = () => {
       setIsSubmitting(false);
     },
     onError: (error) => {
-      console.error('Error creating subadmin:', error);
-      console.error('Error details:', error.response?.data);
+      // console.error('Error creating subadmin:', error);
+      // console.error('Error details:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to create subadmin');
       // Reset submitting state
       setIsSubmitting(false);
@@ -230,7 +230,7 @@ const SubAdminManagement = () => {
     
     // Get user permissions without automatically adding all_permissions
     let userPermissions = user.permissions || [];
-    console.log('Editing subadmin with permissions:', userPermissions);
+    // console.log('Editing subadmin with permissions:', userPermissions);
     
     // Set form data
     setFormData({
@@ -296,7 +296,7 @@ const SubAdminManagement = () => {
     );
     
     // No longer automatically adding all_permissions
-    console.log('Updated permissions:', newPermissions);
+    // console.log('Updated permissions:', newPermissions);
     
     setFormData(prev => ({
       ...prev,
@@ -307,25 +307,25 @@ const SubAdminManagement = () => {
   // Mutation for updating subadmin department and permissions
   const updateSubadminDepartmentMutation = useMutation({
     mutationFn: async ({ userId, departmentData }) => {
-      console.log('Updating subadmin department with ID:', userId);
-      console.log('Department update payload:', departmentData);
+      // console.log('Updating subadmin department with ID:', userId);
+      // console.log('Department update payload:', departmentData);
       try {
         const response = await axios.patch(`/users/subadmin/${userId}/department`, departmentData);
-        console.log('Department update response:', response.data);
+        // console.log('Department update response:', response.data);
         return response.data;
       } catch (error) {
-        console.error('Department update error details:', error.response || error);
+        // console.error('Department update error details:', error.response || error);
         throw error;
       }
     },
     onSuccess: (data) => {
-      console.log('Department update successful:', data);
+      // console.log('Department update successful:', data);
       queryClient.invalidateQueries({ queryKey: ['subadmins'] });
       toast.success('SubAdmin department and permissions updated successfully');
       setEditingUser(null);
     },
     onError: (error) => {
-      console.error('Error updating subadmin department:', error);
+      // console.error('Error updating subadmin department:', error);
       toast.error(error.response?.data?.message || 'Failed to update subadmin department');
     }
   });
@@ -338,7 +338,7 @@ const SubAdminManagement = () => {
     // Check if we're updating department and permissions or general user info
     if (formData.department) {
       // Use permissions exactly as selected without automatically adding all_permissions
-      console.log('Submitting subadmin with permissions:', formData.permissions);
+      // console.log('Submitting subadmin with permissions:', formData.permissions);
       
       // Use the specific endpoint for updating department and permissions
       updateSubadminDepartmentMutation.mutate({
@@ -491,7 +491,7 @@ const SubAdminManagement = () => {
     );
     
     // No longer automatically adding all_permissions
-    console.log('New subadmin updated permissions:', newPermissions);
+    // console.log('New subadmin updated permissions:', newPermissions);
     
     setNewSubAdminData(prev => ({
       ...prev,
@@ -506,29 +506,29 @@ const SubAdminManagement = () => {
     // Set submitting state to true to show loader
     setIsSubmitting(true);
     
-    console.log('Handling add new subadmin with form data:', {
-      ...newSubAdminData,
-      password: '***HIDDEN***',
-      confirmPassword: '***HIDDEN***'
-    });
+    // console.log('Handling add new subadmin with form data:', {
+    //   ...newSubAdminData,
+    //   password: '***HIDDEN***',
+    //   confirmPassword: '***HIDDEN***'
+    // });
     
     // Validate form
     if (!newSubAdminData.name || !newSubAdminData.email || !newSubAdminData.password || !newSubAdminData.department) {
-      console.warn('Missing required fields for new subadmin');
+      // console.warn('Missing required fields for new subadmin');
       toast.error('Please fill all required fields');
       setIsSubmitting(false);
       return;
     }
     
     if (newSubAdminData.password !== newSubAdminData.confirmPassword) {
-      console.warn('Passwords do not match for new subadmin');
+      // console.warn('Passwords do not match for new subadmin');
       toast.error('Passwords do not match');
       setIsSubmitting(false);
       return;
     }
     
     if (newSubAdminData.permissions.length === 0) {
-      console.warn('No permissions selected for new subadmin');
+      // console.warn('No permissions selected for new subadmin');
       toast.error('Please select at least one permission');
       setIsSubmitting(false);
       return;
@@ -536,7 +536,7 @@ const SubAdminManagement = () => {
     
     // Use permissions exactly as selected without automatically adding all_permissions
     const updatedPermissions = [...newSubAdminData.permissions];
-    console.log('Creating new subadmin with permissions:', updatedPermissions);
+    // console.log('Creating new subadmin with permissions:', updatedPermissions);
     
     // Prepare data for API call
     const subadminData = {
@@ -548,7 +548,7 @@ const SubAdminManagement = () => {
       permissions: updatedPermissions
     };
     
-    console.log('Submitting new subadmin data to API:', { ...subadminData, password: '***HIDDEN***' });
+    // console.log('Submitting new subadmin data to API:', { ...subadminData, password: '***HIDDEN***' });
     
     // Create new subadmin
     createSubAdminMutation.mutate(subadminData);

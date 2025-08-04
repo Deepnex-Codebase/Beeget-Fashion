@@ -184,7 +184,7 @@ const Shop = () => {
                   }
                 }
               } catch (error) {
-                console.error(`Error fetching rating for product ${product._id}:`, error)
+                // console.error(`Error fetching rating for product ${product._id}:`, error)
                 // Keep default values if rating fetch fails
               }
               return product
@@ -199,7 +199,7 @@ const Shop = () => {
           throw new Error('Failed to fetch products')
         }
       } catch (err) {
-        console.error('Error fetching products:', err)
+        // console.error('Error fetching products:', err)
         setError('Failed to load products. Please try again later.')
       } finally {
         setIsLoading(false)

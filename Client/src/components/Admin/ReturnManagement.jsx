@@ -52,7 +52,7 @@ const ReturnManagement = () => {
         const response = await axios.get(url);
         return response.data;
       } catch (error) {
-        console.error('Error fetching returns:', error);
+        // console.error('Error fetching returns:', error);
         throw error;
       }
     },
@@ -67,7 +67,7 @@ const ReturnManagement = () => {
         const response = await axios.get(`/returns/${selectedReturn}`);
         return response.data.data;
       } catch (error) {
-        console.error('Error fetching return details:', error);
+        // console.error('Error fetching return details:', error);
         throw error;
       }
     },

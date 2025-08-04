@@ -618,6 +618,45 @@ export const uploadCmsImage = async (req, res, next) => {
 };
 
 /**
+ * Upload CMS Video
+ */
+export const uploadCmsVideo = async (req, res, next) => {
+  try {
+    logger.info('CMS video upload request received');
+    logger.info('Request headers:', req.headers);
+    logger.info('Request files:', req.files);
+    logger.info('Request file:', req.file);
+    
+    if (!req.file) {
+      logger.error('No video file provided in request');
+      throw new AppError('No video file provided', 400);
+    }
+
+    logger.info(`File received: ${req.file.originalname}, size: ${req.file.size}, mimetype: ${req.file.mimetype}`);
+
+    // Generate the file URL
+    const videoUrl = getFileUrl(req.file.path);
+    
+    logger.info(`CMS video uploaded successfully: ${req.file.filename}`);
+    logger.info(`Generated URL: ${videoUrl}`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Video uploaded successfully',
+      data: {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        url: videoUrl,
+        path: req.file.path
+      }
+    });
+  } catch (error) {
+    logger.error('Error uploading CMS video:', error);
+    next(error);
+  }
+};
+
+/**
  * Helper function to create a default home page
  */
 const createDefaultHomePage = async () => {

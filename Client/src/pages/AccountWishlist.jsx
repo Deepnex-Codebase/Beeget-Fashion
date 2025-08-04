@@ -47,7 +47,7 @@ const AccountWishlist = () => {
 
   // Remove from wishlist handler
   const handleRemove = (itemId) => {
-    console.log('Removing item from wishlist with ID:', itemId)
+    // console.log('Removing item from wishlist with ID:', itemId)
     removeFromWishlist(itemId)
   }
 

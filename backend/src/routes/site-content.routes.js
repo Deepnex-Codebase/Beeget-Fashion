@@ -1,7 +1,7 @@
 import express from 'express';
 import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
 import { isEditor, isViewer, preventDeletion } from '../middlewares/cms-permissions.middleware.js';
-import { cmsUpload } from '../config/multer.js';
+import { cmsUpload, videoUpload } from '../config/multer.js';
 import {
   getHomePage,
   updateHomePage,
@@ -19,7 +19,8 @@ import {
   getEnquiries,
   updateEnquiryStatus,
   deleteEnquiry,
-  uploadCmsImage
+  uploadCmsImage,
+  uploadCmsVideo
 } from '../controllers/site-content.controller.js';
 
 const router = express.Router();
@@ -52,5 +53,8 @@ router.delete('/enquiries/:id', verifyToken, isEditor, deleteEnquiry);
 
 // Image upload route
 router.post('/upload-image', verifyToken, isEditor, cmsUpload.single('image'), uploadCmsImage);
+
+// Video upload route
+router.post('/upload-video', verifyToken, isEditor, videoUpload.single('video'), uploadCmsVideo);
 
 export default router;

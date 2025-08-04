@@ -35,7 +35,7 @@ const GuestOrders = () => {
         }
       } catch (err) {
         setError('Failed to load your orders. Please try again.');
-        console.error('Error fetching guest orders:', err);
+        // console.error('Error fetching guest orders:', err);
       } finally {
         setLoading(false);
       }

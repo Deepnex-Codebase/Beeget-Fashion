@@ -10,7 +10,7 @@ export const sendGuestOTP = async (email) => {
     const response = await api.post('/guest-verification/send-otp', { email });
     return response.data;
   } catch (error) {
-    console.error('Error sending OTP:', error);
+    // console.error('Error sending OTP:', error);
     throw error.response?.data || { success: false, message: 'Failed to send OTP' };
   }
 };
@@ -26,7 +26,7 @@ export const verifyGuestOTP = async (email, otp) => {
     const response = await api.post('/guest-verification/verify-otp', { email, otp });
     return response.data;
   } catch (error) {
-    console.error('Error verifying OTP:', error);
+    // console.error('Error verifying OTP:', error);
     throw error.response?.data || { success: false, message: 'Failed to verify OTP' };
   }
 };
@@ -41,7 +41,7 @@ export const checkEmailVerification = async (email) => {
     const response = await api.get(`/guest-verification/check/${email}`);
     return response.data;
   } catch (error) {
-    console.error('Error checking email verification:', error);
+    // console.error('Error checking email verification:', error);
     throw error.response?.data || { success: false, message: 'Failed to check email verification' };
   }
 };

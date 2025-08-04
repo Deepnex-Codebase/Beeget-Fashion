@@ -62,7 +62,7 @@ const AccountAddresses = () => {
       setAddresses(response.data.data.user.addresses || []);
       setError(null);
     } catch (err) {
-      console.error('Error fetching addresses:', err);
+      // console.error('Error fetching addresses:', err);
       setError('Failed to load addresses. Please try again.');
     } finally {
       setLoading(false);
@@ -95,7 +95,7 @@ const AccountAddresses = () => {
       setShowForm(false);
       setEditingAddress(null);
     } catch (err) {
-      console.error('Error saving address:', err);
+      // console.error('Error saving address:', err);
       setStatusMessage({ 
         type: 'error', 
         message: err.response?.data?.message || 'Failed to save address. Please try again.'
@@ -131,7 +131,7 @@ const AccountAddresses = () => {
         // Update addresses list with the response
         setAddresses(response.data.data.addresses);
       } catch (err) {
-        console.error('Error deleting address:', err);
+        // console.error('Error deleting address:', err);
         setStatusMessage({ 
           type: 'error', 
           message: err.response?.data?.message || 'Failed to delete address. Please try again.'

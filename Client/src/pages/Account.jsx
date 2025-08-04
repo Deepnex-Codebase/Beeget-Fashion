@@ -44,7 +44,7 @@ const Account = () => {
     },
     enabled: !!user,
     onError: (error) => {
-      console.error('Error fetching user profile:', error)
+      // console.error('Error fetching user profile:', error)
     },
     staleTime: 300000, // 5 minutes
     refetchOnWindowFocus: false
@@ -59,7 +59,7 @@ const Account = () => {
     },
     enabled: !!user,
     onError: (error) => {
-      console.error('Error fetching orders:', error);
+      // console.error('Error fetching orders:', error);
     },
     staleTime: 300000, // 5 minutes
     refetchOnWindowFocus: false
@@ -74,7 +74,7 @@ const Account = () => {
     },
     enabled: !!user,
     onError: (error) => {
-      console.error('Error fetching addresses:', error);
+      // console.error('Error fetching addresses:', error);
     },
     staleTime: 300000, // 5 minutes
     refetchOnWindowFocus: false

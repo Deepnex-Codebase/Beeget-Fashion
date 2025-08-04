@@ -26,16 +26,16 @@ export const CartProvider = ({ children }) => {
     if (storedCart) {
       try {
         const parsedCart = JSON.parse(storedCart)
-        console.log('Loading cart from localStorage:', parsedCart.length, 'items')
+        // console.log('Loading cart from localStorage:', parsedCart.length, 'items')
         setCart(parsedCart)
       } catch (error) {
-        console.error('Error parsing stored cart data:', error)
+        // console.error('Error parsing stored cart data:', error)
         // Clear invalid data
         localStorage.removeItem('cart')
         setCart([])
       }
     } else {
-      console.log('No cart data found in localStorage')
+      // console.log('No cart data found in localStorage')
     }
     setIsInitialized(true)
   }, []) // Run only once on component mount
@@ -43,13 +43,13 @@ export const CartProvider = ({ children }) => {
   // Then, fetch cart from backend if user is authenticated or has a guest session
   useEffect(() => {
     const fetchCartFromBackend = async () => {
-      console.log('Authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated')
-      console.log('Current cart state before backend fetch:', cart.length, 'items')
+      // console.log('Authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated')
+      // console.log('Current cart state before backend fetch:', cart.length, 'items')
       
       // Skip backend fetch if we already have cart data in localStorage
       const storedCart = localStorage.getItem('cart')
       if (storedCart && JSON.parse(storedCart).length > 0) {
-        console.log('Skipping backend fetch - localStorage has cart data')
+        // console.log('Skipping backend fetch - localStorage has cart data')
         return
       }
       
@@ -58,9 +58,9 @@ export const CartProvider = ({ children }) => {
         
         if (isAuthenticated) {
           // Fetch cart for authenticated user
-          console.log('Attempting to fetch cart from backend for authenticated user...')
+          // console.log('Attempting to fetch cart from backend for authenticated user...')
           const response = await axios.get('/cart')
-          console.log('Cart fetch successful:', response.data)
+          // console.log('Cart fetch successful:', response.data)
           if (response.data.success) {
             // Transform backend cart format to frontend format
             const backendCart = response.data.data.items.map(item => ({
@@ -78,13 +78,13 @@ export const CartProvider = ({ children }) => {
               variantSku: item.variantSku, // Ensure variantSku is set
               addedAt: new Date().toISOString()
             }))
-            console.log('Backend cart loaded:', backendCart.length, 'items')
+            // console.log('Backend cart loaded:', backendCart.length, 'items')
             // Only update cart if backend has items, otherwise keep localStorage cart
             if (backendCart.length > 0) {
               setCart(backendCart)
               localStorage.setItem('cart', JSON.stringify(backendCart))
             } else {
-              console.log('Backend cart is empty, keeping localStorage cart')
+              // console.log('Backend cart is empty, keeping localStorage cart')
             }
           }
         } else {
@@ -93,9 +93,9 @@ export const CartProvider = ({ children }) => {
           
           if (guestSessionId) {
             // Fetch cart for guest user
-            console.log('Attempting to fetch cart from backend for guest user...')
+            // console.log('Attempting to fetch cart from backend for guest user...')
             const response = await axios.get(`/cart/guest/${guestSessionId}`)
-            console.log('Guest cart fetch successful:', response.data)
+            // console.log('Guest cart fetch successful:', response.data)
             if (response.data.success) {
               // Transform backend cart format to frontend format
               const backendCart = response.data.data.items.map(item => ({
@@ -118,22 +118,22 @@ export const CartProvider = ({ children }) => {
                 setCart(backendCart)
                 localStorage.setItem('cart', JSON.stringify(backendCart))
               } else {
-                console.log('Backend guest cart is empty, keeping localStorage cart')
+                // console.log('Backend guest cart is empty, keeping localStorage cart')
               }
             }
           } else {
             // Create a new guest session ID
             const newGuestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15)
             localStorage.setItem('guestSessionId', newGuestSessionId)
-            console.log('Created new guest session ID:', newGuestSessionId)
+            // console.log('Created new guest session ID:', newGuestSessionId)
           }
         }
       } catch (err) {
-        console.error('Error fetching cart from backend:', err)
-        console.log('Error status:', err.response?.status)
-        console.log('Error message:', err.response?.data)
+        // console.error('Error fetching cart from backend:', err)
+        // console.log('Error status:', err.response?.status)
+        // console.log('Error message:', err.response?.data)
         // Keep localStorage cart on backend error
-        console.log('Keeping localStorage cart due to backend error')
+        // console.log('Keeping localStorage cart due to backend error')
       } finally {
         setLoading(false)
       }
@@ -147,7 +147,7 @@ export const CartProvider = ({ children }) => {
     // Only save to localStorage after initialization and when cart actually changes
     if (isInitialized) {
       localStorage.setItem('cart', JSON.stringify(cart))
-      console.log('Cart saved to localStorage:', cart.length, 'items')
+      // console.log('Cart saved to localStorage:', cart.length, 'items')
     }
   }, [cart, isInitialized])
   
@@ -310,7 +310,7 @@ export const CartProvider = ({ children }) => {
       window.dispatchEvent(event)
       
     } catch (error) {
-      console.error('Error adding to cart:', error)
+      // console.error('Error adding to cart:', error)
       setError(error.message || 'Failed to add to cart')
       toast.error('Failed to add to cart. Please try again.', {
         position: "top-right",
@@ -428,7 +428,7 @@ export const CartProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Error removing from cart:', error)
+      // console.error('Error removing from cart:', error)
       setError(error.message || 'Failed to remove item from cart')
       toast.error('Failed to remove item from cart. Please try again.', {
         position: "top-right",
@@ -572,7 +572,7 @@ export const CartProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Error updating cart:', error)
+      // console.error('Error updating cart:', error)
       setError(error.message || 'Failed to update cart')
       toast.error('Failed to update cart. Please try again.', {
         position: "top-right",
@@ -590,7 +590,7 @@ export const CartProvider = ({ children }) => {
   // Clear cart
   const clearCart = async () => {
     try {
-      console.log('Clearing cart...')
+      // console.log('Clearing cart...')
       setLoading(true)
       setError(null)
       
@@ -609,7 +609,7 @@ export const CartProvider = ({ children }) => {
             localStorage.removeItem('cart')
           }
         } catch (clearError) {
-          console.log('No clear cart endpoint, removing items individually')
+          // console.log('No clear cart endpoint, removing items individually')
           // Option 2: More efficient individual removal
           // Instead of awaiting each removal, we can use Promise.all to remove items in parallel
           const removalPromises = cart.map(item => 
@@ -618,7 +618,7 @@ export const CartProvider = ({ children }) => {
           
           // Wait for all removals to complete
           await Promise.all(removalPromises)
-          console.log('Cart cleared from backend')
+          // console.log('Cart cleared from backend')
           setCart([])
           localStorage.removeItem('cart')
         }
@@ -635,7 +635,7 @@ export const CartProvider = ({ children }) => {
               localStorage.removeItem('cart')
             }
           } catch (clearError) {
-            console.log('No clear guest cart endpoint, removing items individually')
+            // console.log('No clear guest cart endpoint, removing items individually')
             // More efficient individual removal for guest cart
             const removalPromises = cart.map(item => 
               axios.delete(`/cart/guest/${guestSessionId}/${item._id}`).catch(e => console.error(`Failed to remove guest item ${item._id}:`, e))
@@ -655,7 +655,7 @@ export const CartProvider = ({ children }) => {
       
      
     } catch (error) {
-      console.error('Error clearing cart:', error)
+      // console.error('Error clearing cart:', error)
       setError(error.message || 'Failed to clear cart')
       toast.error('Failed to clear cart. Please try again.', {
         position: "top-right",
@@ -795,7 +795,7 @@ export const CartProvider = ({ children }) => {
         return { success: false, error: response.data.error || 'Invalid coupon code' }
       }
     } catch (err) {
-      console.error('Error applying coupon:', err)
+      // console.error('Error applying coupon:', err)
       const errorMessage = err.response?.data?.error || err.message || 'Failed to apply coupon'
       setCouponError(errorMessage)
       setCouponCode('')
@@ -835,7 +835,7 @@ export const CartProvider = ({ children }) => {
       
       return { success: true }
     } catch (error) {
-      console.error('Error removing coupon:', error)
+      // console.error('Error removing coupon:', error)
       // Still update local state even if backend call fails
       setCouponCode('')
       setCouponDiscount(0)
@@ -875,7 +875,7 @@ export const CartProvider = ({ children }) => {
         throw new Error(response.data.error || 'Failed to fetch guest orders');
       }
     } catch (err) {
-      console.error('Error fetching guest orders:', err);
+      // console.error('Error fetching guest orders:', err);
       const errorMessage = err.response?.data?.error || err.message || 'Failed to fetch guest orders';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -926,7 +926,7 @@ export const CartProvider = ({ children }) => {
           const color = item.color || 'default';
           variantSku = `${item.id || item._id}-${size}-${color}`;
           
-          console.log(`Generated fallback SKU: ${variantSku} for product ${item.id || item._id}`);
+          // console.log(`Generated fallback SKU: ${variantSku} for product ${item.id || item._id}`);
         }
         
         return {
@@ -970,7 +970,7 @@ export const CartProvider = ({ children }) => {
         // Only clear cart for non-Cashfree payment methods
         // For Cashfree, cart will be cleared after payment confirmation
         if (orderData.payment.method !== 'CASHFREE') {
-          console.log('Clearing cart after successful order placement')
+          // console.log('Clearing cart after successful order placement')
           await clearCart()
           
           toast.success('Order placed successfully!', {
@@ -994,7 +994,7 @@ export const CartProvider = ({ children }) => {
         throw new Error(response.data.error || 'Failed to complete checkout')
       }
     } catch (err) {
-      console.error('Checkout error:', err)
+      // console.error('Checkout error:', err)
       const errorMessage = err.response?.data?.error || err.message || 'Failed to complete checkout. Please try again.'
       setError(errorMessage)
       toast.error(errorMessage, {
@@ -1033,13 +1033,13 @@ export const CartProvider = ({ children }) => {
         getGuestOrders,
         // Debug function to check cart state
         debugCart: () => {
-          console.log('Current cart state:', cart)
-          console.log('localStorage cart:', localStorage.getItem('cart'))
+          // console.log('Current cart state:', cart)
+          // console.log('localStorage cart:', localStorage.getItem('cart'))
           return { cart, localStorage: localStorage.getItem('cart') }
         },
         // Force sync cart with backend
         syncCartWithBackend: async () => {
-          console.log('Force syncing cart with backend...')
+          // console.log('Force syncing cart with backend...')
           // Clear the localStorage check to force backend fetch
           localStorage.removeItem('cart')
           // Trigger backend fetch

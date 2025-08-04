@@ -43,7 +43,7 @@ const AccountOrders = () => {
       try {
         setPaidOrders(JSON.parse(storedPaidOrders));
       } catch (error) {
-        console.error('Error parsing stored paid orders:', error);
+        // console.error('Error parsing stored paid orders:', error);
         localStorage.removeItem('paidOrders');
       }
     }
@@ -63,7 +63,7 @@ const AccountOrders = () => {
         const response = await axios.get('/orders');
         return response.data.data.orders; // Return the orders array directly
       } catch (error) {
-        console.error('Error fetching orders:', error);
+        // console.error('Error fetching orders:', error);
         throw error;
       }
     },
@@ -78,7 +78,7 @@ const AccountOrders = () => {
         const response = await axios.get(`/orders/${selectedOrder}`);
         return response.data.data;
       } catch (error) {
-        console.error('Error fetching order details:', error);
+        // console.error('Error fetching order details:', error);
         throw error;
       }
     },
@@ -257,9 +257,9 @@ const AccountOrders = () => {
       const loaded = await loadCashfreeScript();
       if (loaded) {
         setCashfreeLoaded(true);
-        console.log('Cashfree SDK loaded successfully');
+        // console.log('Cashfree SDK loaded successfully');
       } else {
-        console.error('Failed to load Cashfree SDK');
+        // console.error('Failed to load Cashfree SDK');
       }
     };
     
@@ -275,7 +275,7 @@ const AccountOrders = () => {
     
     // Store orderId in localStorage for payment callback
     localStorage.setItem('pendingOrderId', orderId);
-    console.log('Stored pending order ID in localStorage:', orderId);
+    // console.log('Stored pending order ID in localStorage:', orderId);
     
     const cashfree = window.Cashfree({
       mode: 'sandbox', // Change to 'production' for live environment
@@ -300,17 +300,17 @@ const AccountOrders = () => {
         "paylater"
       ],
       onSuccess: (data) => {
-        console.log('Payment success:', data);
+        // console.log('Payment success:', data);
         // Redirect to success page with orderId
         window.location.href = successUrl;
       },
       onFailure: (data) => {
-        console.log('Payment failed:', data);
+        // console.log('Payment failed:', data);
         // Redirect to failure page with orderId and error
         window.location.href = `${failureUrl}&error=${encodeURIComponent(data.message || 'Payment failed')}`;
       },
       onError: (error) => {
-        console.error('Payment error:', error);
+        // console.error('Payment error:', error);
         // Redirect to failure page with orderId and error
         window.location.href = `${failureUrl}&error=${encodeURIComponent(error.message || 'Payment error')}`;
       }
@@ -318,12 +318,12 @@ const AccountOrders = () => {
     
     cashfree.checkout(checkoutOptions)
       .then(function(data) {
-        console.log('Payment initiated:', data);
+        // console.log('Payment initiated:', data);
         // Don't set order as placed or clear cart yet - wait for payment confirmation
         // The backend will handle the payment success via webhook/callback
       })
       .catch(function(error) {
-        console.error('Payment failed:', error);
+        // console.error('Payment failed:', error);
         toast.error('Payment failed. Please try again.');
         setProcessingPayment(false);
       });
@@ -359,7 +359,7 @@ const AccountOrders = () => {
         throw new Error(response.data.message || 'Failed to create payment');
       }
     } catch (error) {
-      console.error('Error processing payment:', error);
+      // console.error('Error processing payment:', error);
       toast.error('Failed to process payment. Please try again.');
       setProcessingPayment(false);
     }

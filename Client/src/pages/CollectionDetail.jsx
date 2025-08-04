@@ -32,12 +32,12 @@ const CollectionDetail = () => {
         }
         
         setCollection(collectionData)
-        console.log('Collection data:', collectionData)
+        // console.log('Collection data:', collectionData)
         
         // Fetch products in this collection
         try {
           const productsResponse = await axios.get(`/products?collection=${id}`)
-          console.log('Products response:', productsResponse.data)
+          // console.log('Products response:', productsResponse.data)
           
           // Handle different response structures
           let productsData = [];
@@ -53,15 +53,15 @@ const CollectionDetail = () => {
           }
           
           setProducts(productsData)
-          console.log(`Found ${productsData.length} products in collection`)
+          // console.log(`Found ${productsData.length} products in collection`)
         } catch (productErr) {
-          console.error('Error fetching collection products:', productErr)
+          // console.error('Error fetching collection products:', productErr)
           setProducts([])
         }
         
         setLoading(false)
       } catch (err) {
-        console.error('Error fetching collection details:', err)
+        // console.error('Error fetching collection details:', err)
         setError('Failed to load collection details. Please try again later.')
         toast.error('Failed to load collection details')
         setLoading(false)

@@ -217,20 +217,20 @@ const ProductDetail = () => {
         if (product && product._id) {
           fetchProductReviews(product._id, 1, 'all')
             .then(result => {
-              console.log('Reviews refreshed after submission:', result)
+              // console.log('Reviews refreshed after submission:', result)
               // Reset filter to show all reviews including the new one
               setReviewsFilter('all')
               setReviewsPage(1)
             })
             .catch(err => {
-              console.error('Error refreshing reviews after submission:', err)
+              // console.error('Error refreshing reviews after submission:', err)
             })
         }
       } else {
         toast.error(response.data.message || 'Failed to submit review')
       }
     } catch (error) {
-      console.error('Error submitting review:', error)
+      // console.error('Error submitting review:', error)
       const errorMessage = error.response?.data?.message || 'Failed to submit review'
       toast.error(errorMessage)
     } finally {
@@ -360,7 +360,7 @@ const ProductDetail = () => {
         }
         
         const url = `/reviews/product/${productId}?${params.toString()}`
-        console.log('Fetching reviews with URL:', url)
+        // console.log('Fetching reviews with URL:', url)
         
         const response = await api.get(url)
         
@@ -372,8 +372,8 @@ const ProductDetail = () => {
           setReviewsTotalPages(pagination.pages || 1)
           
           // Log for debugging
-          console.log('Fetched reviews:', fetchedReviews.length)
-          console.log('Review stats:', stats)
+          // console.log('Fetched reviews:', fetchedReviews.length)
+          // console.log('Review stats:', stats)
           
           setIsReviewsLoading(false)
           return resolve({ fetchedReviews, stats, pagination })
@@ -382,7 +382,7 @@ const ProductDetail = () => {
           return reject(new Error('Invalid response format'))
         }
       } catch (error) {
-        console.error('Error fetching reviews:', error)
+        // console.error('Error fetching reviews:', error)
         // If API fails, use empty reviews
         setReviews([])
         setReviewStats({
@@ -425,10 +425,10 @@ const ProductDetail = () => {
       setTimeout(() => {
         fetchProductReviews(product._id, 1, filter)
           .then(result => {
-            console.log('Filter applied successfully:', filter, result)
+            // console.log('Filter applied successfully:', filter, result)
           })
           .catch(err => {
-            console.error('Error applying filter:', err)
+            // console.error('Error applying filter:', err)
             toast.error('Failed to apply filter. Please try again.')
           })
       }, 300)
@@ -439,7 +439,7 @@ const ProductDetail = () => {
     }
     
     // Log for debugging
-    console.log('Filter changed to:', filter)
+    // console.log('Filter changed to:', filter)
   }
   
   // Handle review pagination
@@ -451,10 +451,10 @@ const ProductDetail = () => {
       setIsReviewsLoading(true)
       fetchProductReviews(product._id, newPage, reviewsFilter)
         .then(result => {
-          console.log('Page changed successfully:', newPage, result)
+          // console.log('Page changed successfully:', newPage, result)
         })
         .catch(err => {
-          console.error('Error changing page:', err)
+          // console.error('Error changing page:', err)
           toast.error('Failed to load reviews for this page. Please try again.')
         })
     } else {
@@ -472,7 +472,7 @@ const ProductDetail = () => {
         // First try to fetch from backend API
         try {
           const response = await api.get(`/products/${slug}`)
-          console.log('Product API response:', response)         
+          // console.log('Product API response:', response)         
           if (response.data && response.data.success && response.data.data && response.data.data.product) {
             const foundProduct = response.data.data.product
             setProduct(foundProduct)
@@ -491,10 +491,10 @@ const ProductDetail = () => {
             if (foundProduct._id) {
               fetchProductReviews(foundProduct._id, reviewsPage, reviewsFilter)
                 .then(result => {
-                  console.log('Reviews fetched successfully:', result)
+                  // console.log('Reviews fetched successfully:', result)
                 })
                 .catch(err => {
-                  console.error('Error fetching reviews:', err)
+                  // console.error('Error fetching reviews:', err)
                 })
             }
             
@@ -517,7 +517,7 @@ const ProductDetail = () => {
                 setRelatedProducts(related)
               }
             } catch (relatedErr) {
-              console.error('Error fetching related products:', relatedErr)
+              // console.error('Error fetching related products:', relatedErr)
               // Fallback to static related products if available
               const related = staticProducts
                 .filter(p => p.category === foundProduct.category && p._id !== foundProduct._id)
@@ -528,7 +528,7 @@ const ProductDetail = () => {
             return // Exit if we successfully got the product from API
           }
         } catch (apiErr) {
-          console.error('API fetch error:', apiErr)
+          // console.error('API fetch error:', apiErr)
           // Continue to fallback if API fetch fails
         }
         
@@ -548,7 +548,7 @@ const ProductDetail = () => {
           setError('Product not found')
         }
       } catch (err) {
-        console.error('Error loading product:', err)
+        // console.error('Error loading product:', err)
         setError('Error loading product')
       } finally {
         setIsLoading(false)

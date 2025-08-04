@@ -94,7 +94,7 @@ const VerifyEmail = () => {
         })
       }
     } catch (err) {
-      console.error('Email verification error:', err)
+      // console.error('Email verification error:', err)
       
       // Handle specific error cases
       if (err.response) {
@@ -163,7 +163,7 @@ const VerifyEmail = () => {
         })
       }
     } catch (err) {
-      console.error('Resend verification error:', err)
+      // console.error('Resend verification error:', err)
       
       // Handle specific error cases
       if (err.response) {

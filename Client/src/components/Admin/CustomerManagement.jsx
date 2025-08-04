@@ -64,7 +64,7 @@ const CustomerManagement = () => {
         const response = await axios.get(`/users?${queryParams}`);
         return response.data;
       } catch (error) {
-        console.error('Error fetching users:', error);
+        // console.error('Error fetching users:', error);
         throw error;
       }
     },
@@ -85,7 +85,7 @@ const CustomerManagement = () => {
       setEditingUser(null);
     },
     onError: (error) => {
-      console.error('Error updating user:', error);
+      // console.error('Error updating user:', error);
       toast.error(error.response?.data?.message || 'Failed to update user');
     }
   });
@@ -104,7 +104,7 @@ const CustomerManagement = () => {
       setUserToDelete(null);
     },
     onError: (error) => {
-      console.error('Error deleting user:', error);
+      // console.error('Error deleting user:', error);
       toast.error(error.response?.data?.message || 'Failed to delete user');
     }
   });
@@ -124,7 +124,7 @@ const CustomerManagement = () => {
       setBanReason('');
     },
     onError: (error) => {
-      console.error('Error banning user:', error);
+      // console.error('Error banning user:', error);
       toast.error(error.response?.data?.message || 'Failed to ban user');
     }
   });
@@ -143,7 +143,7 @@ const CustomerManagement = () => {
       setUserToUnban(null);
     },
     onError: (error) => {
-      console.error('Error unbanning user:', error);
+      // console.error('Error unbanning user:', error);
       toast.error(error.response?.data?.message || 'Failed to unban user');
     }
   });

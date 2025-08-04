@@ -125,7 +125,6 @@ const Home = () => {
       !homePageData.blocks ||
       !Array.isArray(homePageData.blocks)
     ) {
-      console.log("No blocks data available:", homePageData);
       return {
         heroSection: null,
         categories: [],
@@ -139,8 +138,6 @@ const Home = () => {
         newsletter: {},
       };
     }
-
-    console.log("Processing blocks:", homePageData.blocks);
 
     // Find hero section block
     const heroSectionBlock = homePageData.blocks.find(
@@ -229,11 +226,8 @@ const Home = () => {
       !homePageData.blocks ||
       !Array.isArray(homePageData.blocks)
     ) {
-      console.log("No blocks data available:", homePageData);
       return;
     }
-
-    console.log("Home page data:", homePageData);
 
     // Process blocks data
     const processedData = processHomePageBlocks();
@@ -275,9 +269,6 @@ const Home = () => {
                   ? slide.background_image.url
                   : "https://via.placeholder.com/800x1200?text=No+Image";
         });
-
-        console.log("Desktop Images:", desktopImages);
-        console.log("Mobile Images:", mobileImages);
 
         setHeroImages(desktopImages);
         setMobileHeroImages(mobileImages);
@@ -407,8 +398,6 @@ const Home = () => {
       playfulFlorals: false,
       plusSizeCollections: false,
     }));
-
-    console.log("Processed blocks:", processedData);
   }, [homePageData]);
 
   // Fetch latest products
@@ -536,7 +525,6 @@ const Home = () => {
 
         // If we have no purchase data, fetch regular products
         if (sortedProductIds.length === 0) {
-          console.log("No purchase data found, fetching regular products");
           // Fallback to regular products
           const response = await api.get("/products?limit=6");
           if (response.data.success) {
@@ -652,7 +640,6 @@ const Home = () => {
 
         setMostPurchasedProducts(products);
       } catch (error) {
-        console.error("Error fetching most purchased products:", error);
         // Fallback to regular products in case of error
         try {
           const response = await api.get("/products?limit=6");
@@ -722,24 +709,7 @@ const Home = () => {
   // Animation variants for staggered animations
   // Note: These are already defined at the top of the file, so we don't need to redefine them
 
-  // Debug effect to log banner states
-  useEffect(() => {
-    console.log("Banner states:", {
-      summerFestiveBanner,
-      workAnywhereBanner,
-      festivalBanner,
-      readySetSummerBanner,
-      playfulFloralsBanner,
-      plusSizeCollectionsBanner,
-    });
-  }, [
-    summerFestiveBanner,
-    workAnywhereBanner,
-    festivalBanner,
-    readySetSummerBanner,
-    playfulFloralsBanner,
-    plusSizeCollectionsBanner,
-  ]);
+  // Debug effect to log banner state
 
   // Handle manual slide navigation
   const goToSlide = (index) => {
@@ -782,7 +752,6 @@ const Home = () => {
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
     // Here you would typically send the email to your API
-    console.log("Subscribing email:", emailInput);
     // Show success message
     setSubscriptionSuccess(true);
     // Reset form
@@ -950,11 +919,27 @@ const Home = () => {
                 key={index}
                 className="relative overflow-hidden h-[350px] md:h-[500px] lg:h-[700px] group"
               >
-                <img
-                  src={category.image?.url}
-                  alt={category.image?.alt || `Category ${index + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
+                {/* {console.log('Category:', category)} */}
+                {category.media_type === "video" &&
+                category.video &&
+                category.video.video_url ? (
+                  <>
+                    <video
+                      src={category.video.video_url}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </>
+                ) : (
+                  <img
+                    src={category.image?.url}
+                    alt={category.image?.alt || `Category ${index + 1}`}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent flex flex-col justify-end p-4 md:p-6">
                   <h3 className="text-white text-xl md:text-2xl font-bold mb-2 md:mb-4 uppercase tracking-wider text-center">
                     {category.label}

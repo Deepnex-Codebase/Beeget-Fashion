@@ -59,7 +59,7 @@ const ImageUpload = ({
 
       toast.success('Image uploaded successfully');
     } catch (error) {
-      console.error('Image upload error:', error);
+      // console.error('Image upload error:', error);
       toast.error(error.response?.data?.error || 'Failed to upload image');
     } finally {
       setUploading(false);

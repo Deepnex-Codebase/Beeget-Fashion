@@ -57,7 +57,7 @@ const Login = () => {
       }
     } catch (error) {
       setServerError('An unexpected error occurred. Please try again.')
-      console.error('Login error:', error)
+      // console.error('Login error:', error)
     }
   }
   

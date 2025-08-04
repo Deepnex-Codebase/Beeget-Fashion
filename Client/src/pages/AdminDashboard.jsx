@@ -55,7 +55,7 @@ const AdminDashboardPage = () => {
           topProducts: formattedTopProducts
         };
       } catch (error) {
-        console.error('Error fetching admin stats:', error);
+        // console.error('Error fetching admin stats:', error);
         throw error;
       }
     },
@@ -72,7 +72,7 @@ const AdminDashboardPage = () => {
         const response = await axios.get('/products?limit=10');
         return response.data;
       } catch (error) {
-        console.error('Error fetching products:', error);
+        // console.error('Error fetching products:', error);
         throw error;
       }
     },
@@ -90,7 +90,7 @@ const AdminDashboardPage = () => {
         const response = await axios.get('/orders?limit=10');
         return response.data;
       } catch (error) {
-        console.error('Error fetching orders:', error);
+        // console.error('Error fetching orders:', error);
         throw error;
       }
     },
@@ -425,7 +425,7 @@ const AdminDashboardPage = () => {
                       defaultValue={order.orderStatus}
                       onChange={(e) => {
                         // Here you would call an API to update the order status
-                        console.log(`Update order ${order._id} status to ${e.target.value}`);
+                        // console.log(`Update order ${order._id} status to ${e.target.value}`);
                       }}
                     >
                       <option value="processing">Processing</option>

@@ -16,13 +16,13 @@ const Collections = () => {
         setLoading(true)
         setError(null) // Reset error state
         
-        console.log('Fetching collections from API...')
+        // console.log('Fetching collections from API...')
         
         // Use the correct endpoint based on the API routes
-        console.log('API base URL:', axios.defaults.baseURL)
+        // console.log('API base URL:', axios.defaults.baseURL)
         const response = await axios.get('/collections')
         // No active filter parameter needed anymore
-        console.log('API response status:', response.status)
+        // console.log('API response status:', response.status)
         
         // Check if response and response.data exist
         if (!response || !response.data) {
@@ -30,23 +30,23 @@ const Collections = () => {
         }
         
         // Log the full response for debugging
-        console.log('Full API response:', response.data)
+        // console.log('Full API response:', response.data)
         
         // Backend now returns array directly
         const collectionData = Array.isArray(response.data) ? response.data : []
-        console.log(`Received ${collectionData.length} collections directly from API`)
+        // console.log(`Received ${collectionData.length} collections directly from API`)
         
         // Final validation of collection data
         if (collectionData.length === 0) {
-          console.warn('No collections found in the response')
+          // console.warn('No collections found in the response')
         } else {
-          console.log(`Successfully loaded ${collectionData.length} collections`)
+          // console.log(`Successfully loaded ${collectionData.length} collections`)
         }
         
         setCollections(collectionData)
         setLoading(false)
       } catch (err) {
-        console.error('Error fetching collections:', err)
+        // console.error('Error fetching collections:', err)
         setError('Failed to load collections. Please try again later.')
         toast.error('Failed to load collections')
         setCollections([])

@@ -51,7 +51,7 @@ const PlusSize = () => {
         
         // Check if response.data.data exists and contains products array
         if (!response.data.data || !response.data.data.products || !Array.isArray(response.data.data.products)) {
-          console.error('Products data is missing or not an array:', response.data)
+          // console.error('Products data is missing or not an array:', response.data)
           setProducts([])
           setPagination({
             page: 1,
@@ -64,7 +64,7 @@ const PlusSize = () => {
         }
         
         // Log the products data structure for debugging
-        console.log('Products data structure:', response.data.data.products.length, 'products found')
+        // console.log('Products data structure:', response.data.data.products.length, 'products found')
         
         // Filter products to only include plus size items (XL, XXL, etc.)
         const plusSizeProducts = response.data.data.products.filter(product => {
@@ -95,7 +95,7 @@ const PlusSize = () => {
         
         setLoading(false)
       } catch (err) {
-        console.error('Error fetching plus size products:', err)
+        // console.error('Error fetching plus size products:', err)
         setError('Failed to load products. Please try again later.')
         toast.error('Failed to load products')
         setProducts([])

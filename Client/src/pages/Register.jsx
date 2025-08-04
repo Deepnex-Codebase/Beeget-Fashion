@@ -74,7 +74,7 @@ const Register = () => {
       }
     } catch (error) {
       setServerError('An unexpected error occurred. Please try again.')
-      console.error('Registration error:', error)
+      // console.error('Registration error:', error)
     }
   }
   

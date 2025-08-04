@@ -373,7 +373,7 @@ const CategoryManagement = () => {
                                 e.target.src = url.pathname;
                               } catch (error) {
                                 // If category.image is not a valid URL, keep it as is
-                                console.error('Invalid image URL:', error);
+                                // console.error('Invalid image URL:', error);
                               }
                             }} 
                           />
@@ -530,7 +530,7 @@ const CategoryManagement = () => {
                       e.target.src = url.pathname;
                     } catch (error) {
                       // If imagePreview is not a valid URL, keep it as is
-                      console.error('Invalid image URL:', error);
+                      // console.error('Invalid image URL:', error);
                     }
                   }}
                 />

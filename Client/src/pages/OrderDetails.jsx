@@ -22,16 +22,16 @@ const OrderDetails = () => {
     queryFn: async () => {
       try {
         const response = await axios.get(`/orders/${orderId}`);
-        console.log("Order API response:", response.data);
+        // console.log("Order API response:", response.data);
         return response.data.data.order; // Access the order object correctly
       } catch (error) {
-        console.error("Error fetching order details:", error);
+        // console.error("Error fetching order details:", error);
         throw error;
       }
     },
     onSuccess: (data) => {
       if (data) {
-        console.log("Order data loaded:", data);
+        // console.log("Order data loaded:", data);
         setOrderStatus(data.status || "");
       }
     },

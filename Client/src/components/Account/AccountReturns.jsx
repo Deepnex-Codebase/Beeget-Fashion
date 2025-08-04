@@ -24,7 +24,7 @@ const AccountReturns = () => {
         const response = await axios.get('/returns/user');
         return response.data;
       } catch (error) {
-        console.error('Error fetching returns:', error);
+        // console.error('Error fetching returns:', error);
         throw error;
       }
     },
@@ -39,7 +39,7 @@ const AccountReturns = () => {
         const response = await axios.get(`/returns/${selectedReturn}`);
         return response.data.data;
       } catch (error) {
-        console.error('Error fetching return details:', error);
+        // console.error('Error fetching return details:', error);
         throw error;
       }
     },
@@ -58,7 +58,7 @@ const AccountReturns = () => {
         const response = await axios.get('/orders?status=delivered');
         return response.data;
       } catch (error) {
-        console.error('Error fetching eligible orders:', error);
+        // console.error('Error fetching eligible orders:', error);
         throw error;
       }
     },
@@ -73,7 +73,7 @@ const AccountReturns = () => {
         const response = await axios.get(`/orders/${createReturnOrder}`);
         return response.data.data;
       } catch (error) {
-        console.error('Error fetching order details:', error);
+        // console.error('Error fetching order details:', error);
         throw error;
       }
     },

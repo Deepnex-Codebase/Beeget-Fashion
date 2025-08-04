@@ -182,7 +182,7 @@ const Checkout = () => {
         toast.error(response.message || 'Failed to send OTP');
       }
     } catch (error) {
-      console.error('Error sending OTP:', error);
+      // console.error('Error sending OTP:', error);
       toast.error('Failed to send OTP. Please try again.');
     } finally {
       setSendingOtp(false);
@@ -208,7 +208,7 @@ const Checkout = () => {
         toast.error(response.message || 'Invalid OTP');
       }
     } catch (error) {
-      console.error('Error verifying OTP:', error);
+      // console.error('Error verifying OTP:', error);
       toast.error('Failed to verify OTP. Please try again.');
     } finally {
       setVerifyingOtp(false);
@@ -227,7 +227,7 @@ const Checkout = () => {
             setIsEmailVerified(false);
           }
         } catch (error) {
-          console.error('Error checking email verification:', error);
+          // console.error('Error checking email verification:', error);
           setIsEmailVerified(false);
         }
       };
@@ -243,7 +243,7 @@ const Checkout = () => {
     const orderIdFromUrl = params.get('orderId');
     
     if (orderIdFromUrl) {
-      console.log('Order ID found in URL:', orderIdFromUrl);
+      // console.log('Order ID found in URL:', orderIdFromUrl);
       setOrderId(orderIdFromUrl);
       
       // Fetch order details to populate checkout form
@@ -254,7 +254,7 @@ const Checkout = () => {
           
           if (response.data.success) {
             const orderData = response.data.data;
-            console.log('Order details fetched:', orderData);
+            // console.log('Order details fetched:', orderData);
             
             // If order payment status is not PENDING, redirect to appropriate page
             if (orderData.payment?.status && orderData.payment.status !== 'PENDING') {
@@ -286,7 +286,7 @@ const Checkout = () => {
             toast.error('Could not load order details. Please try again.');
           }
         } catch (error) {
-          console.error('Error fetching order details:', error);
+          // console.error('Error fetching order details:', error);
           toast.error('Failed to load order details. Please try again.');
         } finally {
           setProcessingOrder(false);
@@ -303,9 +303,9 @@ const Checkout = () => {
       const loaded = await loadCashfreeScript();
       if (loaded) {
         setCashfreeLoaded(true);
-        console.log('Cashfree SDK loaded successfully');
+        // console.log('Cashfree SDK loaded successfully');
       } else {
-        console.error('Failed to load Cashfree SDK');
+        // console.error('Failed to load Cashfree SDK');
       }
     };
     
@@ -324,7 +324,7 @@ const Checkout = () => {
       await applyCoupon(couponInput.trim())
       setCouponInput('')
     } catch (error) {
-      console.error('Error applying coupon:', error)
+      // console.error('Error applying coupon:', error)
     } finally {
       setApplyingCoupon(false)
     }
@@ -343,13 +343,13 @@ const Checkout = () => {
         setIsLoadingAddress(true);
         const response = await axios.get('/auth/profile');
         
-        console.log('Profile API Response:', response.data);
+        // console.log('Profile API Response:', response.data);
         
         if (response.data.success) {
           const userData = response.data.data.user; // Access user data correctly
           
-          console.log('User Data:', userData);
-          console.log('Addresses:', userData.addresses);
+          // console.log('User Data:', userData);
+          // console.log('Addresses:', userData.addresses);
           
           // Set user data in form
           // Extract first and last name from full name if available
@@ -378,11 +378,11 @@ const Checkout = () => {
               }
             }
           } else {
-            console.log('No addresses found for user');
+            // console.log('No addresses found for user');
           }
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        // console.error('Error fetching user profile:', error);
         toast.error('Failed to load your address information');
       } finally {
         setIsLoadingAddress(false);
@@ -410,7 +410,7 @@ const Checkout = () => {
             setIsEmailVerified(false);
           }
         } catch (error) {
-          console.error('Error checking email verification:', error);
+          // console.error('Error checking email verification:', error);
           setIsEmailVerified(false);
         }
       };
@@ -471,7 +471,7 @@ const Checkout = () => {
     
     // Store orderId in localStorage for payment callback
     localStorage.setItem('pendingOrderId', orderId);
-    console.log('Stored pending order ID in localStorage:', orderId);
+    // console.log('Stored pending order ID in localStorage:', orderId);
     
     const cashfree = window.Cashfree({
       mode: 'sandbox', // Change to 'production' for live environment
@@ -496,17 +496,17 @@ const Checkout = () => {
         "paylater"
       ],
       onSuccess: (data) => {
-        console.log('Payment success:', data);
+        // console.log('Payment success:', data);
         // Redirect to success page with orderId
         window.location.href = successUrl;
       },
       onFailure: (data) => {
-        console.log('Payment failed:', data);
+        // console.log('Payment failed:', data);
         // Redirect to failure page with orderId and error
         window.location.href = `${failureUrl}&error=${encodeURIComponent(data.message || 'Payment failed')}`;
       },
       onError: (error) => {
-        console.error('Payment error:', error);
+        // console.error('Payment error:', error);
         // Redirect to failure page with orderId and error
         window.location.href = `${failureUrl}&error=${encodeURIComponent(error.message || 'Payment error')}`;
       }
@@ -514,12 +514,12 @@ const Checkout = () => {
     
     cashfree.checkout(checkoutOptions)
       .then(function(data) {
-        console.log('Payment initiated:', data);
+        // console.log('Payment initiated:', data);
         // Don't set order as placed or clear cart yet - wait for payment confirmation
         // The backend will handle the payment success via webhook/callback
       })
       .catch(function(error) {
-        console.error('Payment failed:', error);
+        // console.error('Payment failed:', error);
         toast.error('Payment failed. Please try again.');
         setProcessingOrder(false);
         setProcessingPayment(false);
@@ -568,7 +568,7 @@ const Checkout = () => {
           });
           toast.success('Address saved to your account');
         } catch (error) {
-          console.error('Error saving address:', error);
+          // console.error('Error saving address:', error);
           // Continue with checkout even if saving address fails
         }
       }
@@ -629,7 +629,7 @@ const Checkout = () => {
               result.data.data.orderId || (result.data.data.order && result.data.data.order._id) || result.data.data.paymentDetails.orderId
             );
           } else {
-            console.error('Payment data structure:', result.data);
+            // console.error('Payment data structure:', result.data);
             throw new Error('Payment initialization failed. Please try again.');
           }
         } else {
@@ -642,7 +642,7 @@ const Checkout = () => {
         throw new Error(result.error || 'Failed to complete checkout');
       }
     } catch (error) {
-      console.error('Order error:', error);
+      // console.error('Order error:', error);
       toast.error('Failed to place order: ' + (error.message || 'Unknown error'));
       setProcessingOrder(false);
     }

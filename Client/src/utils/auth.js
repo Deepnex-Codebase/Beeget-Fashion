@@ -4,7 +4,7 @@
  */
 export const refreshToken = async () => {
   try {
-    console.log('Simulating token refresh...');
+    // console.log('Simulating token refresh...');
     
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -12,7 +12,7 @@ export const refreshToken = async () => {
     // Get stored tokens from localStorage
     const storedTokens = localStorage.getItem('tokens');
     if (!storedTokens) {
-      console.error('No tokens found in localStorage');
+      // console.error('No tokens found in localStorage');
       return null;
     }
     
@@ -21,14 +21,14 @@ export const refreshToken = async () => {
     try {
       parsedTokens = JSON.parse(storedTokens);
     } catch (parseError) {
-      console.error('Error parsing tokens:', parseError);
+      // console.error('Error parsing tokens:', parseError);
       localStorage.removeItem('tokens');
       return null;
     }
     
     const { refreshToken: currentRefreshToken } = parsedTokens;
     if (!currentRefreshToken) {
-      console.error('No refresh token found in stored tokens');
+      // console.error('No refresh token found in stored tokens');
       return null;
     }
     
@@ -40,10 +40,10 @@ export const refreshToken = async () => {
     const updatedTokens = { accessToken: newAccessToken, refreshToken: newRefreshToken };
     localStorage.setItem('tokens', JSON.stringify(updatedTokens));
     
-    console.log('Token refreshed successfully');
+    // console.log('Token refreshed successfully');
     return newAccessToken;
   } catch (error) {
-    console.error('Token refresh failed:', error);
+    // console.error('Token refresh failed:', error);
     
     // If refresh fails, clear auth data and return null
     localStorage.removeItem('user');

@@ -105,7 +105,7 @@ const CollectionManagement = () => {
   const handleEditClick = (collection) => {
     // Validate collection has a valid ID
     if (!collection) {
-      console.error('Invalid collection:', collection);
+      // console.error('Invalid collection:', collection);
       toast.error('Cannot edit collection: Invalid collection');
       return;
     }
@@ -115,12 +115,12 @@ const CollectionManagement = () => {
     
     // Ensure the collection has an _id
     if (!collectionCopy._id) {
-      console.error('Missing ID in collection:', collectionCopy);
+      // console.error('Missing ID in collection:', collectionCopy);
       toast.error('Cannot edit collection: Missing ID');
       return;
     }
     
-    console.log('Editing collection with ID:', collectionCopy._id);
+    // console.log('Editing collection with ID:', collectionCopy._id);
     setCurrentCollection(collectionCopy);
     setFormData({
       name: collectionCopy.name,
@@ -153,7 +153,7 @@ const CollectionManagement = () => {
         })
         .filter((id) => id); // Filter out any undefined/null values
       
-      console.log('Selected product IDs:', productIds);
+      // console.log('Selected product IDs:', productIds);
       setSelectedProducts(productIds);
     } else {
       setSelectedProducts([]);
@@ -208,7 +208,7 @@ const CollectionManagement = () => {
         }
 
         const response = await axios.get(url);
-        console.log("Collections API response:", response);
+        // console.log("Collections API response:", response);
 
         // Handle the direct array response from backend
         const collections = Array.isArray(response.data) ? response.data : [];
@@ -224,7 +224,7 @@ const CollectionManagement = () => {
         
         return formattedData;
       } catch (error) {
-        console.error("Fetch collections error:", error);
+        // console.error("Fetch collections error:", error);
         toast.error(`Failed to fetch collections: ${error.message}`);
         throw error;
       }
@@ -270,12 +270,12 @@ const CollectionManagement = () => {
           totalPages: response.data.pagination?.pages || 1,
         };
 
-        console.log("Transformed products data:", transformedData);
+        // console.log("Transformed products data:", transformedData);
         setLoadingProducts(false);
         return transformedData;
       } catch (error) {
         setLoadingProducts(false);
-        console.error("Fetch products error:", error);
+        // console.error("Fetch products error:", error);
         throw error;
       }
     },
@@ -287,13 +287,13 @@ const CollectionManagement = () => {
   const deleteCollectionMutation = useMutation({
     mutationFn: async (id) => {
       try {
-        console.log(`Deleting collection with id: ${id}`);
+        // console.log(`Deleting collection with id: ${id}`);
         const response = await axios.delete(`/collections/${id}`);
-        console.log("Delete collection response:", response);
+        // console.log("Delete collection response:", response);
         return response.data;
       } catch (error) {
-        console.error("Delete collection error:", error);
-        console.error("Error details:", error.response?.data);
+        // console.error("Delete collection error:", error);
+        // console.error("Error details:", error.response?.data);
         throw error;
       }
     },
@@ -305,7 +305,7 @@ const CollectionManagement = () => {
       toast.success("Collection deleted successfully");
     },
     onError: (error) => {
-      console.error("Delete collection error:", error);
+      // console.error("Delete collection error:", error);
       toast.error(
         error.response?.data?.error ||
           error.response?.data?.message ||
@@ -318,7 +318,7 @@ const CollectionManagement = () => {
   const createCollectionMutation = useMutation({
     mutationFn: async (collectionData) => {
       try {
-        console.log("Creating collection with data:", collectionData);
+        // console.log("Creating collection with data:", collectionData);
 
         // Enhanced validation with more detailed error messages
         const errors = {};
@@ -377,10 +377,10 @@ const CollectionManagement = () => {
 
             if (uploadResponse.data && uploadResponse.data.data && uploadResponse.data.data.product && uploadResponse.data.data.product.images && uploadResponse.data.data.product.images.length > 0) {
               collectionData.image = uploadResponse.data.data.product.images[0];
-              console.log(
-                "Image uploaded successfully:",
-                collectionData.image
-              );
+              // console.log(
+              //   "Image uploaded successfully:",
+              //   collectionData.image
+              // );
             } else {
               throw new Error("Invalid response from image upload server");
             }
@@ -390,14 +390,14 @@ const CollectionManagement = () => {
           } catch (uploadError) {
             setIsUploading(false);
             setUploadProgress(0);
-            console.error("Image upload error:", uploadError);
+            // console.error("Image upload error:", uploadError);
             throw new Error("Failed to upload image. Please try again.");
           }
         }
 
         // Create the collection
         const response = await axios.post("/collections", collectionData);
-        console.log("Create collection response:", response);
+        // console.log("Create collection response:", response);
 
         // If products were selected, add them to the collection
         if (
@@ -413,12 +413,12 @@ const CollectionManagement = () => {
                 productIds: selectedProducts,
               }
             );
-            console.log("Products added to collection:", productsResponse.data);
+            // console.log("Products added to collection:", productsResponse.data);
           } catch (productsError) {
-            console.error(
-              "Error adding products to collection:",
-              productsError
-            );
+            // console.error(
+            //   "Error adding products to collection:",
+            //   productsError
+            // );
             // We don't throw here to avoid failing the whole operation
             // Instead we'll show a toast in onSuccess
           }
@@ -437,8 +437,8 @@ const CollectionManagement = () => {
           toast.error(error.response.data.error);
         }
 
-        console.error("Create collection error:", error);
-        console.error("Error details:", error.response?.data);
+        // console.error("Create collection error:", error);
+        // console.error("Error details:", error.response?.data);
         throw error;
       }
     },
@@ -468,7 +468,7 @@ const CollectionManagement = () => {
         toast.error("Please fix the form errors");
         return;
       }
-      console.error("Create collection error:", error);
+      // console.error("Create collection error:", error);
       toast.error(
         error.response?.data?.error ||
           error.response?.data?.message ||
@@ -481,7 +481,7 @@ const CollectionManagement = () => {
   const updateCollectionMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       try {
-        console.log(`Updating collection ${id} with data:`, data);
+        // console.log(`Updating collection ${id} with data:`, data);
 
         // Enhanced validation with more detailed error messages
         const errors = {};
@@ -537,10 +537,10 @@ const CollectionManagement = () => {
 
             if (uploadResponse.data && uploadResponse.data.data && uploadResponse.data.data.product && uploadResponse.data.data.product.images && uploadResponse.data.data.product.images.length > 0) {
               data.image = uploadResponse.data.data.product.images[0];
-              console.log(
-                "Image uploaded successfully:",
-                data.image
-              );
+              // console.log(
+              //   "Image uploaded successfully:",
+              //   data.image
+              // );
             } else {
               throw new Error("Invalid response from image upload server");
             }
@@ -550,20 +550,20 @@ const CollectionManagement = () => {
           } catch (uploadError) {
             setIsUploading(false);
             setUploadProgress(0);
-            console.error("Image upload error:", uploadError);
+            // console.error("Image upload error:", uploadError);
             throw new Error("Failed to upload image. Please try again.");
           }
         }
 
         // Validate ID before making the API call
         if (!id || id === 'undefined') {
-          console.error('Invalid collection ID:', id);
+          // console.error('Invalid collection ID:', id);
           throw new Error('Invalid collection ID');
         }
         
         // Update the collection
         const response = await axios.put(`/collections/${id}`, data);
-        console.log("Update collection response:", response);
+        // console.log("Update collection response:", response);
 
         // If products were selected, update them in the collection
         if (selectedProducts.length >= 0) {
@@ -575,15 +575,15 @@ const CollectionManagement = () => {
                 productIds: selectedProducts,
               }
             );
-            console.log(
-              "Products updated in collection:",
-              productsResponse.data
-            );
+            // console.log(
+            //   "Products updated in collection:",
+            //   productsResponse.data
+            // );
           } catch (productsError) {
-            console.error(
-              "Error updating products in collection:",
-              productsError
-            );
+            // console.error(
+            //   "Error updating products in collection:",
+            //   productsError
+            // );
             // We don't throw here to avoid failing the whole operation
             // Instead we'll show a toast in onSuccess
           }
@@ -602,8 +602,8 @@ const CollectionManagement = () => {
           toast.error(error.response.data.error);
         }
 
-        console.error("Update collection error:", error);
-        console.error("Error details:", error.response?.data);
+        // console.error("Update collection error:", error);
+        // console.error("Error details:", error.response?.data);
         throw error;
       }
     },
@@ -634,7 +634,7 @@ const CollectionManagement = () => {
         toast.error("Please fix the form errors");
         return;
       }
-      console.error("Update collection error:", error);
+      // console.error("Update collection error:", error);
       toast.error(
         error.response?.data?.error ||
           error.response?.data?.message ||
@@ -802,7 +802,7 @@ const CollectionManagement = () => {
       if (value.length >= 3 || value === "") {
         setTimeout(() => {
           refetchProducts();
-          console.log("Refetching products after search term change");
+          // console.log("Refetching products after search term change");
         }, 100);
       }
     }, 500),
@@ -825,7 +825,7 @@ const CollectionManagement = () => {
       // Force refetch products when search is cleared
       setTimeout(() => {
         refetchProducts();
-        console.log("Refetching products after clearing search");
+        // console.log("Refetching products after clearing search");
       }, 100);
       toast.info("Search cleared, showing all products", {
         autoClose: 1000,
@@ -927,13 +927,13 @@ const CollectionManagement = () => {
           })
           .filter((id) => id); // Filter out any undefined/null values
 
-        console.log(
-          `Pre-selecting ${productIds.length} products for collection ${collection.name}`
-        );
+        // console.log(
+        //   `Pre-selecting ${productIds.length} products for collection ${collection.name}`
+        // );
         setSelectedProducts(productIds);
       } else {
         // Clear selected products if creating a new collection or no products
-        console.log("No products to pre-select, clearing selection");
+        // console.log("No products to pre-select, clearing selection");
         setSelectedProducts([]);
       }
 
@@ -943,16 +943,16 @@ const CollectionManagement = () => {
       // Force refetch products to ensure we have the latest data
       setTimeout(() => {
         refetchProducts();
-        console.log("Triggered product refetch");
+        // console.log("Triggered product refetch");
       }, 100);
 
       // Log for debugging
-      console.log(
-        "Opening products modal for collection:",
-        collection?.name || "New Collection"
-      );
+      // console.log(
+      //   "Opening products modal for collection:",
+      //   collection?.name || "New Collection"
+      // );
     } catch (error) {
-      console.error("Error opening products modal:", error);
+      // console.error("Error opening products modal:", error);
       toast.error("Failed to open products modal. Please try again.");
     }
   };
@@ -1004,18 +1004,18 @@ const CollectionManagement = () => {
 
     // Add selected products to the collection data
     if (selectedProducts.length > 0) {
-      console.log(
-        `Including ${selectedProducts.length} selected products in submission`
-      );
+      // console.log(
+        // `Including ${selectedProducts.length} selected products in submission`
+      // );
       collectionData.products = selectedProducts;
     }
 
-    console.log("Submitting collection data:", collectionData);
+    // console.log("Submitting collection data:", collectionData);
 
     try {
       if (currentCollection && currentCollection._id && typeof currentCollection._id === 'string' && currentCollection._id.trim() !== '') {
         // Update existing collection with valid ID
-        console.log("Collection ID for update:", currentCollection._id);
+        // console.log("Collection ID for update:", currentCollection._id);
         
         updateCollectionMutation.mutate({
           id: currentCollection._id,
@@ -1026,11 +1026,11 @@ const CollectionManagement = () => {
         // 1. No currentCollection (brand new collection)
         // 2. currentCollection exists but has no _id (temporary collection from product selection)
         // 3. currentCollection has invalid _id
-        console.log("Creating new collection", currentCollection ? "(temporary collection detected)" : "");
+        // console.log("Creating new collection", currentCollection ? "(temporary collection detected)" : "");
         createCollectionMutation.mutate(collectionData);
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
+      // console.error("Error submitting form:", error);
       toast.error("An error occurred while submitting the form");
     }
   };

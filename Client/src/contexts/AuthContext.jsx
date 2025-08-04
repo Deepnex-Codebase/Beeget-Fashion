@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react'
 import api from '../utils/api'
+import Cookies from 'js-cookie'
 
 export const AuthContext = createContext()
 
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }) => {
           if (!Array.isArray(permissions)) {
             permissions = [];
           }
-          console.log('Subadmin logged in with permissions:', permissions);
+        
         }
         
         const userWithPerms = {
@@ -50,14 +51,22 @@ export const AuthProvider = ({ children }) => {
         api.setAuthToken(tokensObj)
         setUser(userWithPerms)
         setTokens(tokensObj)
-        // Save to localStorage - store tokens as JSON object
-        localStorage.setItem('tokens', JSON.stringify(tokensObj))
-        localStorage.setItem('user', JSON.stringify(userWithPerms))
+        // Save to cookies - store tokens as JSON object
+        Cookies.set('tokens', JSON.stringify(tokensObj), { 
+          expires: 7, // expires in 7 days
+          secure: window.location.protocol === 'https:', // secure in production
+          sameSite: 'strict' // CSRF protection
+        })
+        Cookies.set('user', JSON.stringify(userWithPerms), { 
+          expires: 7, // expires in 7 days
+          secure: window.location.protocol === 'https:', // secure in production
+          sameSite: 'strict' // CSRF protection
+        })
         
         // Clear guest session ID as it's no longer needed
         localStorage.removeItem('guestSessionId')
         
-        console.log('Login successful')
+      
         return { success: true, message: 'Login successful' }
       } else {
         // This shouldn't happen as API should throw error on failure
@@ -66,7 +75,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Login error:', err)
+   
       
       // Handle specific error cases
       if (err.response) {
@@ -121,7 +130,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/register', userDataWithGuestSession)
       
       if (response.data.success) {
-        console.log('Registration successful')
+       
         
         // Return success with verification needed
         return { 
@@ -137,7 +146,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Registration error:', err)
+    
       
       // Handle specific error cases
       if (err.response) {
@@ -165,11 +174,11 @@ export const AuthProvider = ({ children }) => {
     }
   }
   
-  // Initialize auth state from localStorage and validate token
+  // Initialize auth state from cookies and validate token
   useEffect(() => {
-    console.log('Initializing auth state from localStorage')
-    const storedTokens = localStorage.getItem('tokens')
-    const storedUser = localStorage.getItem('user')
+
+    const storedTokens = Cookies.get('tokens')
+    const storedUser = Cookies.get('user')
     
     const initializeAuth = async () => {
       if (storedTokens && storedUser) {
@@ -190,7 +199,6 @@ export const AuthProvider = ({ children }) => {
           if (!parsedUser.permissions || !Array.isArray(parsedUser.permissions)) {
             parsedUser.permissions = [];
           }
-            console.log('Subadmin loaded from localStorage with permissions:', parsedUser.permissions);
           }
           setUser(parsedUser)
           
@@ -206,18 +214,17 @@ export const AuthProvider = ({ children }) => {
               if (!userData.permissions || !Array.isArray(userData.permissions)) {
                 userData.permissions = [];
               }
-              console.log('Subadmin profile updated from server with permissions:', userData.permissions);
             }
             setUser(userData)
             // Save updated user data to localStorage
             localStorage.setItem('user', JSON.stringify(userData))
-            console.log('Token validated and user profile updated')
+            
           }
         } catch (error) {
-          console.error('Token validation failed:', error)
+         
           // Clear invalid auth data
-          localStorage.removeItem('tokens')
-          localStorage.removeItem('user')
+          Cookies.remove('tokens')
+          Cookies.remove('user')
           api.setAuthToken(null)
           setUser(null)
           setTokens(null)
@@ -243,7 +250,6 @@ export const AuthProvider = ({ children }) => {
         await api.post('/auth/logout')
       } catch (error) {
         // If the API call fails, we still want to log out locally
-        console.log('Logout API call failed, proceeding with local logout')
       }
       
       // Clear auth token from API
@@ -254,13 +260,13 @@ export const AuthProvider = ({ children }) => {
       setTokens(null)
       setError(null)
       
-      // Clear localStorage
-      localStorage.removeItem('user')
-      localStorage.removeItem('tokens')
+      // Clear cookies
+      Cookies.remove('user')
+      Cookies.remove('tokens')
       
       return { success: true }
     } catch (err) {
-      console.error('Logout error:', err)
+      // console.error('Logout error:', err)
       // Even if there's an error, we should still clear local state
       setUser(null)
       setTokens(null)
@@ -301,7 +307,7 @@ export const AuthProvider = ({ children }) => {
           if (!Array.isArray(permissions)) {
             permissions = [];
           }
-          console.log('Subadmin profile loaded with permissions:', permissions);
+          // console.log('Subadmin profile loaded with permissions:', permissions);
         }
         
         const userWithPerms = {
@@ -311,8 +317,12 @@ export const AuthProvider = ({ children }) => {
         }
         setUser(userWithPerms)
         
-        // Update localStorage
-        localStorage.setItem('user', JSON.stringify(userWithPerms))
+        // Update cookies
+        Cookies.set('user', JSON.stringify(userWithPerms), { 
+          expires: 7, // expires in 7 days
+          secure: window.location.protocol === 'https:', // secure in production
+          sameSite: 'strict' // CSRF protection
+        })
         
         return { 
           success: true, 
@@ -325,7 +335,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Get profile error:', err)
+      // console.error('Get profile error:', err)
       
       // Handle specific error cases
       if (err.response) {
@@ -381,8 +391,12 @@ export const AuthProvider = ({ children }) => {
         const mergedUser = { ...user, ...updatedUser }
         setUser(mergedUser)
         
-        // Update localStorage
-        localStorage.setItem('user', JSON.stringify(mergedUser))
+        // Update cookies
+        Cookies.set('user', JSON.stringify(mergedUser), { 
+          expires: 7, // expires in 7 days
+          secure: window.location.protocol === 'https:', // secure in production
+          sameSite: 'strict' // CSRF protection
+        })
         
         return { 
           success: true, 
@@ -396,7 +410,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Update profile error:', err)
+      // console.error('Update profile error:', err)
       
       // Handle specific error cases
       if (err.response) {
@@ -438,30 +452,30 @@ export const AuthProvider = ({ children }) => {
   
   // Check if user is subadmin
   const isSubAdmin = user?.roles?.includes('subadmin') || user?.role === 'subadmin' || isAdmin || false
-  console.log(isSubAdmin )
+  // console.log(isSubAdmin )
   // Check if user has specific permission
   const hasPermission = (permission, department = null) => {
-    console.log('Checking permission:', permission);
-    console.log('Checking department:', department);
-    console.log('User:', user);
-    console.log('Is Admin:', isAdmin);
-    console.log('Is SubAdmin:', isSubAdmin);
-    console.log('User Permissions:', user?.permissions);
-    console.log('User Department:', user?.department);
+    // console.log('Checking permission:', permission);
+    // console.log('Checking department:', department);
+    // console.log('User:', user);
+    // console.log('Is Admin:', isAdmin);
+    // console.log('Is SubAdmin:', isSubAdmin);
+    // console.log('User Permissions:', user?.permissions);
+    // console.log('User Department:', user?.department);
     
     if (isAdmin) {
-      console.log('User is admin, granting permission');
+      // console.log('User is admin, granting permission');
       return true; // Admin has all permissions
     }
     
     if (!isSubAdmin) {
-      console.log('User is not subadmin, denying permission');
+      // console.log('User is not subadmin, denying permission');
       return false; // Only subadmins can have specific permissions
     }
     
     // Ensure permissions is an array
     const userPermissions = Array.isArray(user?.permissions) ? user?.permissions : [];
-    console.log('User Permissions (ensured array):', userPermissions);
+    // console.log('User Permissions (ensured array):', userPermissions);
     
     // Check department if specified
     if (department && department !== 'all') {
@@ -471,16 +485,16 @@ export const AuthProvider = ({ children }) => {
         userDept.toLowerCase() === department.toLowerCase() || 
         userDept.toLowerCase() === 'all';
       
-      console.log('Department match:', departmentMatch);
+      // console.log('Department match:', departmentMatch);
       if (!departmentMatch) {
-        console.log(`Department mismatch: required ${department}, user has ${user?.department}`);
+        // console.log(`Department mismatch: required ${department}, user has ${user?.department}`);
         return false;
       }
     }
     
     // Check for all_permissions first (grants access to everything)
     if (userPermissions.includes('all_permissions')) {
-      console.log('User has all_permissions, granting access');
+      // console.log('User has all_permissions, granting access');
       return true;
     }
     
@@ -488,7 +502,7 @@ export const AuthProvider = ({ children }) => {
     const hasSpecificPermission = userPermissions.some(p => 
       p.toLowerCase() === permission.toLowerCase()
     );
-    console.log('Has specific permission:', hasSpecificPermission);
+    // console.log('Has specific permission:', hasSpecificPermission);
     
     return hasSpecificPermission;
   }
@@ -514,7 +528,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Forgot password error:', err)
+      // console.error('Forgot password error:', err)
       
       // Handle specific error cases
       if (err.response) {
@@ -566,7 +580,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Change password error:', err)
+      // console.error('Change password error:', err)
       
       // Handle specific error cases
       if (err.response) {
@@ -615,7 +629,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Reset password error:', err)
+      // console.error('Reset password error:', err)
       
       // Handle specific error cases
       if (err.response) {
@@ -669,7 +683,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      console.error('Email verification error:', err)
+      // console.error('Email verification error:', err)
       
       // Handle specific error cases
       if (err.response) {

@@ -68,7 +68,7 @@ const BestSeller = () => {
       })
       setLoading(false)
     } catch (err) {
-      console.error('Error fetching regular products:', err)
+      // console.error('Error fetching regular products:', err)
       setError('Failed to load products. Please try again later.')
       setLoading(false)
     }
@@ -122,7 +122,7 @@ const BestSeller = () => {
           
           // If we have no purchase data, fetch regular products
           if (sortedProductIds.length === 0) {
-            console.log('No purchase data found, fetching regular products')
+            // console.log('No purchase data found, fetching regular products')
             await fetchRegularProducts()
             return
           }
@@ -211,7 +211,7 @@ const BestSeller = () => {
           )
           
           if (isAuthError) {
-            console.log('Authentication or permission error accessing orders, falling back to regular products')
+            // console.log('Authentication or permission error accessing orders, falling back to regular products')
             await fetchRegularProducts()
             return
           } else {
@@ -220,7 +220,7 @@ const BestSeller = () => {
           }
         }
       } catch (err) {
-        console.error('Error fetching best sellers:', err)
+        // console.error('Error fetching best sellers:', err)
         setError('Failed to load products. Please try again later.')
         toast.error('Failed to load products')
         setProducts([])

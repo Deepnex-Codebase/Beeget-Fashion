@@ -52,21 +52,21 @@ const GSTReports = () => {
       try {
         // First try to get data from the dashboard endpoint
         const response = await axios.get("/orders/stats/dashboard");
-        console.log("API Response Data:", response.data.data);
+        // console.log("API Response Data:", response.data.data);
 
         // Validate data structure
         if (!response.data.data) {
-          console.error("Invalid API response: data is missing");
+          // console.error("Invalid API response: data is missing");
 
           throw new Error("Invalid API response: data is missing");
         }
 
         // Check if salesByPeriod exists
         if (!response.data.data.salesByPeriod) {
-          console.error("Invalid data structure: salesByPeriod is missing");
+          // console.error("Invalid data structure: salesByPeriod is missing");
 
           // Try to get orders directly as fallback
-          console.log("Attempting to fetch orders directly as fallback...");
+          // console.log("Attempting to fetch orders directly as fallback...");
           const ordersResponse = await axios.get("/orders?limit=100");
 
           if (
@@ -87,12 +87,12 @@ const GSTReports = () => {
 
         // Check if monthly data exists
         if (!response.data.data.salesByPeriod.monthly) {
-          console.error(
-            "Invalid data structure: monthly sales data is missing"
-          );
+          // console.error(
+            // "Invalid data structure: monthly sales data is missing"
+          // );
 
           // Try to get orders directly as fallback
-          console.log("Attempting to fetch orders directly as fallback...");
+          // console.log("Attempting to fetch orders directly as fallback...");
           const ordersResponse = await axios.get("/orders?limit=100");
 
           if (
@@ -112,10 +112,10 @@ const GSTReports = () => {
         }
 
         if (response.data.data.salesByPeriod.monthly.length === 0) {
-          console.warn("No monthly sales data available");
+          // console.warn("No monthly sales data available");
 
           // Try to get orders directly as fallback
-          console.log("Attempting to fetch orders directly as fallback...");
+          // console.log("Attempting to fetch orders directly as fallback...");
           const ordersResponse = await axios.get("/orders?limit=100");
 
           if (
@@ -136,7 +136,7 @@ const GSTReports = () => {
 
         return response.data.data;
       } catch (err) {
-        console.error("Error fetching order stats:", err);
+        // console.error("Error fetching order stats:", err);
 
         throw err;
       }
@@ -144,20 +144,20 @@ const GSTReports = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     onError: (error) => {
-      console.error("Error in order stats query:", error);
+      // console.error("Error in order stats query:", error);
     },
   });
 
   // Function to process orders into a stats-compatible structure
   const processOrdersIntoStats = (orders) => {
-    console.log(
-      "Processing orders into stats format:",
-      orders.length,
-      "orders"
-    );
+    // console.log(
+      // "Processing orders into stats format:",
+      // orders.length,
+      // "orders"
+    // );
 
     if (!orders || orders.length === 0) {
-      console.warn("No orders found in the data");
+      // console.warn("No orders found in the data");
       return {
         totalSales: 0,
         salesByPeriod: {
@@ -175,7 +175,7 @@ const GSTReports = () => {
     );
 
     if (paidOrders.length === 0) {
-      console.warn("No paid orders found in the data");
+      // console.warn("No paid orders found in the data");
       return {
         totalSales: 0,
         salesByPeriod: {
@@ -203,13 +203,13 @@ const GSTReports = () => {
     paidOrders.forEach((order) => {
       try {
         if (!order.createdAt) {
-          console.warn("Order missing createdAt:", order._id || "unknown");
+          // console.warn("Order missing createdAt:", order._id || "unknown");
           return;
         }
 
         const orderDate = new Date(order.createdAt);
         if (isNaN(orderDate.getTime())) {
-          console.warn("Invalid order date:", order.createdAt);
+          // console.warn("Invalid order date:", order.createdAt);
           return;
         }
 
@@ -226,7 +226,7 @@ const GSTReports = () => {
               ? parseFloat(total)
               : 0;
         if (isNaN(numericTotal)) {
-          console.warn("Invalid order total:", total);
+          // console.warn("Invalid order total:", total);
           return;
         }
 
@@ -241,18 +241,18 @@ const GSTReports = () => {
         monthlyData[monthKey].total += numericTotal;
         monthlyData[monthKey].count += 1;
       } catch (err) {
-        console.warn("Error processing order for stats:", err, order);
+        // console.warn("Error processing order for stats:", err, order);
       }
     });
 
     // Convert to array format expected by the existing code
     const monthly = Object.values(monthlyData);
 
-    console.log("Processed orders into stats format:", {
-      totalSales,
-      monthlyCount: monthly.length,
-      sampleMonth: monthly.length > 0 ? monthly[0] : null,
-    });
+    // console.log("Processed orders into stats format:", {
+    //   totalSales,
+    //   monthlyCount: monthly.length,
+    //   sampleMonth: monthly.length > 0 ? monthly[0] : null,
+    // });
 
     return {
       totalSales,
@@ -271,7 +271,7 @@ const GSTReports = () => {
   const calculateTotalGST = () => {
     // If no stats available or totalSales is missing, throw an error
     if (!stats || !stats.totalSales) {
-      console.error("No totalSales data available in API response");
+      // console.error("No totalSales data available in API response");
 
       // Return zeros to prevent UI errors
       return {
@@ -293,7 +293,7 @@ const GSTReports = () => {
             : 0;
 
       if (isNaN(totalSales) || totalSales <= 0) {
-        console.warn("Invalid totalSales value:", stats.totalSales);
+        // console.warn("Invalid totalSales value:", stats.totalSales);
 
         return {
           totalSales: 0,
@@ -317,11 +317,11 @@ const GSTReports = () => {
       const calculatedTotal = taxableAmount + totalGST;
       if (Math.abs(calculatedTotal - totalSales) > 1) {
         // Allow for small rounding differences
-        console.warn("GST calculation discrepancy:", {
-          original: totalSales,
-          calculated: calculatedTotal,
-          difference: totalSales - calculatedTotal,
-        });
+        // console.warn("GST calculation discrepancy:", {
+        //   original: totalSales,
+        //   calculated: calculatedTotal,
+        //   difference: totalSales - calculatedTotal,
+        // });
       }
 
       return {
@@ -332,7 +332,7 @@ const GSTReports = () => {
         sgst: Math.round(sgstAmount * 100) / 100,
       };
     } catch (error) {
-      console.error("Error calculating total GST:", error);
+      // console.error("Error calculating total GST:", error);
 
       return {
         totalSales: 0,
@@ -348,23 +348,23 @@ const GSTReports = () => {
   const getSalesDataByTimeframe = () => {
     // Check if stats data is available
     if (!stats) {
-      console.error("No stats data available");
+      // console.error("No stats data available");
 
       return [];
     }
 
     // Check if we have the expected data structure
     if (!stats.salesByPeriod || !stats.salesByPeriod.monthly) {
-      console.error(
-        "Sales data structure is invalid: salesByPeriod or monthly data missing"
-      );
+      // console.error(
+        // "Sales data structure is invalid: salesByPeriod or monthly data missing"
+      // );
 
       return [];
     }
 
     // Ensure monthly data is an array
     if (!Array.isArray(stats.salesByPeriod.monthly)) {
-      console.error("Monthly sales data is not an array");
+      // console.error("Monthly sales data is not an array");
 
       return [];
     }
@@ -398,10 +398,10 @@ const GSTReports = () => {
                 !isNaN(date.getTime()) && date.getFullYear() === selectedYear
               );
             } catch (e) {
-              console.error(
-                "Invalid date format in monthly data:",
-                item.period
-              );
+              // console.error(
+                // "Invalid date format in monthly data:",
+                // item.period
+              // );
               return false;
             }
           })
@@ -427,7 +427,7 @@ const GSTReports = () => {
                 orders: isNaN(count) ? 0 : count,
               };
             } catch (e) {
-              console.error("Error processing monthly item:", e);
+              // console.error("Error processing monthly item:", e);
               return null;
             }
           })
@@ -446,10 +446,10 @@ const GSTReports = () => {
                 !isNaN(date.getTime()) && date.getFullYear() === selectedYear
               );
             } catch (e) {
-              console.error(
-                "Invalid date format in quarterly data:",
-                item.period
-              );
+              // console.error(
+                // "Invalid date format in quarterly data:",
+                // item.period
+              // );
               return false;
             }
           })
@@ -477,7 +477,7 @@ const GSTReports = () => {
               quarterlyData[quarter] += isNaN(total) ? 0 : total;
               quarterlyOrders[quarter] += isNaN(count) ? 0 : count;
             } catch (e) {
-              console.error("Error processing quarterly item:", e);
+              // console.error("Error processing quarterly item:", e);
             }
           });
 
@@ -496,7 +496,7 @@ const GSTReports = () => {
             if (!item.period) return;
             const date = new Date(item.period);
             if (isNaN(date.getTime())) {
-              console.warn("Invalid date in yearly aggregation:", item.period);
+              // console.warn("Invalid date in yearly aggregation:", item.period);
               return;
             }
 
@@ -526,7 +526,7 @@ const GSTReports = () => {
             yearMap[year].sales += isNaN(total) ? 0 : total;
             yearMap[year].orders += isNaN(count) ? 0 : count;
           } catch (e) {
-            console.error("Error processing yearly item:", e);
+            // console.error("Error processing yearly item:", e);
           }
         });
 
@@ -546,7 +546,7 @@ const GSTReports = () => {
 
         // Ensure valid date range
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          console.error("Invalid date range");
+          // console.error("Invalid date range");
 
           return [];
         }
@@ -569,10 +569,10 @@ const GSTReports = () => {
                   !isNaN(date.getTime()) && date >= startDate && date <= endDate
                 );
               } catch (e) {
-                console.error(
-                  "Invalid date format in custom range (monthly):",
-                  item.period
-                );
+                // console.error(
+                  // "Invalid date format in custom range (monthly):",
+                  // item.period
+                // );
                 return false;
               }
             })
@@ -601,10 +601,10 @@ const GSTReports = () => {
                   orders: isNaN(count) ? 0 : count,
                 };
               } catch (e) {
-                console.error(
-                  "Error processing custom range item (monthly):",
-                  e
-                );
+                // console.error(
+                //   "Error processing custom range item (monthly):",
+                //   e
+                // );
                 return null;
               }
             })

@@ -87,9 +87,9 @@ const Contact = () => {
     
     try {
       // Send data to the API using submitEnquiry from SiteContentContext
-      console.log('Contact.jsx: Submitting form data:', formData);
+      // console.log('Contact.jsx: Submitting form data:', formData);
       const response = await submitEnquiry(formData);
-      console.log('Contact.jsx: Submit response:', response);
+      // console.log('Contact.jsx: Submit response:', response);
       
       // Handle success
       setFormStatus('success');
@@ -108,8 +108,8 @@ const Contact = () => {
         setFormStatus(null);
       }, 5000);
     } catch (error) {
-      console.error('Contact.jsx: Error submitting form:', error);
-      console.log('Contact.jsx: Error details:', error.response?.data);
+      // console.error('Contact.jsx: Error submitting form:', error);
+      // console.log('Contact.jsx: Error details:', error.response?.data);
       // Handle error
       setFormStatus('error');
       toast.error(error.response?.data?.error || 'Failed to send message. Please try again.');
@@ -124,7 +124,7 @@ const Contact = () => {
   // For debugging
   useEffect(() => {
     if (contactPageData) {
-      console.log('Contact page data in component:', contactPageData)
+      // console.log('Contact page data in component:', contactPageData)
     }
   }, [contactPageData])
 

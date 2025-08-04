@@ -26,6 +26,7 @@ const initializeUploadDirectories = () => {
   createDirectoryIfNotExists(path.join(uploadDir, 'invoices'));
   createDirectoryIfNotExists(path.join(uploadDir, 'reviews'));
   createDirectoryIfNotExists(path.join(uploadDir, 'temp'));
+  createDirectoryIfNotExists(path.join(uploadDir, 'videos'));
 };
 
 // Initialize directories
@@ -110,6 +111,20 @@ const cmsStorage = multer.diskStorage({
   }
 });
 
+// Storage configuration for video uploads
+const videoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dest = path.join(uploadDir, 'videos');
+    createDirectoryIfNotExists(dest);
+    cb(null, dest);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with original extension
+    const uniqueFilename = `${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueFilename);
+  }
+});
+
 // File filter for images
 const imageFileFilter = (req, file, cb) => {
   // Accept only image files
@@ -122,6 +137,20 @@ const imageFileFilter = (req, file, cb) => {
   }
   
   cb(new Error('Only image files are allowed!'), false);
+};
+
+// File filter for videos
+const videoFileFilter = (req, file, cb) => {
+  // Accept only video files
+  const filetypes = /mp4|webm|ogg|mov|avi/;
+  const mimetype = file.mimetype.startsWith('video/');
+  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+  
+  if (mimetype && extname) {
+    return cb(null, true);
+  }
+  
+  cb(new Error('Only video files are allowed!'), false);
 };
 
 // File filter for PDFs
@@ -145,7 +174,8 @@ const maxSize = {
   invoice: 10 * 1024 * 1024, // 10MB
   review: 3 * 1024 * 1024,   // 3MB
   temp: 20 * 1024 * 1024,    // 20MB
-  cms: 5 * 1024 * 1024       // 5MB for CMS images
+  cms: 5 * 1024 * 1024,      // 5MB for CMS images
+  video: 50 * 1024 * 1024    // 50MB for videos
 };
 
 // Configure multer instances
@@ -184,6 +214,12 @@ const cmsUpload = multer({
   fileFilter: imageFileFilter
 });
 
+const videoUpload = multer({
+  storage: videoStorage,
+  limits: { fileSize: maxSize.video },
+  fileFilter: videoFileFilter
+});
+
 // Helper function to delete a file
 export const deleteFile = (filePath) => {
   try {
@@ -214,5 +250,6 @@ export {
   reviewUpload,
   tempUpload,
   cmsUpload,
+  videoUpload,
   uploadDir
 };

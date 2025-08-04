@@ -97,7 +97,7 @@ const AdminDashboard = () => {
       toast.dismiss();
       toast.success('Dashboard report exported successfully');
     }).catch(error => {
-      console.error('Error generating PDF:', error);
+      // console.error('Error generating PDF:', error);
       toast.dismiss();
       toast.error('Failed to generate PDF report');
     });
@@ -107,7 +107,7 @@ const AdminDashboard = () => {
   const getSalesDataByTimeframe = () => {
     // If no orders data available, return empty array
     if (!ordersData?.data) {
-      console.log('No orders data available for chart:', ordersData);
+      // console.log('No orders data available for chart:', ordersData);
       return [];
     }
     
@@ -119,12 +119,12 @@ const AdminDashboard = () => {
       orders = ordersData.data.orders;
     } else {
       // Create dummy data if no orders are available
-      console.log('Creating dummy data for chart');
+      // console.log('Creating dummy data for chart');
       return createDummySalesData();
     }
     
     if (orders.length === 0) {
-      console.log('Orders array is empty, creating dummy data');
+      // console.log('Orders array is empty, creating dummy data');
       return createDummySalesData();
     }
     
@@ -180,7 +180,7 @@ const AdminDashboard = () => {
           return sum + (isPaid ? (order.total || 0) : 0);
         }, 0);
         
-        console.log(`Sales for ${day}:`, daySales);
+        // console.log(`Sales for ${day}:`, daySales);
         
         // Get payment methods breakdown
         const paymentMethods = groupPaymentsByMethod(dayOrders);
@@ -265,7 +265,7 @@ const AdminDashboard = () => {
           return sum + (isPaid ? (order.total || 0) : 0);
         }, 0);
         
-        console.log(`Sales for ${year}:`, yearSales);
+        // console.log(`Sales for ${year}:`, yearSales);
         
         // Get payment methods breakdown
         const paymentMethods = groupPaymentsByMethod(yearOrders);
@@ -501,7 +501,7 @@ const AdminDashboard = () => {
         setUnreadContactCount(unreadCount);
         return { pagination: { total: unreadCount } };
       } catch (error) {
-        console.error('Error fetching unread contacts count:', error);
+        // console.error('Error fetching unread contacts count:', error);
         setUnreadContactCount(0);
         return { pagination: { total: 0 } };
       }
@@ -534,13 +534,13 @@ const AdminDashboard = () => {
         // Get top products (sort by inventory count for now as a proxy for popularity)
         const topProductsResponse = await axios.get('/products?limit=5&sort=-inventoryCount');
         const topProducts = topProductsResponse.data?.data?.products || [];
-        console.log('Products response:', productsResponse.data)
+        // console.log('Products response:', productsResponse.data)
         
         // If totalProducts is 0, use a fallback value
         if (totalProducts === 0) {
           // Use the length of topProducts or a reasonable fallback
           totalProducts = topProducts.length > 0 ? Math.max(topProducts.length * 5, 50) : 100;
-          console.log('Using fallback for totalProducts:', totalProducts);
+          // console.log('Using fallback for totalProducts:', totalProducts);
         }
         
         // Get recent orders
@@ -589,10 +589,10 @@ const AdminDashboard = () => {
             const usersResponse = await axios.get('/users');
             if (usersResponse.data && usersResponse.data.pagination && usersResponse.data.pagination.total) {
               totalCustomers = usersResponse.data.pagination.total;
-              console.log('Total customers from users API:', totalCustomers);
+              // console.log('Total customers from users API:', totalCustomers);
             }
           } catch (userApiError) {
-            console.log('Could not fetch users count from API, using fallback method');
+            // console.log('Could not fetch users count from API, using fallback method');
           }
           
           // If users API failed or returned 0, use unique customer IDs from orders
@@ -607,7 +607,7 @@ const AdminDashboard = () => {
             });
             
             const uniqueCustomerCount = uniqueCustomerIds.size || 0;
-            console.log('Unique customers from orders:', uniqueCustomerCount);
+            // console.log('Unique customers from orders:', uniqueCustomerCount);
             
             // If we found customers from orders, use that count
             if (uniqueCustomerCount > 0) {
@@ -620,9 +620,9 @@ const AdminDashboard = () => {
             }
           }
           
-          console.log('Final total customers calculated:', totalCustomers);
+          // console.log('Final total customers calculated:', totalCustomers);
         } catch (err) {
-          console.error('Error calculating customer count:', err);
+          // console.error('Error calculating customer count:', err);
           totalCustomers = Math.max(allOrders.length * 2, 100); // Assume at least 100 customers
         }
         
@@ -657,7 +657,7 @@ const AdminDashboard = () => {
             // Fetch latest product data for each product in productSales
             const productPromises = productIds.map(id => 
               axios.get(`/products/${id}`).catch(err => {
-                console.error(`Error fetching product ${id}:`, err);
+                // console.error(`Error fetching product ${id}:`, err);
                 return { data: null };
               })
             );
@@ -707,7 +707,7 @@ const AdminDashboard = () => {
               }
             });
           } catch (err) {
-            console.error('Error fetching product details:', err);
+            // console.error('Error fetching product details:', err);
           }
         }
         
@@ -840,7 +840,7 @@ const AdminDashboard = () => {
                 }
               })
               .catch(err => {
-                console.error(`Error fetching stock for product ${product.id}:`, err);
+                // console.error(`Error fetching stock for product ${product.id}:`, err);
                 product.stock = 0; // Default to 0 if API call fails
               });
           }
@@ -853,7 +853,7 @@ const AdminDashboard = () => {
         });
         
         // Log the top products for debugging
-        console.log('Top selling products with stock:', topSellingProducts);
+        // console.log('Top selling products with stock:', topSellingProducts);
         
         // Fetch city analytics data
         let topCities = [];
@@ -863,7 +863,7 @@ const AdminDashboard = () => {
             topCities = cityResponse.data.data.topCities || [];
           }
         } catch (cityError) {
-          console.error('Error fetching city analytics:', cityError);
+          // console.error('Error fetching city analytics:', cityError);
           // Generate mock city data if API fails
           const mockCities = [
             { city: 'Mumbai', orderCount: 45, totalRevenue: 125000, paidOrders: 42, averageOrderValue: 2800 },
@@ -886,7 +886,7 @@ const AdminDashboard = () => {
           topCities
         };
       } catch (error) {
-        console.error('Error fetching admin stats:', error);
+        // console.error('Error fetching admin stats:', error);
         // Return default data instead of throwing to prevent rendering errors
         return {
           totalSales: 0,
@@ -917,7 +917,7 @@ const AdminDashboard = () => {
         const response = await axios.get('/products?limit=10');
         return response.data || { data: [], pagination: { total: 0 } };
       } catch (error) {
-        console.error('Error fetching products:', error);
+        // console.error('Error fetching products:', error);
         // Return default data instead of throwing
         return { data: [], pagination: { total: 0 } };
       }
@@ -952,13 +952,13 @@ const AdminDashboard = () => {
         if (ordersDateRange.endDate) queryParams.append('endDate', ordersDateRange.endDate);
         
         const response = await axios.get(`/orders?${queryParams.toString()}`);
-        console.log('Orders data fetched:', response.data);
+        // console.log('Orders data fetched:', response.data);
         return { 
           data: response.data?.data?.orders || [], 
           pagination: response.data?.data?.pagination || { total: 0, page: 1, limit: 10, pages: 1 } 
         };
       } catch (error) {
-        console.error('Error fetching orders:', error);
+        // console.error('Error fetching orders:', error);
         toast.error('Failed to fetch orders. Using fallback data.');
         // Return static data instead of empty array
         const staticOrders = generateStaticOrders();
@@ -1106,7 +1106,7 @@ const AdminDashboard = () => {
           userId: orderData.userId || {}
         };
       } catch (error) {
-        console.error('Error fetching order details:', error);
+        // console.error('Error fetching order details:', error);
         toast.error('Failed to fetch order details');
         // Return a safe default object with all required properties
         return {
@@ -1216,10 +1216,10 @@ const AdminDashboard = () => {
   ];
   
   // Add debug log to show which permissions are being checked
-  console.log('Tabs with permissions:', tabsWithPermissions.map(tab => tab.permission));
+  // console.log('Tabs with permissions:', tabsWithPermissions.map(tab => tab.permission));
   
   // Log permissions for debugging
-  console.log('User Permissions:', user?.permissions);
+  // console.log('User Permissions:', user?.permissions);
   
   // Filter tabs based on both department and permission for subadmin
   const tabs = tabsWithPermissions.filter(tab => {
