@@ -68,12 +68,7 @@ const SiteContentManagement = () => {
     updateFooterData,
     autosaveFooterData,
 
-    // Enquiries
-    enquiries,
-    loadingEnquiries,
-    enquiriesError,
-    fetchEnquiries,
-    updateEnquiryStatus,
+
   } = useContext(SiteContentContext);
 
   // Form data state for each entity
@@ -82,15 +77,7 @@ const SiteContentManagement = () => {
   const [contactPageForm, setContactPageForm] = useState(null);
   const [footerForm, setFooterForm] = useState(null);
 
-  // Enquiries filters
-  const [enquiryFilters, setEnquiryFilters] = useState({
-    status: "",
-    startDate: "",
-    endDate: "",
-    searchTerm: "",
-  });
-  const [enquiryPage, setEnquiryPage] = useState(1);
-  const [enquiryLimit] = useState(10);
+
 
   // Initialize form data when context data changes
   useEffect(() => {
@@ -308,16 +295,7 @@ const SiteContentManagement = () => {
         });
       }
 
-      // Ensure enquiry_form block exists with default values
-      if (!formData.blocks.find(block => block.blockType === 'enquiry_form')) {
-        formData.blocks.push({
-          blockType: 'enquiry_form',
-          form_title: "Send Us a Message",
-          description: "Please fill out the form below with your details and we'll get back to you as soon as possible.",
-          success_message: "Your message has been sent successfully! We'll get back to you soon.",
-          enabled: true
-        });
-      }
+
 
       // Ensure social_links_row block exists with default values
       if (!formData.blocks.find(block => block.blockType === 'social_links_row')) {
@@ -422,12 +400,7 @@ const SiteContentManagement = () => {
     }
   }, [footerData, fetchFooterData]);
 
-  // Load enquiries when tab changes to enquiries
-  useEffect(() => {
-    if (activeTab === "enquiries") {
-      fetchEnquiries(enquiryPage, enquiryLimit, enquiryFilters);
-    }
-  }, [activeTab, enquiryPage, enquiryLimit, enquiryFilters]);
+
 
   // Setup autosave timer when editing starts
   useEffect(() => {
@@ -2628,42 +2601,7 @@ const SiteContentManagement = () => {
     }
   };
 
-  // Handle enquiry status update
-  const handleUpdateEnquiryStatus = async (id, status) => {
-    try {
-      await updateEnquiryStatus(id, status);
-      // Refresh enquiries list
-      fetchEnquiries(enquiryPage, enquiryLimit, enquiryFilters);
-    } catch (error) {
-      // console.error("Error updating enquiry status:", error);
-    }
-  };
 
-  // Handle enquiry filters change
-  const handleEnquiryFilterChange = (field, value) => {
-    setEnquiryFilters((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  // Apply enquiry filters
-  const applyEnquiryFilters = () => {
-    setEnquiryPage(1); // Reset to first page
-    fetchEnquiries(1, enquiryLimit, enquiryFilters);
-  };
-
-  // Reset enquiry filters
-  const resetEnquiryFilters = () => {
-    setEnquiryFilters({
-      status: "",
-      startDate: "",
-      endDate: "",
-      searchTerm: "",
-    });
-    setEnquiryPage(1);
-    fetchEnquiries(1, enquiryLimit, {});
-  };
 
   // Export enquiries to CSV
   const exportEnquiriesToCSV = () => {
@@ -2736,9 +2674,6 @@ const SiteContentManagement = () => {
             case "footer":
               fetchFooterData();
               break;
-            case "enquiries":
-              fetchEnquiries(enquiryPage, enquiryLimit, enquiryFilters);
-              break;
             default:
               break;
           }
@@ -2759,7 +2694,6 @@ const SiteContentManagement = () => {
           {activeTab === "about" && "About Page"}
           {activeTab === "contact" && "Contact Page"}
           {activeTab === "footer" && "Footer"}
-          {activeTab === "enquiries" && "Enquiries"}
         </h2>
         {lastAutosaved && isEditing && (
           <span className="text-xs text-gray-500">
@@ -2769,59 +2703,53 @@ const SiteContentManagement = () => {
       </div>
 
       <div className="flex items-center space-x-2">
-        {activeTab !== "enquiries" && (
+        {!isEditing ? (
+          <Button
+            variant="primary"
+            onClick={() => setIsEditing(true)}
+            disabled={
+              loadingHomePage ||
+              loadingAboutPage ||
+              loadingContactPage ||
+              loadingFooter
+            }
+          >
+            <PencilIcon className="h-4 w-4 mr-2" />
+            Edit Content
+          </Button>
+        ) : (
           <>
-            {!isEditing ? (
-              <Button
-                variant="primary"
-                onClick={() => setIsEditing(true)}
-                disabled={
-                  loadingHomePage ||
-                  loadingAboutPage ||
-                  loadingContactPage ||
-                  loadingFooter
-                }
-              >
-                <PencilIcon className="h-4 w-4 mr-2" />
-                Edit Content
-              </Button>
-            ) : (
-              <>
-                <Button variant="secondary" onClick={handleCancelEditing}>
-                  <XMarkIcon className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={handleSaveChanges}>
-                  <CheckIcon className="h-4 w-4 mr-2" />
-                  Save Changes
-                </Button>
-              </>
-            )}
-
-            <Button
-              variant="secondary"
-              onClick={() => setIsPreviewMode(!isPreviewMode)}
-            >
-              <EyeIcon className="h-4 w-4 mr-2" />
-              {isPreviewMode ? "Edit Mode" : "Preview"}
+            <Button variant="secondary" onClick={handleCancelEditing}>
+              <XMarkIcon className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSaveChanges}>
+              <CheckIcon className="h-4 w-4 mr-2" />
+              Save Changes
             </Button>
           </>
         )}
 
-        {activeTab === "enquiries" && (
-          <Button
-            variant="secondary"
-            onClick={exportEnquiriesToCSV}
-            disabled={
-              !enquiries || !enquiries.data || enquiries.data.length === 0
-            }
-          >
-            Export CSV
-          </Button>
-        )}
+        <Button
+          variant="secondary"
+          onClick={() => setIsPreviewMode(!isPreviewMode)}
+        >
+          <EyeIcon className="h-4 w-4 mr-2" />
+          {isPreviewMode ? "Edit Mode" : "Preview"}
+        </Button>
       </div>
     </div>
   );
+
+  // State for active home page section
+  const [activeHomeSection, setActiveHomeSection] = useState("hero");
+  const [activeFooterSection, setActiveFooterSection] = useState("brand");
+  
+  // State for active about page section
+  const [activeAboutSection, setActiveAboutSection] = useState("header");
+  
+  // State for active contact page section
+  const [activeContactSection, setActiveContactSection] = useState("header");
 
   // Render home page editor
   const renderHomePageEditor = () => {
@@ -2840,27 +2768,56 @@ const SiteContentManagement = () => {
               saved every 30 seconds while editing.
             </p>
 
+            {/* Home Page Section Navigation */}
+            <div className="flex space-x-2 mb-6 border-b border-gray-200 pb-2">
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeHomeSection === "hero" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveHomeSection("hero")}
+              >
+                Hero Section
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeHomeSection === "category" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveHomeSection("category")}
+              >
+                Shop by Category
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeHomeSection === "promotional" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveHomeSection("promotional")}
+              >
+                Promotional Banners
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeHomeSection === "newsletter" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveHomeSection("newsletter")}
+              >
+                Newsletter Section
+              </button>
+            </div>
+
             <div className="space-y-8">
               {/* Hero Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-medium text-gray-700">Hero Section</h3>
-                  {isEditing && (
-                    <button
-                      type="button"
-                      className="p-1 text-red-500 hover:text-red-700"
-                      onClick={() =>
-                        handleRemoveArrayItem("blocks", null, null, 0)
-                      }
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-sm text-gray-500 mb-4">
-                  Configure your main hero banner that appears at the top of the
-                  home page.
-                </p>
+              {activeHomeSection === "hero" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-medium text-gray-700">Hero Section</h3>
+                    {isEditing && (
+                      <button
+                        type="button"
+                        className="p-1 text-red-500 hover:text-red-700"
+                        onClick={() =>
+                          handleRemoveArrayItem("blocks", null, null, 0)
+                        }
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Configure your main hero banner that appears at the top of the
+                    home page.
+                  </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
@@ -3189,28 +3146,30 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
 
               {/* Shop by Category Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-medium text-gray-700">
-                    Shop by Category
-                  </h3>
-                  {isEditing && (
-                    <button
-                      type="button"
-                      className="p-1 text-red-500 hover:text-red-700"
-                      onClick={() =>
-                        handleRemoveArrayItem("blocks", null, null, 1, "home")
-                      }
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-sm text-gray-500 mb-4">
-                  Manage the category grid section.
-                </p>
+              {activeHomeSection === "category" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-medium text-gray-700">
+                      Shop by Category
+                    </h3>
+                    {isEditing && (
+                      <button
+                        type="button"
+                        className="p-1 text-red-500 hover:text-red-700"
+                        onClick={() =>
+                          handleRemoveArrayItem("blocks", null, null, 1, "home")
+                        }
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Manage the category grid section.
+                  </p>
 
                 {homePageForm &&
                 homePageForm.blocks &&
@@ -3437,13 +3396,14 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
-
+ )}
               {/* Promotional Banners */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-4">
-                <h3 className="font-medium text-gray-700 mb-2">Promotional Banners</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Manage promotional banners that appear throughout the home page.
-                </p>
+              {activeHomeSection === "promotional" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-4">
+                  <h3 className="font-medium text-gray-700 mb-2">Promotional Banners</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Manage promotional banners that appear throughout the home page.
+                  </p>
                 
                 {isEditing && (
                   <div className="flex flex-wrap gap-2 mb-4">
@@ -3739,8 +3699,10 @@ const SiteContentManagement = () => {
                 ))
                 : null}
               </div>
+              )}
 
               {/* Newsletter Section */}
+              {activeHomeSection === "newsletter" && (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-medium text-gray-700">
@@ -3900,6 +3862,7 @@ const SiteContentManagement = () => {
                   </p>
                 </div>
               </div>
+              )}
             </div>
 
             {/* More sections... */}
@@ -3926,9 +3889,44 @@ const SiteContentManagement = () => {
               saved every 30 seconds while editing.
             </p>
 
+            {/* About Page Section Navigation */}
+            <div className="flex space-x-2 mb-6 border-b border-gray-200 pb-2">
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "header" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveAboutSection("header")}
+              >
+                Page Header
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "story" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveAboutSection("story")}
+              >
+                Our Story
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "values" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveAboutSection("values")}
+              >
+                Our Values
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "team" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveAboutSection("team")}
+              >
+                Meet Our Team
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "cta" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveAboutSection("cta")}
+              >
+                Call to Action
+              </button>
+            </div>
+
             <div className="space-y-8">
               {/* Page Header Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeAboutSection === "header" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">Page Header</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Configure the page header section.
@@ -4002,9 +4000,11 @@ const SiteContentManagement = () => {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Our Story Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeAboutSection === "story" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">Our Story</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Edit the company story section.
@@ -4186,9 +4186,11 @@ const SiteContentManagement = () => {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Our Values Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeAboutSection === "values" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">Our Values</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Manage the values cards section.
@@ -4353,9 +4355,11 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
 
               {/* Meet Our Team Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeAboutSection === "team" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Meet Our Team
                 </h3>
@@ -4550,9 +4554,11 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
 
               {/* CTA Strip Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeAboutSection === "cta" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Call to Action
                 </h3>
@@ -4744,6 +4750,7 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
             </div>
           </div>
         </div>
@@ -4779,9 +4786,38 @@ const SiteContentManagement = () => {
               saved every 30 seconds while editing.
             </p>
 
+            {/* Contact Page Section Navigation */}
+            <div className="flex space-x-2 mb-6 border-b border-gray-200 pb-2">
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeContactSection === "header" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveContactSection("header")}
+              >
+                Page Header
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeContactSection === "info" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveContactSection("info")}
+              >
+                Contact Information
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeContactSection === "form" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveContactSection("form")}
+              >
+                Enquiry Form
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeContactSection === "social" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveContactSection("social")}
+              >
+                Social Links
+              </button>
+            </div>
+
             <div className="space-y-8">
               {/* Page Header Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeContactSection === "header" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">Page Header</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Configure the page header section.
@@ -4857,9 +4893,11 @@ const SiteContentManagement = () => {
                   </div>
                 </div> */}
               </div>
+              )}
 
               {/* Contact Information Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeContactSection === "info" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Contact Information
                 </h3>
@@ -5085,9 +5123,11 @@ const SiteContentManagement = () => {
                   </p>
                 </div>
               </div>
+              )}
 
               {/* Enquiry Form Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeContactSection === "form" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">Enquiry Form</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Configure the contact form settings.
@@ -5182,9 +5222,11 @@ const SiteContentManagement = () => {
                   </p>
                 </div>
               </div>
+              )}
 
               {/* Social Links Section */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {activeContactSection === "social" && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">Social Links</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Manage social media links.
@@ -5350,6 +5392,7 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
             </div>
           </div>
         </div>
@@ -5374,8 +5417,49 @@ const SiteContentManagement = () => {
               automatically saved every 30 seconds while editing.
             </p>
 
+            {/* Footer Section Navigation */}
+            <div className="flex space-x-2 mb-6 border-b border-gray-200 pb-2">
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeFooterSection === "brand" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveFooterSection("brand")}
+              >
+                Brand Information
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeFooterSection === "quick" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveFooterSection("quick")}
+              >
+                Quick Links
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeFooterSection === "info" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveFooterSection("info")}
+              >
+                Information Links
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeFooterSection === "nav" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveFooterSection("nav")}
+              >
+                Footer Navigation
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeFooterSection === "newsletter" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveFooterSection("newsletter")}
+              >
+                Newsletter Signup
+              </button>
+              <button
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeFooterSection === "social" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveFooterSection("social")}
+              >
+                Social Media Links
+              </button>
+            </div>
+
             <div className="space-y-8">
               {/* Brand Information Section */}
+              {activeFooterSection === "brand" && (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Brand Information
@@ -5480,8 +5564,10 @@ const SiteContentManagement = () => {
                   />
                 </div>
               </div>
+              )}
 
               {/* Quick Links Section */}
+              {activeFooterSection === "quick" && (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Quick Links
@@ -5627,8 +5713,10 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
 
               {/* Information Links Section */}
+              {activeFooterSection === "info" && (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Information Links
@@ -5774,8 +5862,10 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
 
               {/* Footer Navigation Section */}
+              {activeFooterSection === "nav" && (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Footer Navigation
@@ -6024,8 +6114,10 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
 
               {/* Newsletter Signup Section */}
+              {activeFooterSection === "newsletter" && (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Newsletter Signup
@@ -6128,8 +6220,10 @@ const SiteContentManagement = () => {
                   />
                 </div>
               </div>
+              )}
 
               {/* Social Media Links */}
+              {activeFooterSection === "social" && (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-medium text-gray-700 mb-2">
                   Social Media Links
@@ -6281,6 +6375,7 @@ const SiteContentManagement = () => {
                   </button>
                 )}
               </div>
+              )}
             </div>
           </div>
         </div>
@@ -6288,229 +6383,7 @@ const SiteContentManagement = () => {
     );
   };
 
-  // Render enquiries list
-  const renderEnquiriesList = () => {
-    if (loadingEnquiries) return renderLoading();
-    if (enquiriesError) return renderError(enquiriesError);
-    if (!enquiries || !enquiries.data)
-      return renderError("Enquiries data not available");
 
-    return (
-      <div className="p-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {renderEditorToolbar()}
-
-          <div className="p-6">
-            {/* Filters */}
-            <div className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <h3 className="font-medium text-gray-700 mb-4">
-                Filter Enquiries
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Input
-                  label="Search"
-                  placeholder="Search by name, email, or subject"
-                  value={enquiryFilters.searchTerm}
-                  onChange={(e) =>
-                    handleEnquiryFilterChange("searchTerm", e.target.value)
-                  }
-                />
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-                    value={enquiryFilters.status}
-                    onChange={(e) =>
-                      handleEnquiryFilterChange("status", e.target.value)
-                    }
-                  >
-                    <option value="">All Statuses</option>
-                    <option value="new">New</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                </div>
-
-                <Input
-                  type="date"
-                  label="Start Date"
-                  value={enquiryFilters.startDate}
-                  onChange={(e) =>
-                    handleEnquiryFilterChange("startDate", e.target.value)
-                  }
-                />
-
-                <Input
-                  type="date"
-                  label="End Date"
-                  value={enquiryFilters.endDate}
-                  onChange={(e) =>
-                    handleEnquiryFilterChange("endDate", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="mt-4 flex justify-end space-x-2">
-                <Button variant="secondary" onClick={resetEnquiryFilters}>
-                  Reset
-                </Button>
-                <Button variant="primary" onClick={applyEnquiryFilters}>
-                  Apply Filters
-                </Button>
-              </div>
-            </div>
-
-            {/* Enquiries table */}
-            {enquiries.data.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No enquiries found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Name
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Email
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Subject
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Date
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Status
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {enquiries.data.map((enquiry) => (
-                      <tr key={enquiry._id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {enquiry.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {enquiry.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {enquiry.subject}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(enquiry.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(enquiry.status)}`}
-                          >
-                            {enquiry.status || "New"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex space-x-2">
-                            <select
-                              className="text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-                              value={enquiry.status || "new"}
-                              onChange={(e) =>
-                                handleUpdateEnquiryStatus(
-                                  enquiry._id,
-                                  e.target.value
-                                )
-                              }
-                            >
-                              <option value="new">New</option>
-                              <option value="in-progress">In Progress</option>
-                              <option value="resolved">Resolved</option>
-                            </select>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {enquiries.pagination && (
-              <div className="mt-6 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Showing {(enquiryPage - 1) * enquiryLimit + 1} to{" "}
-                  {Math.min(
-                    enquiryPage * enquiryLimit,
-                    enquiries.pagination.total
-                  )}{" "}
-                  of {enquiries.pagination.total} results
-                </div>
-
-                <div className="flex space-x-2">
-                  <Button
-                    variant="secondary"
-                    disabled={enquiryPage === 1}
-                    onClick={() =>
-                      setEnquiryPage((prev) => Math.max(prev - 1, 1))
-                    }
-                  >
-                    Previous
-                  </Button>
-
-                  <Button
-                    variant="secondary"
-                    disabled={enquiryPage >= enquiries.pagination.totalPages}
-                    onClick={() => setEnquiryPage((prev) => prev + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Helper function for enquiry status badge color
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case "new":
-        return "bg-blue-100 text-blue-800";
-      case "in-progress":
-        return "bg-yellow-100 text-yellow-800";
-      case "resolved":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
   return (
     <div className="h-full">
@@ -6519,12 +6392,11 @@ const SiteContentManagement = () => {
           "home",
           "about",
           "contact",
-          "footer",
-          "enquiries",
+          "footer"
         ].indexOf(activeTab)}
         onChange={(index) =>
           setActiveTab(
-            ["home", "about", "contact", "footer", "enquiries"][index]
+            ["home", "about", "contact", "footer"][index]
           )
         }
       >
@@ -6561,14 +6433,7 @@ const SiteContentManagement = () => {
           >
             Footer
           </Tab>
-          <Tab
-            className={({ selected }) => `
-            px-4 py-2 text-sm font-medium border-b-2 focus:outline-none whitespace-nowrap
-            ${selected ? "border-java-500 text-java-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}
-          `}
-          >
-            Enquiries
-          </Tab>
+
         </Tab.List>
 
         <Tab.Panels className="flex-1 overflow-auto">
@@ -6576,7 +6441,6 @@ const SiteContentManagement = () => {
           <Tab.Panel className="h-full">{renderAboutPageEditor()}</Tab.Panel>
           <Tab.Panel className="h-full">{renderContactPageEditor()}</Tab.Panel>
           <Tab.Panel className="h-full">{renderFooterEditor()}</Tab.Panel>
-          <Tab.Panel className="h-full">{renderEnquiriesList()}</Tab.Panel>
         </Tab.Panels>
       </Tab.Group>
     </div>

@@ -26,7 +26,10 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  // Initialize activeTab from localStorage or default to 'overview'
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('adminActiveTab') || 'overview';
+  });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -470,6 +473,11 @@ const AdminDashboard = () => {
     };
   };
   
+  // Save activeTab to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('adminActiveTab', activeTab);
+  }, [activeTab]);
+  
   // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
@@ -536,12 +544,11 @@ const AdminDashboard = () => {
         const topProducts = topProductsResponse.data?.data?.products || [];
         // console.log('Products response:', productsResponse.data)
         
-        // If totalProducts is 0, use a fallback value
-        if (totalProducts === 0) {
-          // Use the length of topProducts or a reasonable fallback
-          totalProducts = topProducts.length > 0 ? Math.max(topProducts.length * 5, 50) : 100;
-          // console.log('Using fallback for totalProducts:', totalProducts);
-        }
+        // If totalProducts is 0, keep it as 0 to show accurate count
+        // No fallback value needed as we want to show the real count
+        // if (totalProducts === 0) {
+        //   totalProducts = topProducts.length > 0 ? Math.max(topProducts.length * 5, 50) : 100;
+        // }
         
         // Get recent orders
         const ordersResponse = await axios.get('/orders?limit=5');
@@ -614,16 +621,15 @@ const AdminDashboard = () => {
               // Add a small percentage to account for customers who haven't ordered
               totalCustomers = Math.ceil(uniqueCustomerCount * 1.2); // Assume 20% more customers than those who ordered
             } else {
-              // If no customers found from orders either, use a reasonable fallback
-              // Base it on order count with a minimum value
-              totalCustomers = Math.max(allOrders.length * 2, 100); // Assume at least 100 customers
+              // If no customers found from orders either, show 0
+              totalCustomers = 0;
             }
           }
           
           // console.log('Final total customers calculated:', totalCustomers);
         } catch (err) {
           // console.error('Error calculating customer count:', err);
-          totalCustomers = Math.max(allOrders.length * 2, 100); // Assume at least 100 customers
+          totalCustomers = 0; // Show 0 customers when there's an error
         }
         
         // Get top selling products based on order data (only from PAID orders)
@@ -813,19 +819,19 @@ const AdminDashboard = () => {
           }
         }
         
-        // Ensure we have at least some placeholder products if both sources failed
-        if (topSellingProducts.length === 0) {
-          // Add placeholder products
-          for (let i = 0; i < 5; i++) {
-            topSellingProducts.push({
-              id: `placeholder-${i}`,
-              name: `Product ${i+1}`,
-              sales: Math.floor(Math.random() * 10) + 1,
-              stock: 0, // Default to 0 for placeholder products
-              image: null
-            });
-          }
-        }
+        // If no products found, leave the array empty instead of adding placeholders
+        // This will show 0 products in the dashboard
+        // if (topSellingProducts.length === 0) {
+        //   for (let i = 0; i < 5; i++) {
+        //     topSellingProducts.push({
+        //       id: `placeholder-${i}`,
+        //       name: `Product ${i+1}`,
+        //       sales: Math.floor(Math.random() * 10) + 1,
+        //       stock: 0,
+        //       image: null
+        //     });
+        //   }
+        // }
         
         // Ensure all products have valid stock values and add default stock for products with 0 stock
         topSellingProducts.forEach(product => {
@@ -845,11 +851,11 @@ const AdminDashboard = () => {
               });
           }
           
-          // Set a default stock value for products with 0 stock
-          if (product.stock === 0) {
-            // Generate a random stock between 5 and 20
-            product.stock = Math.floor(Math.random() * 16) + 5;
-          }
+          // Keep stock as 0 if it's actually 0
+          // No need to set a default stock value
+          // if (product.stock === 0) {
+          //   product.stock = Math.floor(Math.random() * 16) + 5;
+          // }
         });
         
         // Log the top products for debugging
@@ -864,15 +870,8 @@ const AdminDashboard = () => {
           }
         } catch (cityError) {
           // console.error('Error fetching city analytics:', cityError);
-          // Generate mock city data if API fails
-          const mockCities = [
-            { city: 'Mumbai', orderCount: 45, totalRevenue: 125000, paidOrders: 42, averageOrderValue: 2800 },
-            { city: 'Delhi', orderCount: 38, totalRevenue: 98000, paidOrders: 35, averageOrderValue: 2600 },
-            { city: 'Bangalore', orderCount: 32, totalRevenue: 85000, paidOrders: 30, averageOrderValue: 2700 },
-            { city: 'Chennai', orderCount: 28, totalRevenue: 72000, paidOrders: 26, averageOrderValue: 2500 },
-            { city: 'Kolkata', orderCount: 25, totalRevenue: 65000, paidOrders: 23, averageOrderValue: 2400 }
-          ];
-          topCities = mockCities;
+          // Return empty array instead of mock data
+          topCities = [];
         }
         
         return {

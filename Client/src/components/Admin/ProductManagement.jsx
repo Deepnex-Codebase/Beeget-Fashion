@@ -1170,7 +1170,7 @@ const ProductManagement = () => {
       
       setErrors(newErrors);
       setIsCurrentStepValid(Object.keys(newErrors).length === 0);
-    }, [currentStep, formData, errors]);
+    }, [currentStep, formData]); // Removed 'errors' from dependency array to prevent infinite loop
     
     // Validate all steps for final submission
     const validateForm = () => {
