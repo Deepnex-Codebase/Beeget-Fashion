@@ -90,41 +90,23 @@ UserSchema.index({ email: 1 });
 
 // Method to check if password is correct
 UserSchema.methods.comparePassword = async function(candidatePassword) {
-  console.log('DEBUG - comparePassword called:', {
-    hasPasswordHash: !!this.passwordHash,
-    passwordHashLength: this.passwordHash ? this.passwordHash.length : 0,
-    candidatePasswordLength: candidatePassword ? candidatePassword.length : 0
-  });
-  
-  const result = await bcrypt.compare(candidatePassword, this.passwordHash);
-  console.log('DEBUG - comparePassword result:', result);
-  return result;
+  return await bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
 // Pre-save hook to hash password
 UserSchema.pre('save', async function(next) {
-  console.log('DEBUG - User pre-save hook triggered:', {
-    isModified: this.isModified('passwordHash'),
-    isNew: this.isNew,
-    hasPasswordHash: !!this.passwordHash
-  });
-  
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('passwordHash')) {
-    console.log('DEBUG - Password not modified, skipping hash');
     return next();
   }
 
   try {
-    console.log('DEBUG - Hashing password...');
     // Generate a salt
     const salt = await bcrypt.genSalt(12);
     // Hash the password using the salt
     this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
-    console.log('DEBUG - Password hashed successfully');
     next();
   } catch (error) {
-    console.error('DEBUG - Error hashing password:', error);
     next(error);
   }
 });

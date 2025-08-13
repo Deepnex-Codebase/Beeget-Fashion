@@ -5,8 +5,7 @@ import useAuth from '../hooks/useAuth'
 import useCart from '../hooks/useCart'
 import useWishlist from '../hooks/useWishlist'
 import Button from '../components/Common/Button'
-import productImages from '../assets/product-images'
-import { toast } from 'react-toastify'
+// toast removed
 import { ChevronLeftIcon, ChevronRightIcon,ChevronDownIcon, AdjustmentsHorizontalIcon, HeartIcon, ShoppingBagIcon, XMarkIcon, FunnelIcon, ArrowsUpDownIcon, AdjustmentsVerticalIcon, StarIcon, FireIcon, TagIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid, StarIcon as StarIconSolid, FireIcon as FireIconSolid, EyeIcon } from '@heroicons/react/24/solid'
 import { FaHeart, FaRegHeart, FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa'
@@ -142,6 +141,8 @@ const Shop = () => {
             description: product.description,
             category: product.category?.name || 'Uncategorized',
             price: product.variants && product.variants.length > 0 ? product.variants[0].price : 0,
+            mrp: product.variants && product.variants.length > 0 ? 
+              (product.variants[0].mrp || product.variants[0].price) : 0,
             originalPrice: product.variants && product.variants.length > 0 ? 
               (product.variants[0].compareAtPrice || product.variants[0].price) : 0,
             images: product.images || [],
@@ -268,7 +269,8 @@ const Shop = () => {
       variantSku: variantSku
     }, 1, defaultSize, defaultColor)
     
-    toast.success(`${product.title} added to cart!`)
+    // Product added to cart notification removed
+    // toast.success(`${product.title} added to cart!`)
   }
   
   // Handle page change
@@ -614,7 +616,7 @@ const Shop = () => {
                   // Calculate discount percentage
                   const discountPercentage = product.originalPrice ? 
                     Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 
-                    60; // Default to 60% if no originalPrice is provided
+                    0; // No default discount if originalPrice is not provided
                   
                   // Get available sizes from product data
                   const availableSizes = product.category === 'accessories' ? [] : 
@@ -623,12 +625,7 @@ const Shop = () => {
                   
                   return (
                     <div key={productId} className="group relative rounded-lg xs:rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md overflow-hidden">
-                      {/* Discount Tag */}
-                      {discountPercentage > 0 && (
-                        <div className="absolute left-1 xs:left-1.5 sm:left-2 top-1 xs:top-1.5 sm:top-2 z-10 rounded-full bg-red-500 px-1 xs:px-1.5 sm:px-2.5 py-0.5 xs:py-0.5 sm:py-1 text-[8px] xs:text-[10px] sm:text-xs font-bold text-white">
-                          {Math.round(discountPercentage)}% OFF
-                        </div>
-                      )}
+                      {/* Discount Tag - Removed */}
                       
                       {/* Wishlist Button */}
                       <button
@@ -637,7 +634,7 @@ const Shop = () => {
                         aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
                       >
                         {inWishlist ? 
-                          <HeartIconSolid className="h-4 w-4 xs:h-5 xs:w-5 text-red-500" /> : 
+                          <HeartIconSolid className="h-4 w-4 xs:h-5 xs:w-5 text-java-500" /> : 
                           <HeartIcon className="h-4 w-4 xs:h-5 xs:w-5" />
                         }
                       </button>
@@ -709,14 +706,16 @@ const Shop = () => {
                         {/* Price section with improved styling */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-baseline gap-1 xs:gap-1.5">
-                            <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">₹{product.price.toFixed(2)}</p>
-                           
+                            <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">
+                              ₹{product.price ? parseInt(product.price) : (product.mrp ? parseInt(product.mrp) : '0')}
+                            </p>
+                            {product.mrp && product.price && product.mrp > product.price && (
+                              <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">
+                                ₹{parseInt(product.mrp)}
+                              </p>
+                            )}
                           </div>
-                          {discountPercentage > 0 && (
-                            <span className="text-[9px] xs:text-[10px] sm:text-xs bg-green-50 text-green-600 font-bold px-1 xs:px-1.5 py-0.5 rounded-full border border-green-100">
-                              {discountPercentage}% OFF
-                            </span>
-                          )}
+                          {/* Discount percentage removed */}
                         </div>
                         
                         {/* Available Sizes or Premium Quality */}
@@ -732,11 +731,42 @@ const Shop = () => {
                               <div className="mt-1">
                                 <p className="text-[10px] xs:text-xs font-medium text-java-600 mb-0.5 xs:mb-1">AVAILABLE SIZES:</p>
                                 <div className="flex flex-wrap gap-1 xs:gap-1.5">
-                                  {availableSizes.map(size => (
-                                    <span key={size} className="inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:bg-java-50 hover:border-java-200 transition-all cursor-pointer">
-                                      {size}
-                                    </span>
-                                  ))}
+                                  {availableSizes.map(size => {
+                                    // Find variant with this size to get its MRP
+                                    const sizeVariant = product.variants && Array.isArray(product.variants) && 
+                                      product.variants.find(v => v.attributes && v.attributes.size === size);
+                                    
+                                    return (
+                                      <span 
+                                        key={size} 
+                                        className="inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:bg-java-50 hover:border-java-200 transition-all cursor-pointer"
+                                        onClick={() => {
+                                          // Create a copy of the product
+                                          const updatedProduct = {...product};
+                                          
+                                          // Update MRP and price based on selected size variant
+                                          if (sizeVariant) {
+                                            if (sizeVariant.mrp) {
+                                              updatedProduct.mrp = sizeVariant.mrp;
+                                            }
+                                            if (sizeVariant.price) {
+                                              updatedProduct.price = sizeVariant.price;
+                                            }
+                                          }
+                                          
+                                          // Update the products array with the modified product
+                                          const updatedProducts = [...products];
+                                          const productIndex = products.findIndex(p => p._id === product._id);
+                                          if (productIndex !== -1) {
+                                            updatedProducts[productIndex] = updatedProduct;
+                                            setProducts(updatedProducts);
+                                          }
+                                        }}
+                                      >
+                                        {size}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -746,14 +776,42 @@ const Shop = () => {
                               <div className="mt-2">
                                 <p className="text-[10px] xs:text-xs font-medium text-java-600 mb-0.5 xs:mb-1">AVAILABLE COLORS:</p>
                                 <div className="flex flex-wrap gap-1 xs:gap-1.5">
-                                  {product.colors.map(color => (
-                                    <span 
-                                      key={color} 
-                                      className="inline-block w-5 h-5 xs:w-6 xs:h-6 rounded-full border border-gray-200 hover:border-java-200 transition-all cursor-pointer"
-                                      style={{ backgroundColor: color.toLowerCase() }}
-                                      title={color}
-                                    ></span>
-                                  ))}
+                                  {product.colors.map(color => {
+                                    // Find variant with this color to get its MRP
+                                    const colorVariant = product.variants && Array.isArray(product.variants) && 
+                                      product.variants.find(v => v.attributes && v.attributes.color === color);
+                                    
+                                    return (
+                                      <span 
+                                        key={color} 
+                                        className="inline-block w-5 h-5 xs:w-6 xs:h-6 rounded-full border border-gray-200 hover:border-java-200 transition-all cursor-pointer"
+                                        style={{ backgroundColor: color.toLowerCase() }}
+                                        title={color}
+                                        onClick={() => {
+                                          // Create a copy of the product
+                                          const updatedProduct = {...product};
+                                          
+                                          // Update MRP and price based on selected color variant
+                                          if (colorVariant) {
+                                            if (colorVariant.mrp) {
+                                              updatedProduct.mrp = colorVariant.mrp;
+                                            }
+                                            if (colorVariant.price) {
+                                              updatedProduct.price = colorVariant.price;
+                                            }
+                                          }
+                                          
+                                          // Update the products array with the modified product
+                                          const updatedProducts = [...products];
+                                          const productIndex = products.findIndex(p => p._id === product._id);
+                                          if (productIndex !== -1) {
+                                            updatedProducts[productIndex] = updatedProduct;
+                                            setProducts(updatedProducts);
+                                          }
+                                        }}
+                                      ></span>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}

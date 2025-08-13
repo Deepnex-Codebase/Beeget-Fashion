@@ -469,9 +469,11 @@ const Checkout = () => {
       return;
     }
     
+    // Ensure orderId is a string
+    const orderIdStr = String(orderId);
+    
     // Store orderId in localStorage for payment callback
-    localStorage.setItem('pendingOrderId', orderId);
-    // console.log('Stored pending order ID in localStorage:', orderId);
+    localStorage.setItem('pendingOrderId', orderIdStr);
     
     const cashfree = window.Cashfree({
       mode: 'sandbox', // Change to 'production' for live environment
@@ -479,14 +481,14 @@ const Checkout = () => {
     
     // Set the callback URLs for success and failure
     const baseUrl = window.location.origin;
-    const successUrl = `${baseUrl}/payment/success.html?orderId=${orderId}`;
-    const failureUrl = `${baseUrl}/payment/failure.html?orderId=${orderId}`;
+    const successUrl = `${baseUrl}/payment/success.html?orderId=${orderIdStr}`;
+    const failureUrl = `${baseUrl}/payment/failure.html?orderId=${orderIdStr}`;
     
     const checkoutOptions = {
       paymentSessionId: orderToken,
       redirectTarget: '_blank', // Changed from '_self' to '_blank' to ensure proper redirection
       orderToken: orderToken,
-      orderId: orderId,
+      orderId: orderIdStr,
       components: [
         "order-details",
         "card",
@@ -592,13 +594,20 @@ const Checkout = () => {
         couponCode: couponCode || null,
         // If using existing address, include the address ID
         addressId: useExistingAddress ? data.selectedAddressId : null,
-        // Add customer details for payment processing
-        customerName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-        customerEmail: data.email,
-        customerPhone: data.phone,
+        // Add customer details for payment processing - ensure these are never empty
+        customerName: `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Customer',
+        customerEmail: data.email || 'guest@example.com',
+        customerPhone: data.phone || '0000000000',
         // Add isGuestCheckout flag
         isGuestCheckout: isGuestCheckout
       };
+      
+      // Validate required payment parameters
+      if (data.paymentMethod === 'cashfree' && (!orderPayload.customerEmail || !orderPayload.customerPhone)) {
+        toast.error('Email and phone number are required for online payment');
+        setProcessingOrder(false);
+        return;
+      }
       
       // Process checkout using CartContext
       const result = await checkout(orderPayload);
@@ -608,33 +617,131 @@ const Checkout = () => {
           // If payment method is Cashfree, initialize payment
           if (result.data && result.data.paymentToken) {
             setCashfreeOrderToken(result.data.paymentToken);
-            setCashfreeOrderId(result.data.orderId || (result.data.order && result.data.order._id));
+            
+            // Safely extract order ID
+            let extractedOrderId;
+            
+            if (result.data.orderId) {
+              extractedOrderId = result.data.orderId;
+            } else if (result.data.order && typeof result.data.order === 'object') {
+              if (result.data.order._id) {
+                extractedOrderId = result.data.order._id;
+              } else if (result.data.order.id) {
+                extractedOrderId = result.data.order.id;
+              } else if (result.data.order.order_id) {
+                extractedOrderId = result.data.order.order_id;
+              }
+            } else if (result.data.order_id) {
+              extractedOrderId = result.data.order_id;
+            } else if (result.data.paymentDetails && result.data.paymentDetails.orderId) {
+              extractedOrderId = result.data.paymentDetails.orderId;
+            } else if (result.data._id) {
+              extractedOrderId = result.data._id;
+            }
+            
+            // If still no order ID, use a fallback
+            if (!extractedOrderId) {
+              extractedOrderId = 'ORDER-' + Date.now();
+            }
+            
+            // Set the extracted order ID - ensure it's a string
+            const finalOrderId = String(extractedOrderId);
+            
+            setCashfreeOrderId(finalOrderId);
+            setOrderId(finalOrderId);
             
             // Show payment processing message instead of order success
             setProcessingPayment(true);
             
             // Initialize Cashfree payment
-            initializeCashfreePayment(result.data.paymentToken, result.data.orderId || (result.data.order && result.data.order._id));
+            initializeCashfreePayment(result.data.paymentToken, finalOrderId);
           } else if (result.data && result.data.data && result.data.data.paymentToken) {
             // Alternative data structure
             setCashfreeOrderToken(result.data.data.paymentToken);
-            setCashfreeOrderId(result.data.data.orderId || (result.data.data.order && result.data.data.order._id) || result.data.data.paymentDetails.orderId);
+            
+            // Safely extract order ID from nested data structure
+            let extractedOrderId;
+            const nestedData = result.data.data;
+            
+            if (nestedData.orderId) {
+              extractedOrderId = nestedData.orderId;
+            } else if (nestedData.order && typeof nestedData.order === 'object') {
+              if (nestedData.order._id) {
+                extractedOrderId = nestedData.order._id;
+              } else if (nestedData.order.id) {
+                extractedOrderId = nestedData.order.id;
+              }
+            } else if (nestedData.paymentDetails && nestedData.paymentDetails.orderId) {
+              extractedOrderId = nestedData.paymentDetails.orderId;
+            } else if (nestedData.order_id) {
+              extractedOrderId = nestedData.order_id;
+            }
+            
+            // If still no order ID, use a fallback
+            if (!extractedOrderId) {
+              extractedOrderId = 'ORDER-' + Date.now();
+            }
+            
+            // Set the extracted order ID - ensure it's a string
+            const finalOrderId = String(extractedOrderId);
+            
+            setCashfreeOrderId(finalOrderId);
+            setOrderId(finalOrderId);
             
             // Show payment processing message instead of order success
             setProcessingPayment(true);
             
             // Initialize Cashfree payment
-            initializeCashfreePayment(
-              result.data.data.paymentToken, 
-              result.data.data.orderId || (result.data.data.order && result.data.data.order._id) || result.data.data.paymentDetails.orderId
-            );
+            initializeCashfreePayment(nestedData.paymentToken, finalOrderId);
           } else {
             // console.error('Payment data structure:', result.data);
             throw new Error('Payment initialization failed. Please try again.');
           }
         } else {
           // For other payment methods, show order confirmation
-          setOrderId(result.data.order_id || (result.data.order && result.data.order._id) || result.data.order_id);
+          // Safely extract order ID from various possible structures
+          let extractedOrderId;
+          
+          if (result.data.order_id) {
+            extractedOrderId = result.data.order_id;
+          } else if (result.data.orderId) {
+            extractedOrderId = result.data.orderId;
+            console.log('Using result.data.orderId:', extractedOrderId);
+          } else if (result.data.order && typeof result.data.order === 'object') {
+            if (result.data.order._id) {
+              extractedOrderId = result.data.order._id;
+              console.log('Using result.data.order._id:', extractedOrderId);
+            } else if (result.data.order.id) {
+              extractedOrderId = result.data.order.id;
+              console.log('Using result.data.order.id:', extractedOrderId);
+            } else if (result.data.order.order_id) {
+              extractedOrderId = result.data.order.order_id;
+              console.log('Using result.data.order.order_id:', extractedOrderId);
+            }
+          } else if (result.data.data) {
+            // Try to extract from nested data structure
+            const nestedData = result.data.data;
+            if (nestedData.order_id) {
+              extractedOrderId = nestedData.order_id;
+            } else if (nestedData.orderId) {
+              extractedOrderId = nestedData.orderId;
+            } else if (nestedData.order && typeof nestedData.order === 'object') {
+              if (nestedData.order._id) {
+                extractedOrderId = nestedData.order._id;
+              } else if (nestedData.order.id) {
+                extractedOrderId = nestedData.order.id;
+              } else if (nestedData.order.order_id) {
+                extractedOrderId = nestedData.order.order_id;
+              }
+            }
+          }
+          
+          // If still no order ID, try to use a fallback
+          if (!extractedOrderId) {
+            extractedOrderId = 'ORDER-' + Date.now();
+          }
+          
+          setOrderId(extractedOrderId);
           setOrderPlaced(true);
           clearCart();
         }
@@ -1171,7 +1278,7 @@ const Checkout = () => {
                       </p>
                       <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                     </div>
-                    <p className="text-sm font-medium text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="text-sm font-medium text-gray-900">₹{parseInt(item.mrp * item.quantity)}</p>
                   </div>
                 ))}
               </div>
@@ -1215,7 +1322,7 @@ const Checkout = () => {
                       </Button>
                     </div>
                     <div className="mt-1 text-sm text-green-600">
-                      You saved: ₹{couponDiscount.toFixed(2)}
+                      You saved: ₹{parseInt(couponDiscount)}
                     </div>
                   </div>
                 )}
@@ -1228,35 +1335,35 @@ const Checkout = () => {
               <div className="border-t border-gray-200 pt-4 space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">₹{getCartSubtotal().toFixed(2)}</span>
+                  <span className="font-medium">₹{parseInt(getCartSubtotal())}</span>
                 </div>
                 
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span className="font-medium">-₹{couponDiscount.toFixed(2)}</span>
+                    <span className="font-medium">-₹{parseInt(couponDiscount)}</span>
                   </div>
                 )}
                 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
                   <span className="font-medium">
-                    {getCartSubtotal() >= 1000 ? 'Free' : `₹${shippingCost.toFixed(2)}`}
+                    {getCartSubtotal() >= 1000 ? 'Free' : `₹${parseInt(shippingCost)}`}
                   </span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tax (GST)</span>
-                  <span className="font-medium">₹{tax.toFixed(2)}</span>
+                  <span className="font-medium">₹{parseInt(tax)}</span>
                 </div>
                 
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span>₹{getCartTotal().toFixed(2)}</span>
+                    <span>₹{parseInt(getCartTotal())}</span>
                   </div>
                   {getCartSubtotal() < 1000 && (
-                    <p className="text-xs text-gray-500 mt-1">Add ₹{(1000 - getCartSubtotal()).toFixed(2)} more to get free shipping</p>
+                    <p className="text-xs text-gray-500 mt-1">Add ₹{parseInt(1000 - getCartSubtotal())} more to get free shipping</p>
                   )}
                 </div>
               </div>

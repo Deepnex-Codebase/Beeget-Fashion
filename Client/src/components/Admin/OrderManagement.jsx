@@ -194,6 +194,8 @@ const OrderManagement = () => {
         return 'bg-green-100 text-green-800'
       case 'cancelled':
         return 'bg-red-100 text-red-800'
+      case 'stock_issue':
+        return 'bg-yellow-100 text-yellow-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -244,6 +246,7 @@ const OrderManagement = () => {
               <option value="shipped">Shipped</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
+              <option value="stock_issue">Stock Issue</option>
             </select>
             
             <select
@@ -465,6 +468,7 @@ const OrderManagement = () => {
                     <option value="shipped">Shipped</option>  
                     <option value="delivered">Delivered</option>
                     <option value="cancelled">Cancelled</option>
+                    <option value="stock_issue">Stock Issue</option>
                   </select>
                   
                   <Button

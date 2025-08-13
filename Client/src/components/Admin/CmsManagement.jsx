@@ -104,10 +104,27 @@ const CmsManagement = () => {
 
   const handleContentBlockChange = (index, field, value) => {
     const updatedBlocks = [...formData.contentBlocks];
-    updatedBlocks[index] = {
-      ...updatedBlocks[index],
-      [field]: value
-    };
+    
+    // Special handling for adding paragraphs to ensure proper formatting
+    if (field === 'data' && updatedBlocks[index].type === 'text') {
+      // Ensure proper paragraph formatting for text blocks
+      updatedBlocks[index] = {
+        ...updatedBlocks[index],
+        [field]: value
+      };
+    } else if (field === 'data' && updatedBlocks[index].type === 'html') {
+      // Ensure proper HTML formatting for html blocks
+      updatedBlocks[index] = {
+        ...updatedBlocks[index],
+        [field]: value
+      };
+    } else {
+      // Default handling for other fields
+      updatedBlocks[index] = {
+        ...updatedBlocks[index],
+        [field]: value
+      };
+    }
     
     setFormData(prev => ({
       ...prev,
@@ -229,23 +246,109 @@ const CmsManagement = () => {
     switch (block.type) {
       case 'text':
         return (
-          <textarea
-            value={block.data}
-            onChange={(e) => handleContentBlockChange(index, 'data', e.target.value)}
-            rows="4"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-            placeholder="Enter text content"
-          ></textarea>
+          <div>
+            <textarea
+              id={`text-block-${index}`}
+              value={block.data}
+              onChange={(e) => handleContentBlockChange(index, 'data', e.target.value)}
+              rows="6"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+              placeholder="Enter text content"
+            ></textarea>
+            <div className="mt-2 flex justify-between items-center">
+              <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
+              <button
+                type="button"
+                onClick={() => {
+                  // Get the textarea element
+                  const textarea = document.getElementById(`text-block-${index}`);
+                  const cursorPos = textarea.selectionStart;
+                  
+                  // Insert paragraph break at cursor position
+                  const textBefore = block.data.substring(0, cursorPos);
+                  const textAfter = block.data.substring(cursorPos);
+                  const newData = textBefore + '\n\n' + textAfter;
+                  
+                  handleContentBlockChange(index, 'data', newData);
+                  
+                  // Set focus back to textarea and position cursor after the inserted paragraph
+                  setTimeout(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                  }, 0);
+                }}
+                className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+              >
+                Add Paragraph
+              </button>
+            </div>
+          </div>
         );
       case 'html':
         return (
-          <textarea
-            value={block.data}
-            onChange={(e) => handleContentBlockChange(index, 'data', e.target.value)}
-            rows="6"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 font-mono text-sm"
-            placeholder="Enter HTML content"
-          ></textarea>
+          <div>
+            <textarea
+              id={`html-block-${index}`}
+              value={block.data}
+              onChange={(e) => handleContentBlockChange(index, 'data', e.target.value)}
+              rows="6"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 font-mono text-sm"
+              placeholder="Enter HTML content"
+            ></textarea>
+            <div className="mt-2 flex justify-between items-center">
+              <p className="text-xs text-gray-500">Place cursor where you want to add content</p>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Get the textarea element
+                    const textarea = document.getElementById(`html-block-${index}`);
+                    const cursorPos = textarea.selectionStart;
+                    
+                    // Insert line break at cursor position
+                    const textBefore = block.data.substring(0, cursorPos);
+                    const textAfter = block.data.substring(cursorPos);
+                    const newData = textBefore + '\n\n' + textAfter;
+                    
+                    handleContentBlockChange(index, 'data', newData);
+                    
+                    // Set focus back to textarea and position cursor after the inserted line break
+                    setTimeout(() => {
+                      textarea.focus();
+                      textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                    }, 0);
+                  }}
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                >
+                  Add Line Break
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Get the textarea element
+                    const textarea = document.getElementById(`html-block-${index}`);
+                    const cursorPos = textarea.selectionStart;
+                    
+                    // Insert paragraph tags at cursor position
+                    const textBefore = block.data.substring(0, cursorPos);
+                    const textAfter = block.data.substring(cursorPos);
+                    const newData = textBefore + '\n<p>\n\t\n</p>' + textAfter;
+                    
+                    handleContentBlockChange(index, 'data', newData);
+                    
+                    // Set focus back to textarea and position cursor inside the paragraph tags
+                    setTimeout(() => {
+                      textarea.focus();
+                      textarea.setSelectionRange(cursorPos + 6, cursorPos + 6);
+                    }, 0);
+                  }}
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                >
+                  Add Paragraph
+                </button>
+              </div>
+            </div>
+          </div>
         );
       case 'image':
         return (

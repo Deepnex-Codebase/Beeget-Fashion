@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import Button from '../components/Common/Button'
 import useAuth from '../hooks/useAuth'
 import useCart from '../hooks/useCart'
-import { toast } from 'react-toastify'
+// Toast import removed
+// import { toast } from 'react-toastify'
 
 const Cart = () => {
   // Use cart context instead of static data
@@ -16,7 +17,8 @@ const Cart = () => {
   // Handle coupon application
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
-      toast.error('Please enter a coupon code')
+      // Error notification removed
+      // toast.error('Please enter a coupon code')
       return
     }
     
@@ -25,7 +27,8 @@ const Cart = () => {
     setIsApplyingCoupon(false)
     
     if (!result.success) {
-      toast.error(result.error || 'Invalid coupon code')
+      // Error notification removed
+      // toast.error(result.error || 'Invalid coupon code')
     }
     
     setCouponInput('')
@@ -158,7 +161,12 @@ const Cart = () => {
                   {/* Price */}
                   <div className="col-span-2 text-center">
                     <span className="sm:hidden inline-block font-medium mr-2">Price:</span>
-                    ₹{parseFloat(item.price).toFixed(2)}
+                    <div>
+                      <span className="font-medium">₹{parseInt(typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price) || 0) || 0}</span>
+                      {item.mrp && item.price && parseFloat(item.mrp) > parseFloat(item.price) && (
+                        <span className="text-xs text-gray-500 line-through ml-2">₹{parseInt(parseFloat(item.price) || 0) || 0}</span>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Quantity */}
@@ -197,7 +205,7 @@ const Cart = () => {
                   {/* Total */}
                   <div className="col-span-2 text-center font-medium">
                     <span className="sm:hidden inline-block font-medium mr-2">Total:</span>
-                    ₹{(parseFloat(item.price) * parseInt(item.quantity)).toFixed(2)}
+                    ₹{parseInt((typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price) || 0) * (typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0)) || 0}
                   </div>
                 </div>
               ))}
@@ -225,14 +233,15 @@ const Cart = () => {
                   cart.forEach(item => {
                     updateQuantity(item.id || item._id, item.quantity, item.size, item.color);
                   });
-                  toast.success('Cart updated successfully!', {
-                    position: "top-right",
-                    autoClose: 3000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    pauseOnHover: true,
-                    draggable: true
-                  });
+                  // Success notification removed
+                  // toast.success('Cart updated successfully!', {
+                  //   position: "top-right",
+                  //   autoClose: 3000,
+                  //   hideProgressBar: false,
+                  //   closeOnClick: true,
+                  //   pauseOnHover: true,
+                  //   draggable: true
+                  // });
                 }}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -291,27 +300,27 @@ const Cart = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                  <span className="font-medium">₹{isNaN(subtotal) ? 0 : parseInt(subtotal)}</span>
                 </div>
                 
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span>-₹{couponDiscount.toFixed(2)}</span>
+                    <span>-₹{isNaN(couponDiscount) ? 0 : parseInt(couponDiscount)}</span>
                   </div>
                 )}
                 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
                   <span className="font-medium">
-                    {shippingCost === 0 ? 'Free' : `₹${shippingCost.toFixed(2)}`}
+                    {shippingCost === 0 ? 'Free' : `₹${isNaN(shippingCost) ? 0 : parseInt(shippingCost)}`}
                   </span>
                 </div>
                 
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span>₹{total.toFixed(2)}</span>
+                    <span>₹{isNaN(total) ? 0 : parseInt(total)}</span>
                   </div>
                   <p className="text-gray-500 text-xs mt-1">Including VAT</p>
                 </div>

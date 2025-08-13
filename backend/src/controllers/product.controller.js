@@ -3,11 +3,43 @@ import Category from '../models/category.model.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { logger } from '../utils/logger.js';
 import { deleteFile, getFileUrl } from '../config/multer.js';
+import { validateProduct, validateVariant, PRODUCT_CONFIG } from '../config/productConfig.js';
 import path from 'path';
 import mongoose from 'mongoose';
 import fs from 'fs';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
+
+/**
+ * Helper function to clean up uploaded files in case of error
+ */
+const cleanupUploadedFiles = (files) => {
+  if (!files) return;
+  
+  // Handle image files
+  if (files.images && files.images.length > 0) {
+    logger.warn(`Cleaning up ${files.images.length} image files due to error`);
+    files.images.forEach(file => {
+      try {
+        deleteFile(file.path);
+        logger.info(`Deleted image file: ${file.path}`);
+      } catch (deleteError) {
+        logger.error(`Failed to delete image file ${file.path}: ${deleteError.message}`);
+      }
+    });
+  }
+  
+  // Handle video files
+  if (files.video && files.video.length > 0) {
+    logger.warn(`Cleaning up video file due to error`);
+    try {
+      deleteFile(files.video[0].path);
+      logger.info(`Deleted video file: ${files.video[0].path}`);
+    } catch (deleteError) {
+      logger.error(`Failed to delete video file ${files.video[0].path}: ${deleteError.message}`);
+    }
+  }
+};
 
 /**
  * Create a new product
@@ -19,13 +51,32 @@ export const createProduct = async (req, res, next) => {
       description,
       category,
       variants,
-      gstRate
+      gstRate,
+      media_type, // Add media_type field to determine if main media is video or image
+      // Extract product detail fields
+      color,
+      colors, // Add support for multiple colors
+      comboOf,
+      fabric,
+      fitShape,
+      length,
+      neck,
+      occasion,
+      pattern,
+      printType,
+      sleeveType,
+      stitchingType,
+      countryOfOrigin,
+      brand,
+      embellishment,
+      ornamentation,
+      sleeveStyling,
+      importerDetails,
+      sleeveLength,
+      stitchType,
+      manufacturerDetails,
+      packerDetails
     } = req.body;
-
-    // Validate required fields
-    if (!title || !description || !category || !variants || variants.length === 0) {
-      throw new AppError('Missing required product fields', 400);
-    }
 
     // Parse variants if it's a string (from form-data)
     let parsedVariants = variants;
@@ -37,25 +88,45 @@ export const createProduct = async (req, res, next) => {
       }
     }
 
-    // Validate variants
-    if (!Array.isArray(parsedVariants)) {
-      throw new AppError('Variants must be an array', 400);
-    }
-
-    // Check if all variants have required fields
-    parsedVariants.forEach((variant, index) => {
-      if (!variant.sku || !variant.price || !variant.stock || !variant.attributes) {
-        throw new AppError(`Variant at index ${index} is missing required fields`, 400);
-      }
+    // Use dynamic validation from config
+    const productValidation = validateProduct({
+      title,
+      description,
+      category,
+      variants: parsedVariants
     });
 
-    // Process uploaded images
+    if (!productValidation.isValid) {
+      const firstError = productValidation.errors[0];
+      throw new AppError(firstError.message, 400);
+    }
+
+    // Process uploaded images and videos
     const images = [];
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        // Just store the URL as string as per the model definition
-        images.push(getFileUrl(file.path));
+    let video = null;
+    
+    // Handle images
+    if (req.files && req.files.images) {
+      logger.info(`Processing ${req.files.images.length} product images`);
+      req.files.images.forEach(file => {
+        const fileUrl = getFileUrl(file.path);
+        logger.info(`Added image: ${file.originalname}, URL: ${fileUrl}`);
+        images.push(fileUrl);
       });
+    }
+    
+    // Handle video
+    if (req.files && req.files.video && req.files.video.length > 0) {
+      const videoFile = req.files.video[0];
+      logger.info(`Processing video: ${videoFile.originalname}, size: ${videoFile.size} bytes, mimetype: ${videoFile.mimetype}`);
+      
+      try {
+        video = getFileUrl(videoFile.path);
+        logger.info(`Video processed successfully, URL: ${video}`);
+      } catch (error) {
+        logger.error(`Error processing video: ${error.message}`);
+        throw new AppError('Failed to process video file', 500);
+      }
     }
 
     // Create new product
@@ -65,7 +136,33 @@ export const createProduct = async (req, res, next) => {
       category,
       variants: parsedVariants,
       images,
-      gstRate: gstRate || 18 // Default GST rate
+      video, // Add video field
+      media_type: media_type || (video ? 'video' : 'image'), // Set media_type based on uploaded content
+      gstRate: gstRate || PRODUCT_CONFIG.DEFAULTS.gstRate,
+      // Add product detail fields
+      color,
+      // Parse colors if it's a string (from form-data)
+      colors: colors ? (typeof colors === 'string' ? JSON.parse(colors) : colors) : undefined,
+      comboOf,
+      fabric,
+      fitShape,
+      length,
+      neck,
+      occasion,
+      pattern,
+      printType,
+      sleeveType,
+      stitchingType,
+      countryOfOrigin,
+      brand,
+      embellishment,
+      ornamentation,
+      sleeveStyling,
+      importerDetails,
+      sleeveLength,
+      stitchType,
+      manufacturerDetails,
+      packerDetails
     });
 
     await product.save();
@@ -80,11 +177,7 @@ export const createProduct = async (req, res, next) => {
     });
   } catch (error) {
     // Delete uploaded files if there was an error
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        deleteFile(file.path);
-      });
-    }
+    cleanupUploadedFiles(req.files);
     next(error);
   }
 };
@@ -128,14 +221,14 @@ export const getProducts = async (req, res, next) => {
         if (collectionDoc && collectionDoc.products && collectionDoc.products.length > 0) {
           // Filter products by their IDs in the collection
           query._id = { $in: collectionDoc.products };
-          console.log(`Filtering products by collection ${collection}, found ${collectionDoc.products.length} products`);
+          logger.info(`Filtering products by collection ${collection}, found ${collectionDoc.products.length} products`);
         } else {
           // If collection exists but has no products, return empty result
-          console.log(`Collection ${collection} exists but has no products`);
+          logger.info(`Collection ${collection} exists but has no products`);
           query._id = { $in: [] }; // This will return no results
         }
       } else {
-        console.log(`Invalid collection ID: ${collection}`);
+        logger.warn(`Invalid collection ID: ${collection}`);
       }
     }
 
@@ -226,7 +319,30 @@ export const updateProduct = async (req, res, next) => {
       category,
       variants,
       gstRate,
-      removeImages
+      removeImages,
+      // Extract product detail fields
+      color,
+      colors, // Add support for multiple colors
+      comboOf,
+      fabric,
+      fitShape,
+      length,
+      neck,
+      occasion,
+      pattern,
+      printType,
+      sleeveType,
+      stitchingType,
+      countryOfOrigin,
+      brand,
+      embellishment,
+      ornamentation,
+      sleeveStyling,
+      importerDetails,
+      sleeveLength,
+      stitchType,
+      manufacturerDetails,
+      packerDetails
     } = req.body;
 
     // Find product
@@ -240,6 +356,42 @@ export const updateProduct = async (req, res, next) => {
     if (description) product.description = description;
     if (category) product.category = category;
     if (gstRate) product.gstRate = gstRate;
+    
+    // Update product detail fields if provided
+    if (color !== undefined) product.color = color;
+    // Update colors array if provided
+    if (colors) {
+      // Parse colors if it's a string (from form-data)
+      let parsedColors = colors;
+      if (typeof colors === 'string') {
+        try {
+          parsedColors = JSON.parse(colors);
+        } catch (error) {
+          throw new AppError('Invalid colors format', 400);
+        }
+      }
+      product.colors = parsedColors;
+    }
+    if (comboOf !== undefined) product.comboOf = comboOf;
+    if (fabric !== undefined) product.fabric = fabric;
+    if (fitShape !== undefined) product.fitShape = fitShape;
+    if (length !== undefined) product.length = length;
+    if (neck !== undefined) product.neck = neck;
+    if (occasion !== undefined) product.occasion = occasion;
+    if (pattern !== undefined) product.pattern = pattern;
+    if (printType !== undefined) product.printType = printType;
+    if (sleeveType !== undefined) product.sleeveType = sleeveType;
+    if (stitchingType !== undefined) product.stitchingType = stitchingType;
+    if (countryOfOrigin !== undefined) product.countryOfOrigin = countryOfOrigin;
+    if (brand !== undefined) product.brand = brand;
+    if (embellishment !== undefined) product.embellishment = embellishment;
+    if (ornamentation !== undefined) product.ornamentation = ornamentation;
+    if (sleeveStyling !== undefined) product.sleeveStyling = sleeveStyling;
+    if (importerDetails !== undefined) product.importerDetails = importerDetails;
+    if (sleeveLength !== undefined) product.sleeveLength = sleeveLength;
+    if (stitchType !== undefined) product.stitchType = stitchType;
+    if (manufacturerDetails !== undefined) product.manufacturerDetails = manufacturerDetails;
+    if (packerDetails !== undefined) product.packerDetails = packerDetails;
 
     // Parse variants if it's a string (from form-data)
     if (variants) {
@@ -252,15 +404,17 @@ export const updateProduct = async (req, res, next) => {
         }
       }
 
-      // Validate variants
+      // Use dynamic validation from config
       if (!Array.isArray(parsedVariants)) {
         throw new AppError('Variants must be an array', 400);
       }
 
-      // Check if all variants have required fields
+      // Validate each variant using dynamic config
       parsedVariants.forEach((variant, index) => {
-        if (!variant.sku || !variant.price || !variant.stock || !variant.attributes) {
-          throw new AppError(`Variant at index ${index} is missing required fields`, 400);
+        const variantValidation = validateVariant(variant, index);
+        if (!variantValidation.isValid) {
+          const firstError = variantValidation.errors[0];
+          throw new AppError(firstError.message, 400);
         }
       });
 
@@ -296,12 +450,38 @@ export const updateProduct = async (req, res, next) => {
       }
     }
 
+    // Handle video update if provided
+    if (req.files && req.files.video && req.files.video.length > 0) {
+      // If there's an existing video, delete it first
+      if (product.video) {
+        try {
+          const urlPath = new URL(product.video).pathname;
+          const filePath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+          if (filePath) {
+            deleteFile(filePath);
+          }
+        } catch (error) {
+          logger.warn(`Failed to delete old video: ${error.message}`);
+        }
+      }
+      
+      // Update with new video
+      logger.info(`Updating product video: ${req.files.video[0].originalname}`);
+      product.video = getFileUrl(req.files.video[0].path);
+      product.media_type = 'video';
+    }
+    
     // Add new images if uploaded
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
+    if (req.files && req.files.images) {
+      req.files.images.forEach(file => {
         // Just store the URL as string as per the model definition
         product.images.push(getFileUrl(file.path));
       });
+      
+      // If no video is set but images are present, ensure media_type is image
+      if (!product.video && product.images.length > 0) {
+        product.media_type = 'image';
+      }
     }
 
     await product.save();
@@ -316,11 +496,7 @@ export const updateProduct = async (req, res, next) => {
     });
   } catch (error) {
     // Delete uploaded files if there was an error
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        deleteFile(file.path);
-      });
-    }
+    cleanupUploadedFiles(req.files);
     next(error);
   }
 };
@@ -466,11 +642,18 @@ export const bulkUploadProducts = async (req, res, next) => {
         if (row.color) attributes.color = row.color;
         if (row.size) attributes.size = row.size;
         
-        // Create variant object
+        // Create variant object with new fields
         const variant = {
-          sku: row.sku,
-          price: parseFloat(row.price),
+          sku: row.sku || '', // SKU is now optional
+          meeshoPrice: parseFloat(row.meeshoPrice),
+          wrongDefectivePrice: row.wrongDefectivePrice ? parseFloat(row.wrongDefectivePrice) : undefined,
+          mrp: parseFloat(row.mrp),
           stock: parseInt(row.stock, 10),
+          bustSize: parseFloat(row.bustSize),
+          shoulderSize: parseFloat(row.shoulderSize),
+          waistSize: parseFloat(row.waistSize),
+          sizeLength: parseFloat(row.sizeLength),
+          hipSize: row.hipSize ? parseFloat(row.hipSize) : undefined,
           attributes
         };
         
@@ -495,7 +678,7 @@ export const bulkUploadProducts = async (req, res, next) => {
             category: row.category,
             variants: [variant],
             images: images,
-            gstRate: row.gstRate ? parseFloat(row.gstRate) : 18
+            gstRate: row.gstRate ? parseFloat(row.gstRate) : PRODUCT_CONFIG.DEFAULTS.gstRate
           };
         }
       });
@@ -509,24 +692,13 @@ export const bulkUploadProducts = async (req, res, next) => {
       const jsonData = JSON.parse(fileContent);
       
       if (Array.isArray(jsonData)) {
-        // Validate each product in the JSON array
+        // Validate each product in the JSON array using dynamic config
         jsonData.forEach((product, index) => {
-          // Check required fields
-          if (!product.title || !product.description || !product.category) {
-            throw new AppError(`Product at index ${index} is missing required fields (title, description, or category)`, 400);
+          const productValidation = validateProduct(product);
+          if (!productValidation.isValid) {
+            const firstError = productValidation.errors[0];
+            throw new AppError(`Product '${product.title || 'Unknown'}' at index ${index}: ${firstError.message}`, 400);
           }
-          
-          // Ensure variants is an array
-          if (!product.variants || !Array.isArray(product.variants) || product.variants.length === 0) {
-            throw new AppError(`Product '${product.title}' at index ${index} must have at least one variant`, 400);
-          }
-          
-          // Check each variant
-          product.variants.forEach((variant, vIndex) => {
-            if (!variant.sku || variant.price === undefined || variant.stock === undefined) {
-              throw new AppError(`Variant at index ${vIndex} for product '${product.title}' is missing required fields (sku, price, or stock)`, 400);
-            }
-          });
         });
         
         products = jsonData;

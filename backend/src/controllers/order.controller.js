@@ -36,8 +36,7 @@ const generateOrderId = async () => {
 /**
  * Create a new order
  */
-export const  createOrder = async (req, res, next) => {
-  // console.log(req.body);
+export const createOrder = async (req, res, next) => {
   try {
     const { items, shipping, payment, couponCode, guestSessionId } = req.body;
 
@@ -128,13 +127,14 @@ export const  createOrder = async (req, res, next) => {
         );
       }
 
-      // Check stock
-      if (variant.stock < qty) {
+      // Check stock - allow order to proceed even if stock is insufficient for Cashfree payments
+      // This will be validated again after payment is completed
+      if (variant.stock < qty && payment.method !== 'CASHFREE') {
         throw new AppError(`Insufficient stock for variant ${variantSku}`, 400);
       }
 
-      // Calculate item price and GST
-      const price = variant.price;
+      // Calculate item price and GST (using MRP if available)
+      const price = variant.mrp || variant.price;
       const gstAmount = (price * product.gstRate) / 100;
       const totalPrice = price * qty;
       const totalGSTForItem = gstAmount * qty;
@@ -144,7 +144,7 @@ export const  createOrder = async (req, res, next) => {
         productId: productId,
         variantSku: variantSku,
         qty,
-        price,
+        mrp: price,
         gstRate: product.gstRate,
         gstAmount: gstAmount,
         totalPrice,
@@ -162,7 +162,7 @@ export const  createOrder = async (req, res, next) => {
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode });
 
-      console.log(coupon)
+      logger.info(`Applied coupon: ${couponCode}`)
 
       if (!coupon) {
         throw new AppError("Invalid coupon code", 400);
@@ -256,14 +256,22 @@ export const  createOrder = async (req, res, next) => {
         }
       }
       
-      // Ensure we have valid phone number
+      // Ensure we have valid customer details with fallbacks
+      if (!customerName) {
+        customerName = "Customer"; // Fallback customer name
+      }
+      
+      if (!customerEmail) {
+        customerEmail = "guest@example.com"; // Fallback email
+      }
+      
       if (!customerPhone) {
         customerPhone = "0000000000"; // Fallback phone number
       }
 
       // Create payment order with popup checkout
       const paymentOrder = await paymentService.createPopupCheckoutOrder({
-        orderId: order._id.toString(),
+        orderId: order.order_id,
         orderAmount: order.total,
         customerName,
         customerEmail,
@@ -273,7 +281,27 @@ export const  createOrder = async (req, res, next) => {
       });
 
       if (!paymentOrder.success) {
-        throw new AppError("Failed to create payment order", 500);
+        logger.error(`Failed to create payment order for order ${order._id}:`, paymentOrder.error);
+        
+        // Check if there's a stock issue
+        const errorMessage = paymentOrder.error?.message || 'Failed to create payment order';
+        const errorStatus = paymentOrder.details?.status || 500;
+        
+        // If there's a stock issue, update order status
+        if (errorMessage.toLowerCase().includes('stock') || 
+            (paymentOrder.error && JSON.stringify(paymentOrder.error).toLowerCase().includes('stock'))) {
+          order.status = 'STOCK_ISSUE';
+          order.statusHistory.push({
+            status: 'STOCK_ISSUE',
+            timestamp: new Date(),
+            note: 'Stock issue detected during payment processing',
+          });
+          await order.save();
+          
+          throw new AppError("Stock issue detected. Please check item availability.", errorStatus);
+        }
+        
+        throw new AppError(errorMessage, errorStatus);
       }
 
       // Return order with payment token and details for popup checkout
@@ -320,7 +348,7 @@ export const  createOrder = async (req, res, next) => {
           if (user.whatsappNumber) {
             await sendOrderConfirmationSMS(
               user.whatsappNumber,
-              order._id.toString()
+              order.order_id // Use order.order_id instead of order._id.toString()
             );
           }
         }
@@ -347,7 +375,7 @@ export const  createOrder = async (req, res, next) => {
           try {
             await sendOrderConfirmationSMS(
               guestPhone,
-              order._id.toString()
+              order.order_id // Use order.order_id instead of order._id.toString()
             );
             logger.info(`Guest order confirmation SMS sent to ${guestPhone} for order ${order._id}`);
           } catch (smsError) {
@@ -365,8 +393,8 @@ export const  createOrder = async (req, res, next) => {
       message: "Order created successfully",
       data: {
         order,
-        orderId: order._id.toString(),
-        order_id: order.order_id
+        orderId: order.order_id,
+        orderDbId: order._id.toString(), // Include MongoDB _id as orderDbId for reference if needed
       },
     });
   } catch (error) {
@@ -583,7 +611,7 @@ export const updateOrderStatus = async (req, res, next) => {
       ) {
         await sendShippingUpdateSMS(
           order.userId.whatsappNumber,
-          order._id.toString(),
+          order.order_id, // Use order.order_id instead of order._id.toString()
           status,
           order.shipping.trackingId
         );
@@ -603,7 +631,7 @@ export const updateOrderStatus = async (req, res, next) => {
         if (!order.shipping.shipmentId) {
           // If no shipment ID, it means we need to create the order in ShipRocket first
           const shipRocketOrderData = {
-            order_id: order._id.toString(),
+            order_id: order.order_id, // Use order.order_id instead of order._id.toString()
             order_date: new Date(order.createdAt).toISOString().split('T')[0],
             pickup_location: 'Primary',
             billing_customer_name: order.shipping.address.name,
@@ -741,10 +769,24 @@ export const processPaymentCallback = async (req, res, next) => {
     }
 
     // Find order
-    const order = await Order.findById(orderId).populate(
+    // Try to find by order_id first, then by _id if that fails
+    let order = await Order.findOne({ order_id: orderId }).populate(
       'userId',
       'email whatsappNumber'
     );
+    
+    // If not found by order_id, try to find by _id
+    if (!order) {
+      try {
+        order = await Order.findById(orderId).populate(
+          'userId',
+          'email whatsappNumber'
+        );
+      } catch (err) {
+        // If error occurs (likely invalid ObjectId), order will remain null
+        logger.error(`Error finding order by ID: ${err.message}`);
+      }
+    }
     
     if (!order) {
       logger.error(`Order not found for ID: ${orderId}`);
@@ -783,7 +825,8 @@ export const processPaymentCallback = async (req, res, next) => {
     if (isFromFrontend && (isStatusCheck || !paymentStatus)) {
       try {
         // Verify payment status with Cashfree API
-        const paymentStatusResponse = await paymentService.getPaymentStatus(orderId);
+        // Use order.order_id instead of orderId (which might be MongoDB _id)
+        const paymentStatusResponse = await paymentService.getPaymentStatus(order.order_id);
         
         if (paymentStatusResponse.success) {
           const cashfreePaymentStatus = paymentStatusResponse.data.order_status || 
@@ -800,9 +843,27 @@ export const processPaymentCallback = async (req, res, next) => {
           if (isSuccessfulPayment && order.payment.status !== 'PAID') {
             // Update payment status to PAID only if Cashfree confirms it
             order.payment.status = 'PAID';
-            order.status = 'CONFIRMED';
+            
+            // Check if there's a stock issue
+            const hasStockIssue = paymentStatusResponse.data.error_details && 
+                                 JSON.stringify(paymentStatusResponse.data.error_details).toLowerCase().includes('stock');
+            
+            if (hasStockIssue) {
+              // Set order status to STOCK_ISSUE
+              order.status = 'STOCK_ISSUE';
+              order.statusHistory.push({
+                status: 'STOCK_ISSUE',
+                timestamp: new Date(),
+                note: 'Stock issue detected during payment processing',
+              });
+              logger.info(`Updated order ${orderId} status to STOCK_ISSUE based on Cashfree verification`);
+            } else {
+              // Set order status to CONFIRMED
+              order.status = 'CONFIRMED';
+              logger.info(`Updated order ${orderId} status to PAID based on Cashfree verification`);
+            }
+            
             await order.save();
-            logger.info(`Updated order ${orderId} status to PAID based on Cashfree verification`);
           } else if (!isSuccessfulPayment && order.payment.status !== 'FAILED' && 
                     ['FAILED', 'FAILURE', 'CANCELLED'].includes(cashfreePaymentStatus.toUpperCase())) {
             // Update payment status to FAILED if Cashfree confirms it failed
@@ -860,7 +921,8 @@ export const processPaymentCallback = async (req, res, next) => {
     if (!orderId.startsWith('test_order_')) {
       try {
         // Verify payment status with Cashfree API
-        const paymentStatusResponse = await paymentService.getPaymentStatus(orderId);
+        // Use order.order_id instead of orderId (which might be MongoDB _id)
+        const paymentStatusResponse = await paymentService.getPaymentStatus(order.order_id);
         
         if (paymentStatusResponse.success) {
           const cashfreePaymentStatus = paymentStatusResponse.data.order_status || 
@@ -914,6 +976,85 @@ export const processPaymentCallback = async (req, res, next) => {
         logger.info(`Generated test transaction ID for webhook: ${referenceId}`);
       }
 
+      // Verify stock for all items in the order (for Cashfree payments)
+      // This is a second check after payment to ensure stock is still available
+      if (order.payment.method === 'CASHFREE') {
+        try {
+          // Populate order items with product details
+          const populatedOrder = await Order.findById(orderId).populate('items.productId');
+          let insufficientStockItems = [];
+          
+          // Check each item's stock
+          for (const item of populatedOrder.items) {
+            const product = item.productId;
+            const variantSku = item.variantSku;
+            const qty = item.qty;
+            
+            // Find the variant
+            const variant = product.variants.find(v => v.sku === variantSku);
+            
+            if (!variant) {
+              logger.error(`Variant with SKU ${variantSku} not found for product ${product._id}`);
+              insufficientStockItems.push({
+                productId: product._id,
+                variantSku,
+                reason: 'Variant not found'
+              });
+              continue;
+            }
+            
+            // Check if stock is sufficient
+            if (variant.stock < qty) {
+              logger.error(`Insufficient stock for variant ${variantSku}: ${variant.stock} available, ${qty} requested`);
+              insufficientStockItems.push({
+                productId: product._id,
+                variantSku,
+                availableStock: variant.stock,
+                requestedQty: qty,
+                reason: 'Insufficient stock'
+              });
+            }
+          }
+          
+          // If any items have insufficient stock, mark order as STOCK_ISSUE
+          if (insufficientStockItems.length > 0) {
+            logger.warn(`Order ${orderId} has items with insufficient stock: ${JSON.stringify(insufficientStockItems)}`);
+            order.status = 'STOCK_ISSUE';
+            order.statusHistory.push({
+              status: 'STOCK_ISSUE',
+              timestamp: new Date(),
+              note: `Payment successful but stock issues found: ${JSON.stringify(insufficientStockItems)}`,
+            });
+            
+            // Still mark payment as PAID since payment was successful
+            order.payment.status = 'PAID';
+            if (order.payment.method === 'COD') {
+              order.payment.method = 'CASHFREE';
+            }
+            order.payment.transactionId = referenceId;
+            order.payment.paymentDetails = paymentData;
+            
+            await order.save();
+            logger.info(`Order ${orderId} marked as PAID but with STOCK_ISSUE via callback`);
+            
+            // Return success but with stock issue flag
+            return res.status(200).json({
+              success: true,
+              stockIssue: true,
+              data: {
+                orderId: order._id,
+                paymentStatus: order.payment.status,
+                orderStatus: order.status,
+                insufficientStockItems
+              }
+            });
+          }
+        } catch (stockCheckError) {
+          logger.error(`Error checking stock for order ${orderId}:`, stockCheckError);
+          // Continue with order processing even if stock check fails
+        }
+      }
+
       // Update payment status
       order.payment.status = 'PAID';
       // Update payment method from COD to CASHFREE if it was COD
@@ -950,7 +1091,7 @@ export const processPaymentCallback = async (req, res, next) => {
             try {
               await sendOrderConfirmationSMS(
                 order.userId.whatsappNumber,
-                order._id.toString()
+                order.order_id // Use order.order_id instead of order._id.toString()
               );
               logger.info(`Confirmation SMS sent for order ${orderId}`);
             } catch (smsError) {
@@ -981,7 +1122,7 @@ export const processPaymentCallback = async (req, res, next) => {
             try {
               await sendOrderConfirmationSMS(
                 guestPhone,
-                order._id.toString()
+                order.order_id // Use order.order_id instead of order._id.toString()
               );
               logger.info(`Cashfree payment - Confirmation SMS sent for guest order ${orderId} to ${guestPhone}`);
             } catch (smsError) {
@@ -997,7 +1138,7 @@ export const processPaymentCallback = async (req, res, next) => {
         try {
           if (order.shipping && order.shipping.address) {
             const shipRocketOrderData = {
-              order_id: order._id.toString(),
+              order_id: order.order_id, // Use order.order_id instead of order._id.toString()
               order_date: new Date(order.createdAt).toISOString().split('T')[0],
               pickup_location: 'Primary',
               billing_customer_name: order.shipping.address.name,
@@ -1040,7 +1181,8 @@ export const processPaymentCallback = async (req, res, next) => {
             success: true,
             message: 'Payment processed successfully',
             data: {
-              orderId: order._id,
+              orderId: order.order_id, // Use order.order_id instead of order._id
+              orderDbId: order._id, // Include MongoDB _id as orderDbId for reference if needed
               paymentStatus: order.payment.status,
               orderStatus: order.status
             }
@@ -1048,7 +1190,8 @@ export const processPaymentCallback = async (req, res, next) => {
         }
 
         // Redirect to success page for direct callbacks
-        return res.redirect(`${process.env.FRONTEND_URL}/payment/success.html?orderId=${orderId}`);
+        // Use order.order_id instead of orderId (which might be MongoDB _id)
+        return res.redirect(`${process.env.FRONTEND_URL}/payment/success.html?orderId=${order.order_id}`);
       } catch (saveError) {
         logger.error(`Error saving order ${orderId}:`, saveError);
         return res.status(500).json({
@@ -1286,6 +1429,80 @@ export const processPaymentWebhook = async (req, res, next) => {
         logger.info(`Generated test transaction ID for webhook: ${referenceId}`);
       }
 
+      // Verify stock for all items in the order (for Cashfree payments)
+      // This is a second check after payment to ensure stock is still available
+      if (!orderId.startsWith('test_order_') && order.payment.method === 'CASHFREE') {
+        try {
+          // Populate order items with product details
+          const populatedOrder = await Order.findById(orderId).populate('items.productId');
+          let insufficientStockItems = [];
+          
+          // Check each item's stock
+          for (const item of populatedOrder.items) {
+            const product = item.productId;
+            const variantSku = item.variantSku;
+            const qty = item.qty;
+            
+            // Find the variant
+            const variant = product.variants.find(v => v.sku === variantSku);
+            
+            if (!variant) {
+              logger.error(`Webhook: Variant with SKU ${variantSku} not found for product ${product._id}`);
+              insufficientStockItems.push({
+                productId: product._id,
+                variantSku,
+                reason: 'Variant not found'
+              });
+              continue;
+            }
+            
+            // Check if stock is sufficient
+            if (variant.stock < qty) {
+              logger.error(`Webhook: Insufficient stock for variant ${variantSku}: ${variant.stock} available, ${qty} requested`);
+              insufficientStockItems.push({
+                productId: product._id,
+                variantSku,
+                availableStock: variant.stock,
+                requestedQty: qty,
+                reason: 'Insufficient stock'
+              });
+            }
+          }
+          
+          // If any items have insufficient stock, mark order as STOCK_ISSUE
+          if (insufficientStockItems.length > 0) {
+            logger.warn(`Webhook: Order ${orderId} has items with insufficient stock: ${JSON.stringify(insufficientStockItems)}`);
+            order.status = 'STOCK_ISSUE';
+            order.statusHistory.push({
+              status: 'STOCK_ISSUE',
+              timestamp: new Date(),
+              note: `Payment successful but stock issues found: ${JSON.stringify(insufficientStockItems)}`,
+            });
+            
+            // Still mark payment as PAID since payment was successful
+            order.payment.status = 'PAID';
+            if (order.payment.method === 'COD') {
+              order.payment.method = 'CASHFREE';
+            }
+            order.payment.transactionId = referenceId;
+            order.payment.paymentDetails = paymentData;
+            
+            await order.save();
+            logger.info(`Webhook: Order ${orderId} marked as PAID but with STOCK_ISSUE`);
+            
+            // Return success but with stock issue flag
+            return res.status(200).json({
+              success: true,
+              stockIssue: true,
+              message: 'Payment successful but stock issues found',
+            });
+          }
+        } catch (stockCheckError) {
+          logger.error(`Webhook: Error checking stock for order ${orderId}:`, stockCheckError);
+          // Continue with order processing even if stock check fails
+        }
+      }
+
       // Update payment status
       order.payment.status = 'PAID';
       // Update payment method from COD to CASHFREE if it was COD
@@ -1324,7 +1541,7 @@ export const processPaymentWebhook = async (req, res, next) => {
           if (order.userId && order.userId.whatsappNumber) {
             await sendOrderConfirmationSMS(
               order.userId.whatsappNumber,
-              order._id.toString()
+              order.order_id // Use order.order_id instead of order._id.toString()
             );
             logger.info(`Confirmation SMS sent for order ${orderId}`);
           }
@@ -1337,7 +1554,7 @@ export const processPaymentWebhook = async (req, res, next) => {
         try {
           if (order.shipping && order.shipping.address) {
             const shipRocketOrderData = {
-              order_id: order._id.toString(),
+              order_id: order.order_id, // Use order.order_id instead of order._id.toString()
               order_date: new Date(order.createdAt).toISOString().split('T')[0],
               pickup_location: 'Primary',
               billing_customer_name: order.shipping.address.name,
@@ -2000,7 +2217,7 @@ export const markOrderDelivered = async (req, res, next) => {
       if (order.userId.whatsappNumber) {
         await sendShippingUpdateSMS(
           order.userId.whatsappNumber,
-          order._id.toString(),
+          order.order_id, // Use order.order_id instead of order._id.toString()
           "DELIVERED",
           order.shipping.trackingId
         );
@@ -2080,7 +2297,7 @@ export const markOrderShipped = async (req, res, next) => {
       if (order.userId.whatsappNumber) {
         await sendShippingUpdateSMS(
           order.userId.whatsappNumber,
-          order._id.toString(),
+          order.order_id, // Use order.order_id instead of order._id.toString()
           "SHIPPED",
           order.shipping.trackingId
         );
@@ -2155,7 +2372,7 @@ export const markOrderOutForDelivery = async (req, res, next) => {
       if (order.userId.whatsappNumber) {
         await sendShippingUpdateSMS(
           order.userId.whatsappNumber,
-          order._id.toString(),
+          order.order_id, // Use order.order_id instead of order._id.toString()
           "OUT_FOR_DELIVERY",
           order.shipping.trackingId
         );
@@ -2265,13 +2482,19 @@ export const createPaymentForOrder = async (req, res, next) => {
     }
 
     // Get customer details
-    let customerName = order.userId?.name || order.shipping.address.name || "Customer";
-    let customerEmail = order.userId?.email || order.shipping.address.email || "guest@example.com";
-    let customerPhone = order.userId?.whatsappNumber || order.shipping.address.phone || "0000000000";
+    // Ensure we have valid customer details with proper fallbacks
+    let customerName = order.userId?.name || order.shipping?.address?.name || "Customer";
+    let customerEmail = order.userId?.email || order.shipping?.address?.email || "guest@example.com";
+    let customerPhone = order.userId?.whatsappNumber || (order.shipping?.address?.phone || "0000000000");
+    
+    // Additional validation to ensure we have valid values
+    if (!customerName || customerName.trim() === "") customerName = "Customer";
+    if (!customerEmail || customerEmail.trim() === "") customerEmail = "guest@example.com";
+    if (!customerPhone || customerPhone.trim() === "") customerPhone = "0000000000";
 
     // Create payment order with popup checkout
     const paymentOrder = await paymentService.createPopupCheckoutOrder({
-      orderId: order._id.toString(),
+      orderId: order.order_id,
       orderAmount: order.total,
       customerName,
       customerEmail,
@@ -2281,7 +2504,27 @@ export const createPaymentForOrder = async (req, res, next) => {
     });
 
     if (!paymentOrder.success) {
-      throw new AppError("Failed to create payment order", 500);
+      logger.error(`Failed to create payment order for existing order ${order._id}:`, paymentOrder.error);
+      
+      // Check if there's a stock issue
+      const errorMessage = paymentOrder.error?.message || 'Failed to create payment order';
+      const errorStatus = paymentOrder.details?.status || 500;
+      
+      // If there's a stock issue, update order status
+      if (errorMessage.toLowerCase().includes('stock') || 
+          (paymentOrder.error && JSON.stringify(paymentOrder.error).toLowerCase().includes('stock'))) {
+        order.status = 'STOCK_ISSUE';
+        order.statusHistory.push({
+          status: 'STOCK_ISSUE',
+          timestamp: new Date(),
+          note: 'Stock issue detected during payment processing',
+        });
+        await order.save();
+        
+        throw new AppError("Stock issue detected. Please check item availability.", errorStatus);
+      }
+      
+      throw new AppError(errorMessage, errorStatus);
     }
 
     // Return order with payment token and details for popup checkout
@@ -2290,7 +2533,8 @@ export const createPaymentForOrder = async (req, res, next) => {
       message: "Payment order created successfully",
       data: {
         order,
-        orderId: order._id.toString(),
+        orderId: order.order_id, // Use order.order_id instead of order._id.toString()
+        orderDbId: order._id.toString(), // Include MongoDB _id as orderDbId for reference if needed
         paymentToken: paymentOrder.data.token,
         paymentDetails: {
           orderId: paymentOrder.data.orderId,

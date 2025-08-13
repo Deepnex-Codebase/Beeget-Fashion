@@ -116,11 +116,13 @@ const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dest = path.join(uploadDir, 'videos');
     createDirectoryIfNotExists(dest);
+    logger.info(`Video upload destination: ${dest}`);
     cb(null, dest);
   },
   filename: (req, file, cb) => {
     // Generate unique filename with original extension
     const uniqueFilename = `${uuidv4()}${path.extname(file.originalname)}`;
+    logger.info(`Generated video filename: ${uniqueFilename} for original: ${file.originalname}`);
     cb(null, uniqueFilename);
   }
 });
@@ -142,14 +144,18 @@ const imageFileFilter = (req, file, cb) => {
 // File filter for videos
 const videoFileFilter = (req, file, cb) => {
   // Accept only video files
-  const filetypes = /mp4|webm|ogg|mov|avi/;
-  const mimetype = file.mimetype.startsWith('video/');
+  const filetypes = /mp4|webm|ogg|mov|avi|mkv|flv|wmv|3gp/;
+  const mimetype = file.mimetype.startsWith('video/') || file.mimetype === 'application/octet-stream';
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   
+  logger.info(`Video file check - Filename: ${file.originalname}, Mimetype: ${file.mimetype}`);
+  
   if (mimetype && extname) {
+    logger.info(`Video file accepted: ${file.originalname}`);
     return cb(null, true);
   }
   
+  logger.warn(`Video file rejected: ${file.originalname} (${file.mimetype})`);
   cb(new Error('Only video files are allowed!'), false);
 };
 
@@ -174,8 +180,8 @@ const maxSize = {
   invoice: 10 * 1024 * 1024, // 10MB
   review: 3 * 1024 * 1024,   // 3MB
   temp: 20 * 1024 * 1024,    // 20MB
-  cms: 5 * 1024 * 1024,      // 5MB for CMS images
-  video: 50 * 1024 * 1024    // 50MB for videos
+  cms: 50 * 1024 * 1024,      // 10MB for CMS images
+  video: 500 * 1024 * 1024    // 500MB for videos
 };
 
 // Configure multer instances
@@ -183,6 +189,42 @@ const productUpload = multer({
   storage: productStorage,
   limits: { fileSize: maxSize.product },
   fileFilter: imageFileFilter
+});
+
+// Combined product and video upload configuration
+const productMediaUpload = multer({
+  storage: productStorage,
+  fileFilter: (req, file, cb) => {
+    // Check if it's a video field
+    if (file.fieldname === 'video') {
+      // Use video file filter
+      const filetypes = /mp4|webm|ogg|mov|avi/;
+      const mimetype = file.mimetype.startsWith('video/');
+      const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+      
+      if (mimetype && extname) {
+        // Set higher limit for video files
+        file.size_limit = maxSize.video;
+        return cb(null, true);
+      }
+      
+      return cb(new Error('Only video files are allowed for video field!'), false);
+    } else {
+      // Use image file filter for other fields
+      const filetypes = /jpeg|jpg|png|gif|webp/;
+      const mimetype = filetypes.test(file.mimetype);
+      const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+      
+      if (mimetype && extname) {
+        // Set normal limit for image files
+        file.size_limit = maxSize.product;
+        return cb(null, true);
+      }
+      
+      return cb(new Error('Only image files are allowed for image fields!'), false);
+    }
+  },
+  limits: { fileSize: maxSize.video } // Set to the larger of the two limits
 });
 
 const userUpload = multer({
@@ -208,16 +250,44 @@ const reviewUpload = multer({
   fileFilter: imageFileFilter
 });
 
+// Regular CMS upload configuration
 const cmsUpload = multer({
   storage: cmsStorage,
-  limits: { fileSize: maxSize.cms },
+  limits: { fileSize: maxSize.cms }, // 10MB limit for images
   fileFilter: imageFileFilter
 });
+
+// Special filter for PNG files only
+const pngFileFilter = (req, file, cb) => {
+  logger.info(`PNG filter processing: ${file.originalname}`);
+  
+  if (file.originalname.toLowerCase().endsWith('.png') || file.mimetype === 'image/png') {
+    logger.info(`PNG file accepted: ${file.originalname}`);
+    return cb(null, true);
+  }
+  
+  logger.warn(`File rejected by PNG filter: ${file.originalname} (${file.mimetype})`);
+  cb(null, false);
+};
+
+// Special configuration for PNG uploads
+const pngUpload = multer({
+  storage: cmsStorage,
+  limits: { fileSize: maxSize.cms }, // 10MB limit for PNG images
+  fileFilter: pngFileFilter
+});
+
+// Log multer configuration
+logger.info('CMS Upload configuration initialized with:');
+logger.info(`- Storage destination: ${uploadDir}/cms`);
+logger.info(`- File size limit: ${maxSize.cms} bytes (${maxSize.cms / (1024 * 1024)} MB)`);
+logger.info('- Supported formats: JPG, JPEG, PNG, GIF, WEBP, SVG, BMP, TIFF, TIF');
 
 const videoUpload = multer({
   storage: videoStorage,
   limits: { fileSize: maxSize.video },
-  fileFilter: videoFileFilter
+  fileFilter: videoFileFilter,
+  preservePath: true
 });
 
 // Helper function to delete a file
@@ -245,11 +315,13 @@ export const getFileUrl = (filePath) => {
 
 export {
   productUpload,
+  productMediaUpload,
   userUpload,
   invoiceUpload,
   reviewUpload,
   tempUpload,
   cmsUpload,
   videoUpload,
+  pngUpload,
   uploadDir
 };

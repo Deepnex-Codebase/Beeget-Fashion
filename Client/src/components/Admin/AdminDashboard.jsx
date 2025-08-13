@@ -11,6 +11,7 @@ import SiteContentManagement from './SiteContentManagement';
 import ReturnManagement from './ReturnManagement';
 import PromotionManagement from './PromotionManagement';
 import SubAdminManagement from './SubAdminManagement';
+import ReviewManagement from './ReviewManagement';
 import AdminTabs from './AdminTabs';
 import AdminTabsNew from './AdminTabsNew';
 import Button from '../Common/Button';
@@ -1162,6 +1163,8 @@ const AdminDashboard = () => {
         return 'bg-green-100 text-green-800'
       case 'cancelled':
         return 'bg-red-100 text-red-800'
+      case 'stock_issue':
+        return 'bg-yellow-100 text-yellow-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -1211,6 +1214,7 @@ const AdminDashboard = () => {
     { id: 'subadmins', label: 'Sub-Admins', permission: 'manage_subadmins', department: 'User Communication' },
     { id: 'contacts', label: `Messages ${unreadContactCount > 0 ? `(${unreadContactCount})` : ''}`, permission: 'manage_contacts', department: 'User Communication' },
     { id: 'notifications', label: 'Notifications', permission: 'manage_notifications', department: 'User Communication' },
+    { id: 'reviews', label: 'Reviews', permission: 'Reviews', department: 'User Communication' },
     { id: 'site-content', label: 'Site Content', permission: 'manage_cms', department: 'Content' },
   ];
   
@@ -3936,6 +3940,8 @@ const AdminDashboard = () => {
         return renderContacts();
       case 'notifications':
         return <NotificationManagement />;
+      case 'reviews':
+        return <ReviewManagement />;
       case 'site-content':
         return <SiteContentManagement />;
       default:

@@ -176,8 +176,9 @@ const FilterSidebar = ({ isOpen, onClose, filters, handleFilterChange }) => {
                         checked={filters.category === 'plus-size'}
                         onChange={() => handleFilterChange('category', 'plus-size')}
                         className="h-4 w-4 text-java-600 border-java-300 focus:ring-java-500"
+                        disabled={true}
                       />
-                      <span className="ml-2 text-sm text-gray-800">Plus Size</span>
+                      <span className="ml-2 text-sm text-gray-400">Plus Size (Coming Soon)</span>
                     </label>
                     <label className="flex items-center hover:bg-java-50 p-2 rounded-full transition-colors">
                       <input

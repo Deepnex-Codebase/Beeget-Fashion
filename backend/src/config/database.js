@@ -2,22 +2,29 @@ import mongoose from 'mongoose';
 import { logger } from '../utils/logger.js';
 
 /**
- * Connect to MongoDB
+ * Connect to MongoDB with optimized configuration
  */
 export const connectToMongoDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI;
-    console.log(mongoURI)
+    
     if (!mongoURI) {
-      logger.error('MongoDB URI is not defined in environment variables');
-      process.exit(1);
+      throw new Error('MongoDB URI is not defined in environment variables');
     }
 
-    logger.info(`Attempting to connect to MongoDB with URI: ${mongoURI.substring(0, 20)}...`);
+    // Mask sensitive information in logs
+    const maskedURI = mongoURI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
+    logger.info(`Attempting to connect to MongoDB: ${maskedURI}`);
     
+    // Optimized MongoDB connection options
     const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // 5 seconds timeout for server selection
+      socketTimeoutMS: 45000, // 45 seconds timeout for socket operations
+      maxPoolSize: 50, // Maximum number of connections in the connection pool
+      minPoolSize: 10, // Minimum number of connections in the connection pool
+      heartbeatFrequencyMS: 10000, // 10 seconds heartbeat frequency
     };
 
     // Connect to MongoDB
@@ -25,26 +32,18 @@ export const connectToMongoDB = async () => {
     
     logger.info(`MongoDB connected: ${connection.connection.host}`);
     logger.info(`MongoDB database name: ${connection.connection.name}`);
-    logger.info(`MongoDB connection state: ${mongoose.connection.readyState}`);
 
-    // Handle MongoDB connection errors
+    // Set up MongoDB connection event handlers
     mongoose.connection.on('error', (err) => {
-      logger.error(`MongoDB connection error: ${err}`);
+      logger.error(`MongoDB connection error: ${err.message}`);
     });
 
     mongoose.connection.on('disconnected', () => {
       logger.warn('MongoDB disconnected');
     });
 
-    mongoose.connection.on('connected', () => {
-      logger.info('MongoDB connected');
-    });
-
-    // Handle process termination
-    process.on('SIGINT', async () => {
-      await mongoose.connection.close();
-      logger.info('MongoDB connection closed due to app termination');
-      process.exit(0);
+    mongoose.connection.on('reconnected', () => {
+      logger.info('MongoDB reconnected successfully');
     });
 
     return connection;

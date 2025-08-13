@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import axios from '../../utils/api';
 import Button from './Button';
@@ -13,11 +13,34 @@ const ImageUpload = ({
   className = "",
   accept = "image/*",
   maxSize = 5 * 1024 * 1024, // 5MB
-  disabled = false
+  disabled = false,
+  isHeroSection = false // New prop to identify hero section uploads
 }) => {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(value);
   const fileInputRef = useRef(null);
+
+  // Load saved image from localStorage on component mount
+  useEffect(() => {
+    // If value is already provided, use that instead
+    if (value) return;
+    
+    let savedImage;
+    if (isHeroSection) {
+      savedImage = localStorage.getItem('heroSectionImage');
+    } else if (accept === 'image/png') {
+      savedImage = localStorage.getItem('pngImage');
+    } else {
+      savedImage = localStorage.getItem('lastUploadedImage');
+    }
+    
+    if (savedImage) {
+      setPreview(savedImage);
+      if (onChange) {
+        onChange(savedImage);
+      }
+    }
+  }, [value, onChange, isHeroSection, accept]);
 
   const handleFileSelect = async (event) => {
     const file = event.target.files[0];
@@ -39,14 +62,39 @@ const ImageUpload = ({
     try {
       const formData = new FormData();
       formData.append('image', file);
+      
+      // Determine the correct endpoint based on file type and section
+      let endpoint = '/site-content/upload-image';
+      
+      // Check if it's a PNG file
+      if (file.name.toLowerCase().endsWith('.png')) {
+        console.log('Uploading PNG file to special endpoint');
+        endpoint = '/site-content/upload-png';
+      }
+      
+      // If it's for hero section, use the dedicated hero endpoint
+      if (isHeroSection) {
+        console.log('Uploading image for hero section');
+        endpoint = '/site-content/hero/upload-image';
+      }
 
-      const response = await axios.post('/site-content/upload-image', formData, {
+      const response = await axios.post(endpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
       const imageUrl = response.data.data.url;
+      // Store the image URL in localStorage to persist it across page refreshes
+      if (isHeroSection) {
+        localStorage.setItem('heroSectionImage', imageUrl);
+      } else if (endpoint === '/site-content/upload-png') {
+        localStorage.setItem('pngImage', imageUrl);
+      } else {
+        // For promotional banners and other images
+        localStorage.setItem('lastUploadedImage', imageUrl);
+      }
+      
       setPreview(imageUrl);
       
       if (onChange) {
@@ -54,6 +102,7 @@ const ImageUpload = ({
       }
       
       if (onImageUpload) {
+        // Pass the full response data to the parent component
         onImageUpload(response.data.data);
       }
 
@@ -73,6 +122,15 @@ const ImageUpload = ({
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    
+    // Also remove from localStorage
+    if (isHeroSection) {
+      localStorage.removeItem('heroSectionImage');
+    } else if (accept === 'image/png') {
+      localStorage.removeItem('pngImage');
+    } else {
+      localStorage.removeItem('lastUploadedImage');
     }
   };
 
@@ -154,4 +212,4 @@ const ImageUpload = ({
   );
 };
 
-export default ImageUpload; 
+export default ImageUpload;

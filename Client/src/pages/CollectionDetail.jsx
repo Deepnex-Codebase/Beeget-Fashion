@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import axios from '../utils/api'
-import { toast } from 'react-hot-toast'
+// Toast import removed
+// import { toast } from 'react-hot-toast'
 import { FiChevronRight, FiArrowLeft, FiShoppingBag } from 'react-icons/fi'
 import ProductCard from '../components/Shop/ProductCard'
 
@@ -63,7 +64,8 @@ const CollectionDetail = () => {
       } catch (err) {
         // console.error('Error fetching collection details:', err)
         setError('Failed to load collection details. Please try again later.')
-        toast.error('Failed to load collection details')
+        // Error notification removed
+        // toast.error('Failed to load collection details')
         setLoading(false)
       }
     }
@@ -122,7 +124,7 @@ const CollectionDetail = () => {
       <div className="bg-white rounded-lg overflow-hidden shadow-md mb-8">
         <div className="relative h-64 md:h-80 overflow-hidden">
           <img 
-            src={collection.image || 'https://via.placeholder.com/1200x400?text=Collection'} 
+            src={collection.image || 'https://placehold.co/1200x400?text=Collection'} 
             alt={collection.name}
             className="w-full h-full object-cover"
           />

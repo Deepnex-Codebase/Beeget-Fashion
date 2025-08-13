@@ -33,6 +33,18 @@ const SiteContentManagement = () => {
   
   // Constants
   const AUTO_SAVE_DELAY = 3000; // 3 seconds
+  
+  // Promotional Banner Template
+  const promotionalBannerTemplate = {
+    blockType: "promotional_banner",
+    banner_image: { url: "", alt: "" },
+    headline: "New Promotional Banner",
+    subheadline: "Add your promotional text here",
+    cta_text: "Shop Now",
+    cta_link: "/shop",
+    align: "left",
+    order: 0
+  };
 
   // Get context data
   const {
@@ -360,7 +372,14 @@ const SiteContentManagement = () => {
         formData.socialLinks = [];
       }
       
-      // Ensure social_links exists for backward compatibility
+      // Ensure each social link has all required fields
+      formData.socialLinks = formData.socialLinks.map(link => ({
+        platform: link.platform || "",
+        url: link.url || "",
+        icon: link.icon || ""
+      }));
+      
+      // Ensure social_links exists for backward compatibility with all required fields
       formData.social_links = formData.socialLinks;
       
       // Ensure each navigation column has links array
@@ -510,6 +529,13 @@ const SiteContentManagement = () => {
             // Update social_links from socialLinks for backward compatibility
             footerFormCopy.social_links = footerFormCopy.socialLinks || [];
             
+            // Ensure each social link has the required fields
+            footerFormCopy.social_links = footerFormCopy.social_links.map(link => ({
+              platform: link.platform || "",
+              url: link.url || "",
+              icon: link.icon || ""
+            }));
+            
             // Ensure navigation_columns is initialized
             if (!footerFormCopy.navigation_columns) {
               footerFormCopy.navigation_columns = [];
@@ -630,6 +656,13 @@ const SiteContentManagement = () => {
       
       // Update social_links from socialLinks for backward compatibility
       footerFormCopy.social_links = footerFormCopy.socialLinks || [];
+      
+      // Ensure each social link has the required fields
+      footerFormCopy.social_links = footerFormCopy.social_links.map(link => ({
+        platform: link.platform || "",
+        url: link.url || "",
+        icon: link.icon || ""
+      }));
       
       // Ensure navigation_columns is initialized
       if (!footerFormCopy.navigation_columns) {
@@ -854,10 +887,22 @@ const SiteContentManagement = () => {
         if (typeof index === "number") {
           // Ensure the social link exists
           if (!updated.socialLinks[index]) {
-            updated.socialLinks[index] = {};
+            updated.socialLinks[index] = {
+              platform: "",
+              url: "",
+              icon: ""
+            };
           }
           
           updated.socialLinks[index][field] = value;
+          
+          // Ensure all required fields have at least empty string values
+          if (!updated.socialLinks[index].platform) updated.socialLinks[index].platform = "";
+          if (!updated.socialLinks[index].url) updated.socialLinks[index].url = "";
+          if (!updated.socialLinks[index].icon) updated.socialLinks[index].icon = "";
+          
+          // Also update social_links for backward compatibility
+          updated.social_links = updated.socialLinks;
         }
       } else if (section === "newsletter") {
         // Ensure newsletter exists
@@ -1831,13 +1876,23 @@ const SiteContentManagement = () => {
           updated.socialLinks = [];
         }
         
-        // Add a new social link
-        updated.socialLinks.push({ 
+        // Add a new social link with all required fields
+        const socialLink = { 
           platform: "",
           url: "",
           icon: "",
           ...newItem 
-        });
+        };
+        
+        // Ensure all required fields have at least empty string values
+        if (!socialLink.platform) socialLink.platform = "";
+        if (!socialLink.url) socialLink.url = "";
+        if (!socialLink.icon) socialLink.icon = "";
+        
+        updated.socialLinks.push(socialLink);
+        
+        // Also update social_links for backward compatibility
+        updated.social_links = updated.socialLinks;
       } else if (section === "blocks") {
         // Ensure blocks array exists
         if (!updated.blocks) {
@@ -3043,6 +3098,7 @@ const SiteContentManagement = () => {
                             )
                           }
                           disabled={!isEditing}
+                          isHeroSection={true}
                         />
                         <Input
                           label="Alt Text"
@@ -3090,6 +3146,7 @@ const SiteContentManagement = () => {
                             )
                           }
                           disabled={!isEditing}
+                          isHeroSection={true}
                         />
                         <Input
                           label="Alt Text"
@@ -3413,6 +3470,7 @@ const SiteContentManagement = () => {
                       onClick={() =>
                         handleAddArrayItem(
                           "blocks",
+                          null,
                           {
                             blockType: "promotional_banner",
                             headline: "Festival Collection",
@@ -3422,7 +3480,7 @@ const SiteContentManagement = () => {
                             align: "left",
                             order: 5,
                             banner_image: {
-                              url: "https://images.unsplash.com/photo-1608731267464-c0c889c2ff92?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+                              url: "/images/banners/festival-collection.jpg",
                               alt: "Festival Collection"
                             }
                           }
@@ -3438,6 +3496,7 @@ const SiteContentManagement = () => {
                       onClick={() =>
                         handleAddArrayItem(
                           "blocks",
+                          null,
                           {
                             blockType: "promotional_banner",
                             headline: "Inclusive Fashion For All",
@@ -3459,10 +3518,37 @@ const SiteContentManagement = () => {
                     </button>
                     <button
                       type="button"
+                      className="flex items-center text-sm bg-pink-600 text-white px-3 py-2 rounded-md hover:bg-pink-700"
+                      onClick={() =>
+                        handleAddArrayItem(
+                          "blocks",
+                          null,
+                          {
+                            blockType: "promotional_banner",
+                            headline: "Ready, Set, Summer!",
+                            subheadline: "Discover our new collection of summer dresses that will keep you cool and stylish all season long.",
+                            cta_text: "Shop Dresses",
+                            cta_link: "/products/category/dresses",
+                            align: "left",
+                            order: 6,
+                            banner_image: {
+                              url: "/images/banners/summer-dresses.jpg",
+                              alt: "Ready Set Summer Collection"
+                            }
+                          }
+                        )
+                      }
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Add Summer Banner
+                    </button>
+                    <button
+                      type="button"
                       className="flex items-center text-sm bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700"
                       onClick={() =>
                         handleAddArrayItem(
                           "blocks",
+                          null,
                           {
                             blockType: "promotional_banner",
                             headline: "",
@@ -3904,23 +3990,18 @@ const SiteContentManagement = () => {
                 Our Story
               </button>
               <button
-                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "values" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
-                onClick={() => setActiveAboutSection("values")}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "vision" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveAboutSection("vision")}
               >
-                Our Values
+                Our Vision
               </button>
               <button
-                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "team" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
-                onClick={() => setActiveAboutSection("team")}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "mission" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={() => setActiveAboutSection("mission")}
               >
-                Meet Our Team
+                Our Mission
               </button>
-              <button
-                className={`px-3 py-2 text-sm font-medium rounded-md ${activeAboutSection === "cta" ? "bg-teal-100 text-teal-800" : "text-gray-600 hover:bg-gray-100"}`}
-                onClick={() => setActiveAboutSection("cta")}
-              >
-                Call to Action
-              </button>
+              {/* Meet Our Team, and Call to Action buttons removed */}
             </div>
 
             <div className="space-y-8">
@@ -4031,23 +4112,60 @@ const SiteContentManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Story Content
                   </label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 h-32"
-                    value={aboutPageForm.blocks[1]?.rich_text_story || ""}
-                    onChange={(e) =>
-                      handleNestedFormChange(
-                        "blocks",
-                        null,
-                        "rich_text_story",
-                        e.target.value,
-                        1
-                      )
-                    }
-                    disabled={!isEditing}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    You can use basic HTML formatting tags.
-                  </p>
+                  <div className="relative">
+                    <textarea
+                      id="story-rich-text-textarea"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500 h-32"
+                      value={aboutPageForm.blocks[1]?.rich_text_story || ""}
+                      onChange={(e) =>
+                        handleNestedFormChange(
+                          "blocks",
+                          null,
+                          "rich_text_story",
+                          e.target.value,
+                          1
+                        )
+                      }
+                      disabled={!isEditing}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      You can use basic HTML formatting tags.
+                    </p>
+                    {isEditing && (
+                      <div className="mt-1 flex items-center">
+                        <button
+                          type="button"
+                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-2 rounded mr-2"
+                          onClick={() => {
+                            const textarea = document.getElementById("story-rich-text-textarea");
+                            if (textarea) {
+                              const cursorPos = textarea.selectionStart;
+                              const textBefore = textarea.value.substring(0, cursorPos);
+                              const textAfter = textarea.value.substring(cursorPos);
+                              const newValue = textBefore + "\n\n" + textAfter;
+                              
+                              handleNestedFormChange(
+                                "blocks",
+                                null,
+                                "rich_text_story",
+                                newValue,
+                                1
+                              );
+                              
+                              // Restore cursor position after state update
+                              setTimeout(() => {
+                                textarea.focus();
+                                textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                              }, 0);
+                            }
+                          }}
+                        >
+                          Add Line Break
+                        </button>
+                        <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mb-4">
@@ -4111,22 +4229,67 @@ const SiteContentManagement = () => {
                           </button>
                         </div>
                       </div>
-                      <textarea
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-                        value={paragraph || ""}
-                        onChange={(e) =>
-                          handleNestedFormChange(
-                            "blocks",
-                            "paragraphs",
-                            null,
-                            e.target.value,
-                            1,
-                            index
-                          )
-                        }
-                        disabled={!isEditing}
-                        rows={3}
-                      />
+                      <div className="relative">
+                        <textarea
+                          id={`story-paragraph-textarea-${index}`}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+                          value={paragraph || ""}
+                          onChange={(e) =>
+                            handleNestedFormChange(
+                              "blocks",
+                              "paragraphs",
+                              null,
+                              e.target.value,
+                              1,
+                              index
+                            )
+                          }
+                          disabled={!isEditing}
+                          rows={3}
+                        />
+                        {isEditing && (
+                          <div className="mt-1 flex items-center">
+                            <button
+                              type="button"
+                              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-2 rounded mr-2"
+                              onClick={() => {
+                                const textarea = document.getElementById(`story-paragraph-textarea-${index}`);
+                                if (textarea) {
+                                  const cursorPos = textarea.selectionStart;
+                                  const textBefore = textarea.value.substring(0, cursorPos);
+                                  const textAfter = textarea.value.substring(cursorPos);
+                                  const newValue = textBefore + "\n\n" + textAfter;
+                                  
+                                  handleNestedFormChange(
+                                    "blocks",
+                                    "paragraphs",
+                                    null,
+                                    newValue,
+                                    1,
+                                    index
+                                  );
+                                  
+                                  // Restore cursor position after state update
+                                  setTimeout(() => {
+                                    textarea.focus();
+                                    textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                                  }, 0);
+                                }
+                              }}
+                            >
+                              Add Line Break
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-2 rounded mr-2 ml-2"
+                              onClick={() => handleAddArrayItem("blocks", "", "paragraphs", 1)}
+                            >
+                              Add New Paragraph
+                            </button>
+                            <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
 
@@ -4188,23 +4351,23 @@ const SiteContentManagement = () => {
               </div>
               )}
 
-              {/* Our Values Section */}
-              {activeAboutSection === "values" && (
+              {/* Our Vision Section */}
+              {activeAboutSection === "vision" && (
                 <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <h3 className="font-medium text-gray-700 mb-2">Our Values</h3>
+                <h3 className="font-medium text-gray-700 mb-2">Our Vision</h3>
                 <p className="text-sm text-gray-500 mb-4">
-                  Manage the values cards section.
+                  Edit the company vision section.
                 </p>
 
                 <div className="mb-4">
                   <Input
-                    label="Section Headline"
-                    value={aboutPageForm.blocks[2]?.headline || ""}
+                    label="Section Title"
+                    value={aboutPageForm.blocks[2]?.title || ""}
                     onChange={(e) =>
                       handleNestedFormChange(
                         "blocks",
                         null,
-                        "headline",
+                        "title",
                         e.target.value,
                         2
                       )
@@ -4212,15 +4375,98 @@ const SiteContentManagement = () => {
                     disabled={!isEditing}
                   />
                 </div>
+                
+                {isEditing && (
+                  <div className="mb-4">
+                    <textarea
+                      id="vision-section-paragraph"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+                      placeholder="Add a paragraph here..."
+                      rows={3}
+                      onChange={(e) => {
+                        // Create a new paragraph if none exists
+                        if (!aboutPageForm.blocks[2]?.paragraphs || aboutPageForm.blocks[2].paragraphs.length === 0) {
+                          handleAddArrayItem(
+                            "blocks",
+                            e.target.value,
+                            "paragraphs",
+                            2
+                          );
+                        } else {
+                          // Update the first paragraph
+                          handleNestedFormChange(
+                            "blocks",
+                            "paragraphs",
+                            null,
+                            e.target.value,
+                            2,
+                            0
+                          );
+                        }
+                      }}
+                    />
+                    <div className="mt-1 flex items-center">
+                      <button
+                        type="button"
+                        className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-2 rounded mr-2"
+                        onClick={() => {
+                          const textarea = document.getElementById("vision-section-paragraph");
+                          if (textarea) {
+                            const cursorPos = textarea.selectionStart;
+                            const textBefore = textarea.value.substring(0, cursorPos);
+                            const textAfter = textarea.value.substring(cursorPos);
+                            textarea.value = textBefore + "\n\n" + textAfter;
+                            
+                            // Create a new paragraph if none exists
+                            if (!aboutPageForm.blocks[2]?.paragraphs || aboutPageForm.blocks[2].paragraphs.length === 0) {
+                              handleAddArrayItem(
+                                "blocks",
+                                textarea.value,
+                                "paragraphs",
+                                2
+                              );
+                            } else {
+                              // Update the first paragraph
+                              handleNestedFormChange(
+                                "blocks",
+                                "paragraphs",
+                                null,
+                                textarea.value,
+                                2,
+                                0
+                              );
+                            }
+                            
+                            // Restore cursor position after state update
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                            }, 0);
+                          }
+                        }}
+                      >
+                        Add Line Break
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-2 rounded mr-2 ml-2"
+                        onClick={() => handleAddArrayItem("blocks", "", "paragraphs", 2)}
+                      >
+                        Add New Paragraph
+                      </button>
+                      <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
+                    </div>
+                  </div>
+                )}
 
-                {aboutPageForm.blocks[2]?.value_cards &&
-                  aboutPageForm.blocks[2].value_cards.map((value, index) => (
-                    <div
-                      key={index}
-                      className="border border-gray-200 rounded-md p-3 mb-3"
-                    >
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vision Paragraphs
+                  </label>
+                  {aboutPageForm.blocks[2]?.paragraphs && aboutPageForm.blocks[2].paragraphs.map((paragraph, index) => (
+                    <div key={index} className="border border-gray-200 rounded-md p-3 mb-3">
                       <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium">Value {index + 1}</h4>
+                        <h4 className="font-medium">Paragraph {index + 1}</h4>
                         <div className="flex space-x-2">
                           <button
                             type="button"
@@ -4228,7 +4474,7 @@ const SiteContentManagement = () => {
                             onClick={() =>
                               handleMoveArrayItem(
                                 "blocks",
-                                "value_cards",
+                                "paragraphs",
                                 index,
                                 "up",
                                 2
@@ -4244,7 +4490,7 @@ const SiteContentManagement = () => {
                             onClick={() =>
                               handleMoveArrayItem(
                                 "blocks",
-                                "value_cards",
+                                "paragraphs",
                                 index,
                                 "down",
                                 2
@@ -4252,8 +4498,7 @@ const SiteContentManagement = () => {
                             }
                             disabled={
                               !isEditing ||
-                              index ===
-                                aboutPageForm.blocks[2].value_cards.length - 1
+                              index === aboutPageForm.blocks[2].paragraphs.length - 1
                             }
                           >
                             <ArrowDownIcon className="h-4 w-4" />
@@ -4264,7 +4509,7 @@ const SiteContentManagement = () => {
                             onClick={() =>
                               handleRemoveArrayItem(
                                 "blocks",
-                                "value_cards",
+                                "paragraphs",
                                 index,
                                 2
                               )
@@ -4275,52 +4520,16 @@ const SiteContentManagement = () => {
                           </button>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <Input
-                          label="Icon"
-                          value={value.icon || ""}
-                          onChange={(e) =>
-                            handleNestedFormChange(
-                              "blocks",
-                              "value_cards",
-                              "icon",
-                              e.target.value,
-                              2,
-                              index
-                            )
-                          }
-                          disabled={!isEditing}
-                        />
-                        <Input
-                          label="Title"
-                          value={value.title || ""}
-                          onChange={(e) =>
-                            handleNestedFormChange(
-                              "blocks",
-                              "value_cards",
-                              "title",
-                              e.target.value,
-                              2,
-                              index
-                            )
-                          }
-                          disabled={!isEditing}
-                        />
-                      </div>
-
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Description
-                        </label>
+                      <div className="relative">
                         <textarea
+                          id={`vision-textarea-${index}`}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-                          value={value.description || ""}
+                          value={paragraph || ""}
                           onChange={(e) =>
                             handleNestedFormChange(
                               "blocks",
-                              "value_cards",
-                              "description",
+                              "paragraphs",
+                              null,
                               e.target.value,
                               2,
                               index
@@ -4329,290 +4538,189 @@ const SiteContentManagement = () => {
                           disabled={!isEditing}
                           rows={3}
                         />
-                      </div>
-                    </div>
-                  ))}
-
-                {isEditing && (
-                  <button
-                    type="button"
-                    className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
-                    onClick={() =>
-                      handleAddArrayItem(
-                        "blocks",
-                        {
-                          icon: "",
-                          title: "",
-                          description: "",
-                        },
-                        "value_cards",
-                        2
-                      )
-                    }
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    Add Value
-                  </button>
-                )}
-              </div>
-              )}
-
-              {/* Meet Our Team Section */}
-              {activeAboutSection === "team" && (
-                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <h3 className="font-medium text-gray-700 mb-2">
-                  Meet Our Team
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Manage the team members section.
-                </p>
-
-                <div className="mb-4">
-                  <Input
-                    label="Section Headline"
-                    value={aboutPageForm.blocks[3]?.headline || ""}
-                    onChange={(e) =>
-                      handleNestedFormChange(
-                        "blocks",
-                        null,
-                        "headline",
-                        e.target.value,
-                        3
-                      )
-                    }
-                    disabled={!isEditing}
-                  />
-                </div>
-
-                {aboutPageForm.blocks[3]?.team_members &&
-                  aboutPageForm.blocks[3].team_members.map((member, index) => (
-                    <div
-                      key={index}
-                      className="border border-gray-200 rounded-md p-3 mb-3"
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium">Team Member {index + 1}</h4>
-                        <div className="flex space-x-2">
-                          <button
-                            type="button"
-                            className="p-1 text-gray-500 hover:text-gray-700"
-                            onClick={() =>
-                              handleMoveArrayItem(
-                                "blocks",
-                                "team_members",
-                                index,
-                                "up",
-                                3
-                              )
-                            }
-                            disabled={!isEditing || index === 0}
-                          >
-                            <ArrowUpIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            className="p-1 text-gray-500 hover:text-gray-700"
-                            onClick={() =>
-                              handleMoveArrayItem(
-                                "blocks",
-                                "team_members",
-                                index,
-                                "down",
-                                3
-                              )
-                            }
-                            disabled={
-                              !isEditing ||
-                              index ===
-                                aboutPageForm.blocks[3].team_members.length - 1
-                            }
-                          >
-                            <ArrowDownIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            className="p-1 text-red-500 hover:text-red-700"
-                            onClick={() =>
-                              handleRemoveArrayItem(
-                                "blocks",
-                                "team_members",
-                                index,
-                                3
-                              )
-                            }
-                            disabled={!isEditing}
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <Input
-                          label="Name"
-                          value={member.name || ""}
-                          onChange={(e) =>
-                            handleNestedFormChange(
-                                "blocks",
-                                "team_members",
-                                "name",
-                                e.target.value,
-                                3,
-                                index
-                              )
-                          }
-                          disabled={!isEditing}
-                        />
-                        <Input
-                          label="Position"
-                          value={member.position || ""}
-                          onChange={(e) =>
-                            handleNestedFormChange(
-                                "blocks",
-                                "team_members",
-                                "position",
-                                e.target.value,
-                                3,
-                                index
-                              )
-                          }
-                          disabled={!isEditing}
-                        />
-                      </div>
-
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Photo
-                        </label>
-                        <div className="flex items-center space-x-4">
-                          {member.photo?.url && (
-                            <div className="relative w-24 h-24 border border-gray-200 rounded-md overflow-hidden">
-                              <img
-                                src={member.photo.url}
-                                alt={member.photo.alt || member.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <Input
-                              label="Image URL"
-                              value={member.photo?.url || ""}
-                              onChange={(e) =>
-                                handleNestedFormChange(
-                                  "blocks",
-                                  "team_members",
-                                  "photo.url",
-                                  e.target.value,
-                                  3,
-                                  index
-                                )
-                              }
-                              disabled={!isEditing}
-                            />
-                            <Input
-                              label="Alt Text"
-                              value={member.photo?.alt || ""}
-                              onChange={(e) =>
-                                handleNestedFormChange(
-                                  "blocks",
-                                  "team_members",
-                                  "photo.alt",
-                                  e.target.value,
-                                  3,
-                                  index
-                                )
-                              }
-                              disabled={!isEditing}
-                              className="mt-2"
-                            />
+                        {isEditing && (
+                          <div className="mt-1 flex items-center">
+                            <button
+                              type="button"
+                              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-2 rounded mr-2"
+                              onClick={() => {
+                                const textarea = document.getElementById(`vision-textarea-${index}`);
+                                if (textarea) {
+                                  const cursorPos = textarea.selectionStart;
+                                  const textBefore = textarea.value.substring(0, cursorPos);
+                                  const textAfter = textarea.value.substring(cursorPos);
+                                  const newValue = textBefore + "\n\n" + textAfter;
+                                  
+                                  handleNestedFormChange(
+                                    "blocks",
+                                    "paragraphs",
+                                    null,
+                                    newValue,
+                                    2,
+                                    index
+                                  );
+                                  
+                                  // Restore cursor position after state update
+                                  setTimeout(() => {
+                                    textarea.focus();
+                                    textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                                  }, 0);
+                                }
+                              }}
+                            >
+                              Add Line Break
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-2 rounded mr-2 ml-2"
+                              onClick={() => handleAddArrayItem("blocks", "", "paragraphs", 2)}
+                            >
+                              Add New Paragraph
+                            </button>
+                            <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                   ))}
 
-                {isEditing && (
-                  <button
-                    type="button"
-                    className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
-                    onClick={() =>
-                      handleAddArrayItem(
-                        "blocks",
-                        {
-                          name: "",
-                          position: "",
-                          photo: { url: "", alt: "" },
-                        },
-                        "team_members",
-                        3
-                      )
-                    }
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    Add Team Member
-                  </button>
-                )}
+                  {isEditing && (
+                    <button
+                      type="button"
+                      className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
+                      onClick={() =>
+                        handleAddArrayItem(
+                          "blocks",
+                          "",
+                          "paragraphs",
+                          2
+                        )
+                      }
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Add Paragraph
+                    </button>
+                  )}
+                </div>
               </div>
               )}
 
-              {/* CTA Strip Section */}
-              {activeAboutSection === "cta" && (
+              {/* Our Mission Section */}
+              {activeAboutSection === "mission" && (
                 <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <h3 className="font-medium text-gray-700 mb-2">
-                  Call to Action
-                </h3>
+                <h3 className="font-medium text-gray-700 mb-2">Our Mission</h3>
                 <p className="text-sm text-gray-500 mb-4">
-                  Configure the call-to-action section.
+                  Edit the company mission section.
                 </p>
 
                 <div className="mb-4">
                   <Input
-                    label="Headline"
-                    value={aboutPageForm.blocks[4]?.headline || ""}
+                    label="Section Title"
+                    value={aboutPageForm.blocks[3]?.title || ""}
                     onChange={(e) =>
                       handleNestedFormChange(
                         "blocks",
                         null,
-                        "headline",
+                        "title",
                         e.target.value,
-                        4
+                        3
                       )
                     }
                     disabled={!isEditing}
                   />
                 </div>
                 
+                {isEditing && (
+                  <div className="mb-4">
+                    <textarea
+                      id="mission-section-paragraph"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+                      placeholder="Add a paragraph here..."
+                      rows={3}
+                      onChange={(e) => {
+                        // Create a new paragraph if none exists
+                        if (!aboutPageForm.blocks[3]?.paragraphs || aboutPageForm.blocks[3].paragraphs.length === 0) {
+                          handleAddArrayItem(
+                            "blocks",
+                            e.target.value,
+                            "paragraphs",
+                            3
+                          );
+                        } else {
+                          // Update the first paragraph
+                          handleNestedFormChange(
+                            "blocks",
+                            "paragraphs",
+                            null,
+                            e.target.value,
+                            3,
+                            0
+                          );
+                        }
+                      }}
+                    />
+                    <div className="mt-1 flex items-center">
+                      <button
+                        type="button"
+                        className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-2 rounded mr-2"
+                        onClick={() => {
+                          const textarea = document.getElementById("mission-section-paragraph");
+                          if (textarea) {
+                            const cursorPos = textarea.selectionStart;
+                            const textBefore = textarea.value.substring(0, cursorPos);
+                            const textAfter = textarea.value.substring(cursorPos);
+                            textarea.value = textBefore + "\n\n" + textAfter;
+                            
+                            // Create a new paragraph if none exists
+                            if (!aboutPageForm.blocks[3]?.paragraphs || aboutPageForm.blocks[3].paragraphs.length === 0) {
+                              handleAddArrayItem(
+                                "blocks",
+                                textarea.value,
+                                "paragraphs",
+                                3
+                              );
+                            } else {
+                              // Update the first paragraph
+                              handleNestedFormChange(
+                                "blocks",
+                                "paragraphs",
+                                null,
+                                textarea.value,
+                                3,
+                                0
+                              );
+                            }
+                            
+                            // Restore cursor position after state update
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                            }, 0);
+                          }
+                        }}
+                      >
+                        Add Line Break
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-2 rounded mr-2 ml-2"
+                        onClick={() => handleAddArrayItem("blocks", "", "paragraphs", 3)}
+                      >
+                        Add New Paragraph
+                      </button>
+                      <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    Mission Paragraphs
                   </label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-                    value={aboutPageForm.blocks[4]?.description || ""}
-                    onChange={(e) =>
-                      handleNestedFormChange(
-                        "blocks",
-                        null,
-                        "description",
-                        e.target.value,
-                        4
-                      )
-                    }
-                    disabled={!isEditing}
-                    rows={3}
-                  />
-                </div>
-
-                <h4 className="font-medium text-gray-700 mt-4 mb-2">Buttons</h4>
-                {aboutPageForm.blocks[4]?.buttons &&
-                  aboutPageForm.blocks[4].buttons.map((button, index) => (
-                    <div
-                      key={index}
-                      className="border border-gray-200 rounded-md p-3 mb-3"
-                    >
+                  {aboutPageForm.blocks[3]?.paragraphs && aboutPageForm.blocks[3].paragraphs.map((paragraph, index) => (
+                    <div key={index} className="border border-gray-200 rounded-md p-3 mb-3">
                       <div className="flex justify-between items-center mb-2">
-                        <h5 className="font-medium">Button {index + 1}</h5>
+                        <h4 className="font-medium">Paragraph {index + 1}</h4>
                         <div className="flex space-x-2">
                           <button
                             type="button"
@@ -4620,10 +4728,10 @@ const SiteContentManagement = () => {
                             onClick={() =>
                               handleMoveArrayItem(
                                 "blocks",
-                                "buttons",
+                                "paragraphs",
                                 index,
                                 "up",
-                                4
+                                3
                               )
                             }
                             disabled={!isEditing || index === 0}
@@ -4636,16 +4744,15 @@ const SiteContentManagement = () => {
                             onClick={() =>
                               handleMoveArrayItem(
                                 "blocks",
-                                "buttons",
+                                "paragraphs",
                                 index,
                                 "down",
-                                4
+                                3
                               )
                             }
                             disabled={
                               !isEditing ||
-                              index ===
-                                aboutPageForm.blocks[4].buttons.length - 1
+                              index === aboutPageForm.blocks[3].paragraphs.length - 1
                             }
                           >
                             <ArrowDownIcon className="h-4 w-4" />
@@ -4656,9 +4763,9 @@ const SiteContentManagement = () => {
                             onClick={() =>
                               handleRemoveArrayItem(
                                 "blocks",
-                                "buttons",
+                                "paragraphs",
                                 index,
-                                4
+                                3
                               )
                             }
                             disabled={!isEditing}
@@ -4667,90 +4774,94 @@ const SiteContentManagement = () => {
                           </button>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input
-                          label="Button Text"
-                          value={button.text || ""}
-                          onChange={(e) =>
-                            handleNestedFormChange(
-                              "blocks",
-                              "buttons",
-                              "text",
-                              e.target.value,
-                              4,
-                              index
-                            )
-                          }
-                          disabled={!isEditing}
-                        />
-                        <Input
-                          label="Button Link"
-                          value={button.link || ""}
-                          onChange={(e) =>
-                            handleNestedFormChange(
-                              "blocks",
-                              "buttons",
-                              "link",
-                              e.target.value,
-                              4,
-                              index
-                            )
-                          }
-                          disabled={!isEditing}
-                        />
-                      </div>
-
-                      <div className="mt-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Button Style
-                        </label>
-                        <select
+                      <div className="relative">
+                        <textarea
+                          id={`mission-textarea-${index}`}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-teal-500 focus:border-teal-500"
-                          value={button.style || "primary"}
+                          value={paragraph || ""}
                           onChange={(e) =>
                             handleNestedFormChange(
                               "blocks",
-                              "buttons",
-                              "style",
+                              "paragraphs",
+                              null,
                               e.target.value,
-                              4,
+                              3,
                               index
                             )
                           }
                           disabled={!isEditing}
-                        >
-                          <option value="primary">Primary</option>
-                          <option value="secondary">Secondary</option>
-                          <option value="outline">Outline</option>
-                        </select>
+                          rows={3}
+                        />
+                        {isEditing && (
+                          <div className="mt-1 flex items-center">
+                            <button
+                              type="button"
+                              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-2 rounded mr-2"
+                              onClick={() => {
+                                const textarea = document.getElementById(`mission-textarea-${index}`);
+                                if (textarea) {
+                                  const cursorPos = textarea.selectionStart;
+                                  const textBefore = textarea.value.substring(0, cursorPos);
+                                  const textAfter = textarea.value.substring(cursorPos);
+                                  const newValue = textBefore + "\n\n" + textAfter;
+                                  
+                                  handleNestedFormChange(
+                                    "blocks",
+                                    "paragraphs",
+                                    null,
+                                    newValue,
+                                    3,
+                                    index
+                                  );
+                                  
+                                  // Restore cursor position after state update
+                                  setTimeout(() => {
+                                    textarea.focus();
+                                    textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                                  }, 0);
+                                }
+                              }}
+                            >
+                              Add Line Break
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-2 rounded mr-2 ml-2"
+                              onClick={() => handleAddArrayItem("blocks", "", "paragraphs", 3)}
+                            >
+                              Add New Paragraph
+                            </button>
+                            <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
 
-                {isEditing && (
-                  <button
-                    type="button"
-                    className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
-                    onClick={() =>
-                      handleAddArrayItem(
-                        "blocks",
-                        {
-                          text: "",
-                          link: "",
-                          style: "primary",
-                        },
-                        "buttons",
-                        4
-                      )
-                    }
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    Add Button
-                  </button>
-                )}
+                  {isEditing && (
+                    <button
+                      type="button"
+                      className="flex items-center text-sm text-teal-600 hover:text-teal-800 mt-2"
+                      onClick={() =>
+                        handleAddArrayItem(
+                          "blocks",
+                          "",
+                          "paragraphs",
+                          3
+                        )
+                      }
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Add Paragraph
+                    </button>
+                  )}
+                </div>
               </div>
               )}
+
+              {/* Meet Our Team Section removed */}
+
+              {/* CTA Strip Section removed */}
             </div>
           </div>
         </div>

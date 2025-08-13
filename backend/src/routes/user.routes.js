@@ -9,7 +9,8 @@ import {
   deleteUser,
   updateUser,
   registerSubadmin,
-  updateSubadminDepartment
+  updateSubadminDepartment,
+  createTempUser
 } from '../controllers/user.controller.js';
 import { testEmailConfiguration } from '../services/email.service.js';
 import { logger } from '../utils/logger.js';
@@ -34,6 +35,9 @@ router.put('/:userId/unban', unbanUser);
 router.post('/register-subadmin', registerSubadmin);
 // Admin can update subadmin's department and permissions
 router.patch('/subadmin/:userId/department', updateSubadminDepartment);
+
+// Create temporary user for reviews
+router.post('/temp', createTempUser);
 
 // Test email configuration
 router.get('/test-email', async (req, res) => {

@@ -1,5 +1,6 @@
 import Review from '../models/review.model.js';
 import Product from '../models/product.model.js';
+import User from '../models/user.model.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { logger } from '../utils/logger.js';
 import { deleteFile, getFileUrl } from '../config/multer.js';
@@ -263,7 +264,7 @@ export const deleteReview = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
-    const isAdmin = req.user.role === 'admin';
+    const isAdmin = req.user.roles && req.user.roles.includes('admin');
 
     // Find review
     const review = await Review.findById(id);
@@ -272,18 +273,37 @@ export const deleteReview = async (req, res, next) => {
     }
 
     // Check if user is the owner of the review or an admin
-    if (review.user.toString() !== userId.toString() && !isAdmin) {
-      throw new AppError('You are not authorized to delete this review', 403);
+    if (!isAdmin) {
+      // Only check ownership if not admin and both user IDs exist
+      if (!review.user || !userId) {
+        throw new AppError('User identification error', 400);
+      }
+      
+      // Compare user IDs
+      const reviewUserId = review.user.toString ? review.user.toString() : String(review.user);
+      const currentUserId = userId.toString ? userId.toString() : String(userId);
+      
+      if (reviewUserId !== currentUserId) {
+        throw new AppError('You are not authorized to delete this review', 403);
+      }
     }
 
     // Delete review images from storage
     if (review.images && review.images.length > 0) {
       review.images.forEach(imageUrl => {
-        // Extract file path from URL
-        const urlPath = new URL(imageUrl).pathname;
-        const filePath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
-        if (filePath) {
-          deleteFile(filePath);
+        // Check if imageUrl is valid before processing
+        if (imageUrl && typeof imageUrl === 'string') {
+          try {
+            // Extract file path from URL
+            const urlPath = new URL(imageUrl).pathname;
+            const filePath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+            if (filePath) {
+              deleteFile(filePath);
+            }
+          } catch (err) {
+            console.error(`Error processing image URL: ${imageUrl}`, err);
+            // Continue with next image even if this one fails
+          }
         }
       });
     }
@@ -318,13 +338,143 @@ export const getUserReviews = async (req, res, next) => {
 
     // Get user's reviews
     const reviews = await Review.find({ user: userId })
-      .populate('product', 'title images')
+      .populate('product', 'title images price')
       .sort(sortObj)
       .skip(skip)
       .limit(Number(limit));
 
     // Get total count for pagination
     const total = await Review.countDocuments({ user: userId });
+
+    // Return reviews
+    res.status(200).json({
+      success: true,
+      data: {
+        reviews,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          pages: Math.ceil(total / Number(limit))
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Admin: Create a review on behalf of a user
+ */
+export const adminCreateReview = async (req, res, next) => {
+  try {
+    const { productId, rating, review, userId } = req.body;
+    
+    // Validate required fields
+    if (!productId || !rating || !review || !userId) {
+      throw new AppError('Missing required review fields', 400);
+    }
+
+    // Check if product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      throw new AppError('Product not found', 404);
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Check if user has already reviewed this product
+    const existingReview = await Review.findOne({ user: userId, product: productId });
+    if (existingReview) {
+      throw new AppError('This user has already reviewed this product', 400);
+    }
+
+    // Process uploaded images
+    const images = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        // Store the URL as string
+        images.push(getFileUrl(file.path));
+      });
+    }
+
+    // Create new review
+    const newReview = new Review({
+      product: productId,
+      user: userId,
+      rating: parseInt(rating),
+      review,
+      images
+    });
+
+    await newReview.save();
+
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: 'Review created successfully by admin',
+      data: {
+        review: newReview
+      }
+    });
+  } catch (error) {
+    // Delete uploaded files if there was an error
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        deleteFile(file.path);
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * Admin: Get all reviews with filtering options
+ */
+export const adminGetAllReviews = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, sort = 'createdAt', order = 'desc', productId, userId, rating } = req.query;
+
+    // Calculate pagination
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Build sort object
+    const sortObj = {};
+    sortObj[sort] = order === 'asc' ? 1 : -1;
+    
+    // Build filter query
+    const filterQuery = {};
+    
+    // Add product filter if provided
+    if (productId) {
+      filterQuery.product = productId;
+    }
+    
+    // Add user filter if provided
+    if (userId) {
+      filterQuery.user = userId;
+    }
+    
+    // Add rating filter if provided
+    if (rating) {
+      filterQuery.rating = Number(rating);
+    }
+    
+    // Get reviews with filters
+    const reviews = await Review.find(filterQuery)
+      .populate('user', 'name email profileImage')
+      .populate('product', 'title images price')
+      .sort(sortObj)
+      .skip(skip)
+      .limit(Number(limit));
+      
+    // Get total count for pagination with the same filters
+    const total = await Review.countDocuments(filterQuery);
 
     // Return reviews
     res.status(200).json({

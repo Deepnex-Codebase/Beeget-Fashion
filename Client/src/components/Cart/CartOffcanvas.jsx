@@ -136,7 +136,14 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                       
                       {/* Price */}
                       <div className="text-right">
-                        <p className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</p>
+                        <p className="font-medium">₹{(() => {
+                          // Ensure mrp is a valid number
+                          const mrp = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price || 0);
+                          // Ensure quantity is a valid number
+                          const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0;
+                          // Calculate and return the total price
+                          return parseInt(mrp * quantity) || 0;
+                        })()}</p>
                       </div>
                     </li>
                   ))}
@@ -149,7 +156,7 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
               <div className="border-t border-java-100 p-4 bg-java-50">
                 <div className="flex justify-between mb-4">
                   <span className="text-java-800">Subtotal:</span>
-                  <span className="font-medium text-java-800">₹{cartTotal.toFixed(2)}</span>
+                  <span className="font-medium text-java-800">₹{isNaN(parseInt(cartTotal)) ? 0 : parseInt(cartTotal)}</span>
                 </div>
                 <p className="text-xs text-gray-500 mb-4">Shipping and taxes calculated at checkout</p>
                 <div className="grid grid-cols-2 gap-2">

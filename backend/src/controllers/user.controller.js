@@ -1,6 +1,56 @@
 import User from '../models/user.model.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { logger } from '../utils/logger.js';
+import bcrypt from 'bcrypt';
+
+/**
+ * Create a temporary user for review purposes
+ * This endpoint allows admins to create a temporary user for posting reviews
+ */
+export const createTempUser = async (req, res, next) => {
+  try {
+    const { name, email } = req.body;
+    
+    if (!name || !email) {
+      return next(new AppError('Name and email are required', 400));
+    }
+    
+    // Check if user with this email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      // If user exists, return the user ID
+      return res.status(200).json({
+        success: true,
+        message: 'User already exists',
+        data: { userId: existingUser._id }
+      });
+    }
+    
+    // Generate a random password
+    const randomPassword = Math.random().toString(36).slice(-8);
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+    
+    // Create a new temporary user
+    const newUser = new User({
+      name,
+      email,
+      passwordHash,
+      isVerified: true, // Auto-verify temporary users
+      roles: ['user']
+    });
+    
+    await newUser.save();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Temporary user created successfully',
+      data: { userId: newUser._id }
+    });
+  } catch (error) {
+    logger.error('Error creating temporary user:', error);
+    next(error);
+  }
+};
 
 /**
  * Get all users with pagination, search, and filters

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import axios from '../utils/api'
-import { toast } from 'react-hot-toast'
+// Toast import removed
+// import { toast } from 'react-hot-toast'
 import { FiChevronRight, FiFilter } from 'react-icons/fi'
 import ProductCard from '../components/Shop/ProductCard'
 import Pagination from '../components/Common/Pagination'
@@ -97,7 +98,8 @@ const PlusSize = () => {
       } catch (err) {
         // console.error('Error fetching plus size products:', err)
         setError('Failed to load products. Please try again later.')
-        toast.error('Failed to load products')
+        // Error notification removed
+        // toast.error('Failed to load products')
         setProducts([])
         setPagination({
           page: 1,
@@ -176,7 +178,7 @@ const PlusSize = () => {
       {/* Banner */}
       <div className="relative h-48 md:h-64 rounded-lg overflow-hidden mb-8">
         <img 
-          src="https://via.placeholder.com/1200x400?text=Plus+Size+Collection" 
+          src="https://placehold.co/1200x400?text=Plus+Size+Collection" 
           alt="Plus Size Collection"
           className="w-full h-full object-cover"
         />

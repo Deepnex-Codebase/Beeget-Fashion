@@ -584,6 +584,7 @@ export const deleteEnquiry = async (req, res, next) => {
 export const uploadCmsImage = async (req, res, next) => {
   try {
     logger.info('CMS image upload request received');
+    logger.info('Image upload capacity increased to 10MB');
     logger.info('Request headers:', req.headers);
     logger.info('Request files:', req.files);
     logger.info('Request file:', req.file);
@@ -756,7 +757,7 @@ const createDefaultHomePage = async () => {
         cta_text: 'Explore Workwear',
         cta_link: '/shop?collection=workwear',
         align: 'right',
-        order: 4
+        order: 3
       },
       {
         blockType: 'watch_and_buy',
@@ -767,7 +768,7 @@ const createDefaultHomePage = async () => {
           { productId: '60d21b4667d0d8992e610c87' },
           { productId: '60d21b4667d0d8992e610c88' }
         ],
-        order: 5
+        order: 6
       },
       {
         blockType: 'promotional_banner',
@@ -853,13 +854,25 @@ const createDefaultAboutPage = async () => {
         order: 1
       },
       {
+        blockType: 'our_vision',
+        headline: 'Our Vision',
+        rich_text_content: '<p>To become a trusted and loved fashion destination for women across India by offering stylish, high-quality, and affordable clothing that inspires confidence and reflects individuality.</p><p>We envision a world where every woman — regardless of age, size, or budget — has access to fashion that makes her feel empowered, elegant, and expressive.</p>',
+        order: 2
+      },
+      {
+        blockType: 'our_mission',
+        headline: 'Our Mission',
+        rich_text_content: '<p>To deliver the best blend of ethnic and modern fashion with superior quality at affordable prices.</p><p>To ensure that every purchase brings satisfaction to our customers — through thoughtful designs, reliable quality, and excellent service.</p><p>To build long-term brand loyalty by consistently exceeding expectations in fabric, fitting, and fashion innovation.</p><p>To support Indian artisans and fashion talent by showcasing craftsmanship with a modern outlook.</p><p>To become a go-to fashion brand for women who want value, style, and confidence — all in one.</p>',
+        order: 3
+      },
+      {
         blockType: 'our_story',
         rich_text_story: '<p>Founded in 2018, Beeget Fashion was born from a passion for creating beautiful, high-quality clothing that empowers women to feel confident and comfortable.</p><p>Our founder, Sarah Johnson, spent over a decade in the fashion industry before launching Beeget with a mission to create clothing that combines timeless elegance with modern sensibility.</p><p>We believe that great style shouldn\'t come at the expense of ethical practices. That\'s why we work closely with our manufacturing partners to ensure fair labor practices and use sustainable materials whenever possible.</p><p>Every piece in our collection is thoughtfully designed to be versatile, long-lasting, and effortlessly stylish. We focus on premium fabrics, impeccable tailoring, and designs that transcend seasonal trends.</p>',
         side_image: {
           url: '/uploads/products/about-story.jpg',
           alt: 'Beeget Fashion Studio'
         },
-        order: 2
+        order: 5
       },
       {
         blockType: 'our_values',
@@ -885,10 +898,11 @@ const createDefaultAboutPage = async () => {
             description: 'We believe in being open about our processes, pricing, and the people who make our clothes.'
           }
         ],
-        order: 3
+        order: 6
       },
       {
         blockType: 'meet_our_team',
+        headline: 'Meet Our Team',
         team_members: [
           {
             photo: {
@@ -923,7 +937,7 @@ const createDefaultAboutPage = async () => {
             position: 'Sustainability Officer'
           }
         ],
-        order: 4
+        order: 7
       },
       {
         blockType: 'cta_strip',
@@ -938,7 +952,7 @@ const createDefaultAboutPage = async () => {
             link: '/contact'
           }
         ],
-        order: 5
+        order: 4
       }
     ],
     version: 1
@@ -1058,18 +1072,23 @@ const createDefaultFooter = async () => {
     social_links: [
       {
         platform: 'Facebook',
-        url: 'https://facebook.com/beegetfashion',
+        url: 'https://www.facebook.com/share/16yorjMnQi/',
         icon: 'facebook'
       },
       {
         platform: 'Instagram',
-        url: 'https://instagram.com/beegetfashion',
+        url: 'https://www.instagram.com/beegetfashion?igsh=YWc5MGM0eGdrbzly',
         icon: 'instagram'
       },
       {
-        platform: 'Twitter',
-        url: 'https://twitter.com/beegetfashion',
-        icon: 'twitter'
+        platform: 'YouTube',
+        url: 'https://youtube.com/@beegetfashion?si=EhstRf4mrsg8_jmJ',
+        icon: 'youtube'
+      },
+      {
+        platform: 'LinkedIn',
+        url: 'https://www.linkedin.com/company/beeget-fashion/',
+        icon: 'linkedin'
       },
       {
         platform: 'Pinterest',
@@ -1077,6 +1096,14 @@ const createDefaultFooter = async () => {
         icon: 'pinterest'
       }
     ],
+    
+    // Contact Information
+    contact_info: {
+      address: 'First and Second Floor Plot 258 Ambika Nagar Bamroli Surat',
+      phone: '+91 9714730985',
+      whatsapp: '+91 9714730985',
+      email: 'customersupport@beegetfashion.com'
+    },
     
     // Newsletter Section
     newsletter: {

@@ -266,7 +266,6 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true }
     } catch (err) {
-      // console.error('Logout error:', err)
       // Even if there's an error, we should still clear local state
       setUser(null)
       setTokens(null)
@@ -307,7 +306,6 @@ export const AuthProvider = ({ children }) => {
           if (!Array.isArray(permissions)) {
             permissions = [];
           }
-          // console.log('Subadmin profile loaded with permissions:', permissions);
         }
         
         const userWithPerms = {
@@ -335,8 +333,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      // console.error('Get profile error:', err)
-      
       // Handle specific error cases
       if (err.response) {
         const { status, data } = err.response
@@ -452,30 +448,20 @@ export const AuthProvider = ({ children }) => {
   
   // Check if user is subadmin
   const isSubAdmin = user?.roles?.includes('subadmin') || user?.role === 'subadmin' || isAdmin || false
-  // console.log(isSubAdmin )
+  
   // Check if user has specific permission
   const hasPermission = (permission, department = null) => {
-    // console.log('Checking permission:', permission);
-    // console.log('Checking department:', department);
-    // console.log('User:', user);
-    // console.log('Is Admin:', isAdmin);
-    // console.log('Is SubAdmin:', isSubAdmin);
-    // console.log('User Permissions:', user?.permissions);
-    // console.log('User Department:', user?.department);
     
     if (isAdmin) {
-      // console.log('User is admin, granting permission');
       return true; // Admin has all permissions
     }
     
     if (!isSubAdmin) {
-      // console.log('User is not subadmin, denying permission');
       return false; // Only subadmins can have specific permissions
     }
     
     // Ensure permissions is an array
     const userPermissions = Array.isArray(user?.permissions) ? user?.permissions : [];
-    // console.log('User Permissions (ensured array):', userPermissions);
     
     // Check department if specified
     if (department && department !== 'all') {
@@ -485,16 +471,13 @@ export const AuthProvider = ({ children }) => {
         userDept.toLowerCase() === department.toLowerCase() || 
         userDept.toLowerCase() === 'all';
       
-      // console.log('Department match:', departmentMatch);
       if (!departmentMatch) {
-        // console.log(`Department mismatch: required ${department}, user has ${user?.department}`);
         return false;
       }
     }
     
     // Check for all_permissions first (grants access to everything)
     if (userPermissions.includes('all_permissions')) {
-      // console.log('User has all_permissions, granting access');
       return true;
     }
     
@@ -528,8 +511,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      // console.error('Forgot password error:', err)
-      
       // Handle specific error cases
       if (err.response) {
         const { status, data } = err.response
@@ -580,8 +561,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      // console.error('Change password error:', err)
-      
       // Handle specific error cases
       if (err.response) {
         const { status, data } = err.response
@@ -629,8 +608,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      // console.error('Reset password error:', err)
-      
       // Handle specific error cases
       if (err.response) {
         const { status, data } = err.response
@@ -683,8 +660,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage }
       }
     } catch (err) {
-      // console.error('Email verification error:', err)
-      
       // Handle specific error cases
       if (err.response) {
         const { status, data } = err.response

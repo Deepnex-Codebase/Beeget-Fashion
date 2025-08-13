@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import axios from '../utils/api'
-import { toast } from 'react-hot-toast'
+// Toast import removed
+// import { toast } from 'react-hot-toast'
 import { FiChevronRight } from 'react-icons/fi'
 
 const Collections = () => {
@@ -48,7 +49,8 @@ const Collections = () => {
       } catch (err) {
         // console.error('Error fetching collections:', err)
         setError('Failed to load collections. Please try again later.')
-        toast.error('Failed to load collections')
+        // Error notification removed
+        // toast.error('Failed to load collections')
         setCollections([])
         setLoading(false)
       }
@@ -119,7 +121,7 @@ const Collections = () => {
             <Link to={`/collections/${collection._id}`}>
               <div className="relative h-64 overflow-hidden">
                 <img 
-                  src={collection.image || 'https://via.placeholder.com/400x300?text=Collection'} 
+                  src={collection.image || 'https://placehold.co/400x300?text=Collection'} 
                   alt={collection.name}
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                 />

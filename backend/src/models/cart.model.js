@@ -32,6 +32,7 @@ const CartItemSchema = new mongoose.Schema({
   productDetails: {
     title: String,
     price: Number,
+    mrp: Number,
     image: String,
     slug: String
   }

@@ -24,7 +24,6 @@ export const verifyToken = (req, res, next) => {
     
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('DEBUG - Decoded token:', JSON.stringify(decoded, null, 2));
 
     // Set user data in request with proper defaults for subadmin
     const isSubadmin = decoded.roles && decoded.roles.includes('subadmin');
@@ -40,16 +39,7 @@ export const verifyToken = (req, res, next) => {
     // Ensure permissions is always an array
     if (!Array.isArray(req.user.permissions)) {
       req.user.permissions = [];
-      console.log('DEBUG - Fixed permissions to be an array');
     }
-    
-    // Log the final user object
-    console.log('DEBUG - Final user object in verifyToken middleware:', JSON.stringify({
-      id: req.user.id,
-      roles: req.user.roles,
-      department: req.user.department,
-      permissions: req.user.permissions
-    }, null, 2));
     
     next();
   } catch (error) {
@@ -68,22 +58,20 @@ export const verifyToken = (req, res, next) => {
  * Must be used after verifyToken middleware
  */
 export const isAdmin = (req, res, next) => {
-  // Pehle check user exists
-  if (!req.user.roles) {
+  // Check user exists
+  if (!req.user) {
     return next(new AppError('Authentication required', 'UNAUTHORIZED', 401));
   }
   
-  // Fir check roles exists
-  if (!Array.isArray(req.user.roles)) {
-    console.log(req.user)
+  // Check roles exists
+  if (!req.user.roles || !Array.isArray(req.user.roles)) {
     return next(new AppError('Invalid user roles', 'FORBIDDEN', 403));
   }
   
-  // Last mein check admin role
+  // Check admin role
   if (!req.user.roles.includes('admin')) {
     return next(new AppError('Admin access required', 'FORBIDDEN', 403));
   }
-  
   next();
 };
 /**
@@ -91,9 +79,21 @@ export const isAdmin = (req, res, next) => {
  * Must be used after verifyToken middleware
  */
 export const isSubAdmin = (req, res, next) => {
-  if (!req.user || !(req.user.roles.includes('admin') || req.user.roles.includes('subadmin'))) {
+  if (!req.user) {
+    return next(new AppError('Authentication required', 'UNAUTHORIZED', 401));
+  }
+  
+  if (!req.user.roles || !Array.isArray(req.user.roles)) {
+    console.log('DEBUG - Invalid user roles in isSubAdmin:', req.user.roles);
+    return next(new AppError('Invalid user roles', 'FORBIDDEN', 403));
+  }
+  
+  if (!(req.user.roles.includes('admin') || req.user.roles.includes('subadmin'))) {
+    console.log('DEBUG - User does not have admin or subadmin role:', req.user.roles);
     return next(new AppError('Sub-admin access required', 'FORBIDDEN', 403));
   }
+  
+  console.log('DEBUG - Sub-admin access granted for user:', req.user.email);
   next();
 };
 

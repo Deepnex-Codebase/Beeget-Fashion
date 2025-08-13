@@ -129,7 +129,6 @@ const AccountSettings = () => {
         success: false,
         error: error.response?.data?.message || 'An unexpected error occurred'
       })
-      console.error('Profile update error:', error)
     }
   }
   
@@ -172,7 +171,6 @@ const AccountSettings = () => {
         success: false,
         error: error.message || 'Current password is incorrect'
       })
-      console.error('Password update error:', error)
     }
   }
   

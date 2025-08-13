@@ -206,18 +206,8 @@ export const login = async (req, res, next) => {
       if (!user.permissions || !Array.isArray(user.permissions)) {
         user.permissions = [];
         await user.save();
-        console.log('DEBUG - Initialized subadmin permissions with empty array');
       }
     }
-    
-    // Log user data before generating token
-    console.log('DEBUG - User data for token:', {
-      id: user._id,
-      email: user.email,
-      roles: user.roles,
-      department: user.department,
-      permissions: user.permissions
-    });
     
     // Prepare token data with proper defaults for subadmin
     const isSubadmin = user.roles && user.roles.includes('subadmin');
@@ -229,12 +219,10 @@ export const login = async (req, res, next) => {
     if (isSubadmin) {
       if (!department) {
         department = 'all';
-        console.log('DEBUG - Set default department for subadmin in login');
       }
       
       if (!permissions || !Array.isArray(permissions)) {
         permissions = [];
-        console.log('DEBUG - Initialized permissions with empty array for subadmin in login');
       }
     }
     
@@ -251,9 +239,8 @@ export const login = async (req, res, next) => {
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
     
-    // Log the decoded token to verify
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('DEBUG - Decoded token:', JSON.stringify(decoded, null, 2));
+    // Verify token was created successfully
+    jwt.verify(token, process.env.JWT_SECRET);
     
     // Return user data and token with proper defaults
     res.status(200).json({
@@ -368,24 +355,11 @@ export const resetPassword = async (req, res, next) => {
     }
     
     // Update password
-    console.log('DEBUG - Reset Password - Before update:', {
-      userId: user._id,
-      email: user.email,
-      oldPasswordHash: user.passwordHash ? 'exists' : 'null'
-    });
-    
     user.passwordHash = newPassword; // Will be hashed by pre-save hook
     await user.save();
     
-    console.log('DEBUG - Reset Password - After update:', {
-      userId: user._id,
-      email: user.email,
-      newPasswordHash: user.passwordHash ? 'exists' : 'null'
-    });
-    
-    // Test if the new password works
-    const testPasswordValid = await user.comparePassword(newPassword);
-    console.log('DEBUG - Password test result:', testPasswordValid);
+    // Verify the new password works
+    await user.comparePassword(newPassword);
     
     // Clear the reset token from Redis
     await storeOTP(decoded.email, '', 1); // Set to expire immediately

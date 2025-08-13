@@ -10,7 +10,7 @@ class ShippingService {
     this.password = process.env.SHIPROCKET_PASSWORD;
     this.channelId = process.env.SHIPROCKET_CHANNEL_ID;
     this.baseUrl = 'https://apiv2.shiprocket.in/v1/external';
-    this.token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjNhNzc4OTQ1MGIwZDc5ZDU3MjNlMCIsImVtYWlsIjoic3VqYWwuZGV2c3BhY2VAZ21haWwuY29tIiwicm9sZXMiOlsiYWRtaW4iXSwiaWF0IjoxNzUxNjA2NjMwLCJleHAiOjE3NTE2OTMwMzB9.c6rlXx7aekuNrdBt4ZNkgiCywkkcyr8oWiI-_fIs7vo";
+    this.token = null;
     this.tokenExpiry = null;
   }
   /**
@@ -337,6 +337,109 @@ class ShippingService {
       return {
         success: false,
         error: error.response?.data || error.message
+      };
+    }
+  }
+
+  /**
+   * Get order details from ShipRocket
+   */
+  async getOrderDetails(orderId) {
+    try {
+      const token = await this.getToken();
+
+      if (!orderId) {
+        throw new Error('Order ID is required');
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+
+      const response = await axios.get(
+        `${this.baseUrl}/orders/show/${orderId}`,
+        { headers }
+      );
+
+      logger.info(`Order details fetched for order: ${orderId}`);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      logger.error(`Error fetching order details for ${orderId}:`, error);
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      };
+    }
+  }
+
+  /**
+   * Get pickup locations
+   */
+  async getPickupLocations() {
+    try {
+      const token = await this.getToken();
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+
+      const response = await axios.get(
+        `${this.baseUrl}/settings/company/pickup`,
+        { headers }
+      );
+
+      logger.info('Pickup locations fetched successfully');
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      logger.error('Error fetching pickup locations:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      };
+    }
+  }
+
+  /**
+   * Validate credentials and connection
+   */
+  async validateConnection() {
+    try {
+      const token = await this.getToken();
+      
+      if (!token) {
+        throw new Error('Failed to authenticate with ShipRocket');
+      }
+
+      // Test the connection by fetching pickup locations
+      const pickupResponse = await this.getPickupLocations();
+      
+      if (pickupResponse.success) {
+        logger.info('ShipRocket connection validated successfully');
+        return {
+          success: true,
+          message: 'ShipRocket connection is working properly',
+          data: {
+            authenticated: true,
+            email: this.email,
+            channelId: this.channelId
+          }
+        };
+      } else {
+        throw new Error('Failed to validate connection');
+      }
+    } catch (error) {
+      logger.error('ShipRocket connection validation failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Connection validation failed'
       };
     }
   }

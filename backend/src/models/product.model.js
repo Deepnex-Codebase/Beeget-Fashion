@@ -11,12 +11,49 @@ const ProductSchema = new mongoose.Schema({
     ref: 'Category',
     index: true 
   },
+  // Product detail fields
+  color: String, // Single color (for backward compatibility)
+  colors: [String], // Multiple colors
+  comboOf: String,
+  fabric: String,
+  fitShape: String,
+  length: String,
+  neck: String,
+  occasion: String,
+  pattern: String,
+  printType: String,
+  sleeveType: String,
+  stitchingType: String,
+  countryOfOrigin: String,
+  brand: String,
+  embellishment: String,
+  ornamentation: String,
+  sleeveStyling: String,
+  importerDetails: String,
+  sleeveLength: String,
+  stitchType: String,
+  manufacturerDetails: String,
+  packerDetails: String,
   variants: [{
     sku: { 
       type: String, 
+      sparse: true,
       unique: true 
     },
     price: { 
+      type: Number, 
+      min: 0 
+    },
+    meeshoPrice: { 
+      type: Number, 
+      required: true, 
+      min: 0 
+    },
+    wrongDefectivePrice: { 
+      type: Number, 
+      min: 0 
+    },
+    mrp: { 
       type: Number, 
       required: true, 
       min: 0 
@@ -25,12 +62,43 @@ const ProductSchema = new mongoose.Schema({
       type: Number, 
       default: 0 
     },
+    bustSize: { 
+      type: Number, 
+      required: true, 
+      min: 0 
+    },
+    shoulderSize: { 
+      type: Number, 
+      required: true, 
+      min: 0 
+    },
+    waistSize: { 
+      type: Number, 
+      required: true, 
+      min: 0 
+    },
+    sizeLength: { 
+      type: Number, 
+      required: true, 
+      min: 0 
+    },
+    hipSize: { 
+      type: Number, 
+      min: 0 
+    },
     attributes: {
       type: Map,
       of: String
-    }
+    },
+    images: [String],
   }],
   images: [String],
+  video: String, // Add video field for product
+  media_type: { // Field to determine if main media is video or image
+    type: String,
+    enum: ['image', 'video'],
+    default: 'image'
+  },
   gstRate: { 
     type: Number, 
     default: 0 

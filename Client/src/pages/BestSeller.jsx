@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import axios from '../utils/api'
-import { toast } from 'react-hot-toast'
+// Toast import removed
+// import { toast } from 'react-hot-toast'
 import { FiChevronRight, FiFilter, FiAward } from 'react-icons/fi'
 import ProductCard from '../components/Shop/ProductCard'
 import Pagination from '../components/Common/Pagination'
@@ -18,10 +19,7 @@ const BestSeller = () => {
     pages: 0
   })
   
-  // Filter states
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [priceRange, setPriceRange] = useState({ min: '', max: '' })
-  const [showFilters, setShowFilters] = useState(false)
+  // Filter states removed
 
   // Function to fetch regular products when no purchase data is available
   const fetchRegularProducts = async () => {
@@ -36,14 +34,7 @@ const BestSeller = () => {
         limit: 100
       }
       
-      // Add category filter if not 'all'
-      if (categoryFilter !== 'all') {
-        params.category = categoryFilter
-      }
-      
-      // Add price range if set
-      if (priceRange.min) params.minPrice = priceRange.min
-      if (priceRange.max) params.maxPrice = priceRange.max
+      // Filters removed
       
       const response = await axios.get('/products', { params })
       
@@ -75,6 +66,7 @@ const BestSeller = () => {
   }
   
   useEffect(() => {
+    // Filter dependencies removed from useEffect
     const fetchMostPurchasedProducts = async () => {
       try {
         setLoading(true)
@@ -128,17 +120,8 @@ const BestSeller = () => {
           }
           
           // Now fetch the actual product details for these IDs
-          // Build query parameters for filtering
+          // Filters removed
           const params = {}
-          
-          // Add category filter if not 'all'
-          if (categoryFilter !== 'all') {
-            params.category = categoryFilter
-          }
-          
-          // Add price range if set
-          if (priceRange.min) params.minPrice = priceRange.min
-          if (priceRange.max) params.maxPrice = priceRange.max
           
           const productsResponse = await axios.get('/products?limit=100', { params })
           
@@ -148,25 +131,8 @@ const BestSeller = () => {
           
           const allProducts = productsResponse.data.data.products
           
-          // Filter products based on category and price if needed
+          // Filtering removed
           let filteredProducts = allProducts
-          if (categoryFilter !== 'all') {
-            filteredProducts = filteredProducts.filter(product => {
-              const productCategory = typeof product.category === 'object' ? product.category._id : product.category
-              return productCategory === categoryFilter
-            })
-          }
-          
-          if (priceRange.min || priceRange.max) {
-            filteredProducts = filteredProducts.filter(product => {
-              if (!product.variants || product.variants.length === 0) return false
-              
-              const price = product.variants[0].price
-              const minOk = !priceRange.min || price >= Number(priceRange.min)
-              const maxOk = !priceRange.max || price <= Number(priceRange.max)
-              return minOk && maxOk
-            })
-          }
           
           // Add sales data to products and sort by most purchased
           const productsWithSales = filteredProducts.map(product => ({
@@ -222,7 +188,8 @@ const BestSeller = () => {
       } catch (err) {
         // console.error('Error fetching best sellers:', err)
         setError('Failed to load products. Please try again later.')
-        toast.error('Failed to load products')
+        // Error notification removed
+        // toast.error('Failed to load products')
         setProducts([])
         setPagination({
           page: 1,
@@ -235,7 +202,7 @@ const BestSeller = () => {
     }
 
     fetchMostPurchasedProducts()
-  }, [pagination.page, pagination.limit, categoryFilter, priceRange.min, priceRange.max])
+  }, [pagination.page, pagination.limit])
 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > pagination.pages) return
@@ -243,25 +210,7 @@ const BestSeller = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleCategoryChange = (e) => {
-    setCategoryFilter(e.target.value)
-    setPagination(prev => ({ ...prev, page: 1 })) // Reset to first page on category change
-  }
-
-  const handlePriceChange = (e) => {
-    const { name, value } = e.target
-    setPriceRange(prev => ({ ...prev, [name]: value }))
-  }
-
-  const applyPriceFilter = () => {
-    setPagination(prev => ({ ...prev, page: 1 })) // Reset to first page on filter change
-  }
-
-  const resetFilters = () => {
-    setCategoryFilter('all')
-    setPriceRange({ min: '', max: '' })
-    setPagination(prev => ({ ...prev, page: 1 }))
-  }
+  // Filter related functions removed
 
   if (loading && pagination.page === 1) {
     return (
@@ -301,7 +250,7 @@ const BestSeller = () => {
       {/* Banner */}
       <div className="relative h-48 md:h-64 rounded-lg overflow-hidden mb-8">
         <img 
-          src="https://via.placeholder.com/1200x400?text=Best+Sellers" 
+          src="https://placehold.co/1200x400?text=Best+Sellers" 
           alt="Best Sellers"
           className="w-full h-full object-cover"
         />
@@ -316,90 +265,9 @@ const BestSeller = () => {
         </div>
       </div>
       
-      {/* Filter and Sort Controls */}
+      {/* Filter section removed */}
       <div className="mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-          <button 
-            className="flex items-center text-gray-700 hover:text-java-600 mb-4 md:mb-0"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <FiFilter className="mr-2" />
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </button>
-          
-          <div className="flex items-center">
-            <label htmlFor="category" className="mr-2 text-gray-700">Category:</label>
-            <select
-              id="category"
-              value={categoryFilter}
-              onChange={handleCategoryChange}
-              className="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-java-500 focus:border-transparent"
-            >
-              <option value="all">All Categories</option>
-              <option value="women">Women</option>
-              <option value="men">Men</option>
-              <option value="accessories">Accessories</option>
-              <option value="plus-size">Plus Size</option>
-            </select>
-          </div>
-        </div>
-        
-        {/* Filters */}
-        {showFilters && (
-          <motion.div 
-            className="bg-gray-50 p-4 rounded-lg mb-6"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Price Range</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label htmlFor="min" className="block text-sm font-medium text-gray-700 mb-1">Min Price</label>
-                <input
-                  type="number"
-                  id="min"
-                  name="min"
-                  value={priceRange.min}
-                  onChange={handlePriceChange}
-                  placeholder="Min"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-java-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="max" className="block text-sm font-medium text-gray-700 mb-1">Max Price</label>
-                <input
-                  type="number"
-                  id="max"
-                  name="max"
-                  value={priceRange.max}
-                  onChange={handlePriceChange}
-                  placeholder="Max"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-java-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-between">
-              <button 
-                onClick={applyPriceFilter}
-                className="px-4 py-2 bg-java-600 text-white rounded-md hover:bg-java-700 transition-colors"
-              >
-                Apply Filters
-              </button>
-              
-              <button 
-                onClick={resetFilters}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-              >
-                Reset Filters
-              </button>
-            </div>
-          </motion.div>
-        )}
+        {/* Filter controls removed */}
       </div>
       
       {/* Products Grid */}
@@ -410,13 +278,7 @@ const BestSeller = () => {
       ) : products.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
           <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-          <p className="text-gray-600 mb-6">Try adjusting your filters or check back later.</p>
-          <button 
-            onClick={resetFilters} 
-            className="px-6 py-2 bg-java-600 text-white rounded-md hover:bg-java-700 transition-colors"
-          >
-            Reset Filters
-          </button>
+          <p className="text-gray-600 mb-6">Check back later for our best selling products.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

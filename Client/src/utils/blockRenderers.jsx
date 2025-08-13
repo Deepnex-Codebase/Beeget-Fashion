@@ -1,5 +1,6 @@
 import React from 'react';
 import Input from '../components/Common/Input';
+import ImageUpload from '../components/Common/ImageUpload';
 
 /**
  * Renders blocks for the Home page
@@ -352,6 +353,82 @@ export const renderAboutPageBlocks = (blocks, isEditing, handleNestedFormChange)
           </React.Fragment>
         );
 
+      case 'our_vision':
+        return (
+          <React.Fragment key={key}>
+            <div className="py-16 bg-gray-50 overflow-hidden">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center">
+                  {isEditing ? (
+                    <div className="space-y-4 max-w-3xl mx-auto">
+                      <Input
+                        label="Vision Headline"
+                        value={block.headline || ''}
+                        onChange={(e) => handleNestedFormChange(`blocks.${blockIndex}.headline`, e.target.value)}
+                      />
+                      <label className="block text-sm font-medium text-gray-700">Vision Content</label>
+                      <textarea
+                        id={`vision-textarea-${blockIndex}`}
+                        rows={8}
+                        className="shadow-sm focus:ring-java-500 focus:border-java-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        value={block.rich_text_content || ''}
+                        onChange={(e) => handleNestedFormChange(`blocks.${blockIndex}.rich_text_content`, e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-3xl font-extrabold text-gray-900 mb-6">
+                        {block.headline || 'Our Vision'}
+                      </h2>
+                      <div className="prose prose-lg prose-java mx-auto">
+                        <div dangerouslySetInnerHTML={{ __html: block.rich_text_content || '<p>To become a trusted and loved fashion destination for women across India by offering stylish, high-quality, and affordable clothing that inspires confidence and reflects individuality.We envision a world where every woman — regardless of age, size, or budget — has access to fashion that makes her feel empowered, elegant, and expressive.' }} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </React.Fragment>
+        );
+
+      case 'our_mission':
+        return (
+          <React.Fragment key={key}>
+            <div className="py-16 bg-white overflow-hidden">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center">
+                  {isEditing ? (
+                    <div className="space-y-4 max-w-3xl mx-auto">
+                      <Input
+                        label="Mission Headline"
+                        value={block.headline || ''}
+                        onChange={(e) => handleNestedFormChange(`blocks.${blockIndex}.headline`, e.target.value)}
+                      />
+                      <label className="block text-sm font-medium text-gray-700">Mission Content</label>
+                      <textarea
+                        id={`mission-textarea-${blockIndex}`}
+                        rows={8}
+                        className="shadow-sm focus:ring-java-500 focus:border-java-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        value={block.rich_text_content || ''}
+                        onChange={(e) => handleNestedFormChange(`blocks.${blockIndex}.rich_text_content`, e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-3xl font-extrabold text-gray-900 mb-6">
+                        {block.headline || 'Our Mission'}
+                      </h2>
+                      <div className="prose prose-lg prose-java mx-auto">
+                        <div dangerouslySetInnerHTML={{ __html: block.rich_text_content || '<p>To deliver the best blend of ethnic and modern fashion with superior quality at affordable prices. To ensure that every purchase brings satisfaction to our customers — through thoughtful designs, reliable quality, and excellent service. To build long-term brand loyalty by consistently exceeding expectations in fabric, fitting, and fashion innovation. To support Indian artisans and fashion talent by showcasing craftsmanship with a modern outlook. To become a go-to fashion brand for women who want value, style, and confidence — all in one.</p>' }} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </React.Fragment>
+        );
+
       case 'our_story':
         return (
           <React.Fragment key={key}>
@@ -363,11 +440,39 @@ export const renderAboutPageBlocks = (blocks, isEditing, handleNestedFormChange)
                       <div className="space-y-4">
                         <label className="block text-sm font-medium text-gray-700">Our Story</label>
                         <textarea
+                          id={`story-textarea-${blockIndex}`}
                           rows={10}
                           className="shadow-sm focus:ring-java-500 focus:border-java-500 block w-full sm:text-sm border-gray-300 rounded-md"
                           value={block.rich_text_story || ''}
                           onChange={(e) => handleNestedFormChange(`blocks.${blockIndex}.rich_text_story`, e.target.value)}
                         />
+                        <div className="mt-2 flex justify-between items-center">
+                          <p className="text-xs text-gray-500">Place cursor where you want to add a paragraph break</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Get the textarea element
+                              const textarea = document.getElementById(`story-textarea-${blockIndex}`);
+                              const cursorPos = textarea.selectionStart;
+                              
+                              // Insert paragraph break at cursor position
+                              const textBefore = block.rich_text_story ? block.rich_text_story.substring(0, cursorPos) : '';
+                              const textAfter = block.rich_text_story ? block.rich_text_story.substring(cursorPos) : '';
+                              const newData = textBefore + '\n\n' + textAfter;
+                              
+                              handleNestedFormChange(`blocks.${blockIndex}.rich_text_story`, newData);
+                              
+                              // Set focus back to textarea and position cursor after the inserted paragraph
+                              setTimeout(() => {
+                                textarea.focus();
+                                textarea.setSelectionRange(cursorPos + 2, cursorPos + 2);
+                              }, 0);
+                            }}
+                            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-java-500"
+                          >
+                            Add Paragraph
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div dangerouslySetInnerHTML={{ __html: block.rich_text_story || '<p>Our story content goes here</p>' }} />
@@ -377,22 +482,40 @@ export const renderAboutPageBlocks = (blocks, isEditing, handleNestedFormChange)
                     <div className="aspect-w-3 aspect-h-2">
                       {isEditing ? (
                         <div className="space-y-4">
-                          <Input
-                            label="Image URL"
-                            value={block.image?.url || ''}
-                            onChange={(e) => handleNestedFormChange(`blocks.${blockIndex}.image.url`, e.target.value)}
+                          <ImageUpload
+                            label="Our Story Image"
+                            value={block.image?.url || block.side_image?.url || ''}
+                            onChange={(url) => {
+                              // Update both image and side_image fields for compatibility
+                              handleNestedFormChange(`blocks.${blockIndex}.image.url`, url);
+                              handleNestedFormChange(`blocks.${blockIndex}.side_image.url`, url);
+                            }}
+                            onImageUpload={(imageData) => {
+                              // Update both URL and alt text if available
+                              handleNestedFormChange(`blocks.${blockIndex}.image.url`, imageData.url);
+                              handleNestedFormChange(`blocks.${blockIndex}.side_image.url`, imageData.url);
+                              if (!block.image?.alt) {
+                                handleNestedFormChange(`blocks.${blockIndex}.image.alt`, 'Our story');
+                                handleNestedFormChange(`blocks.${blockIndex}.side_image.alt`, 'Our story');
+                              }
+                            }}
+                            placeholder="Upload Our Story Image..."
+                            maxSize={10 * 1024 * 1024} // 10MB limit
                           />
                           <Input
                             label="Image Alt Text"
-                            value={block.image?.alt || ''}
-                            onChange={(e) => handleNestedFormChange(`blocks.${blockIndex}.image.alt`, e.target.value)}
+                            value={block.image?.alt || block.side_image?.alt || ''}
+                            onChange={(e) => {
+                              handleNestedFormChange(`blocks.${blockIndex}.image.alt`, e.target.value);
+                              handleNestedFormChange(`blocks.${blockIndex}.side_image.alt`, e.target.value);
+                            }}
                           />
                         </div>
                       ) : (
                         <img
                           className="object-cover shadow-lg rounded-lg"
-                          src={block.image?.url || '/image_default.png'}
-                          alt={block.image?.alt || 'Our story'}
+                          src={block.image?.url || block.side_image?.url || '/image_default.png'}
+                          alt={block.image?.alt || block.side_image?.alt || 'Our story'}
                         />
                       )}
                     </div>

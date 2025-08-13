@@ -25,7 +25,7 @@ const OrderSchema = new mongoose.Schema({
       required: true, 
       min: 1 
     },
-    price: { 
+    mrp: { 
       type: Number, 
       required: true, 
       min: 0 
@@ -67,6 +67,11 @@ const OrderSchema = new mongoose.Schema({
   discount: Number,
   total: Number,
   totalGST: Number,
+  status: {
+    type: String,
+    enum: ['CREATED', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED', 'PAYMENT_FAILED', 'STOCK_ISSUE'],
+    default: 'CREATED'
+  },
   statusHistory: [{
     status: { 
       type: String, 

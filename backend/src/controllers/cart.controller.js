@@ -5,6 +5,110 @@ import Coupon from '../models/coupon.model.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { logger } from '../utils/logger.js';
 
+/**
+ * Helper function to add item to cart (used by both user and guest cart)
+ */
+const addItemToCart = async (cart, productId, quantity, size, color, req) => {
+  // Validate product exists
+  const product = await Product.findById(productId);
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+  
+  // Check if product already exists in cart with same size/color
+  const existingItemIndex = cart.items.findIndex(item => 
+    item.productId.toString() === productId && 
+    item.size === size && 
+    item.color === color
+  );
+  
+  if (existingItemIndex > -1) {
+    // Update quantity if item exists
+    cart.items[existingItemIndex].quantity += parseInt(quantity);
+  } else {
+    // Add new item
+    const productDetails = {
+      title: product.title,
+      price: product.variants && product.variants.length > 0 ? parseFloat(product.variants[0].price) : 0,
+      mrp: product.variants && product.variants.length > 0 ? parseFloat(product.variants[0].mrp || product.variants[0].price) : (product.mrp || product.price || 0),
+      image: product.images && product.images.length > 0 ? product.images[0] : null,
+      slug: product.slug
+    };
+    
+    // Get the variant SKU from the request or find it based on attributes
+    let variantSku = req.body.variantSku;
+    
+    // If no variantSku provided, try to find the matching variant
+    if (!variantSku && product.variants && product.variants.length > 0) {
+      const matchingVariant = product.variants.find(v => 
+        (!size || (v.attributes && v.attributes.get('size') === size)) && 
+        (!color || (v.attributes && v.attributes.get('color') === color))
+      );
+      
+      if (matchingVariant) {
+        variantSku = matchingVariant.sku;
+      } else {
+        // Use the first variant as fallback
+        variantSku = product.variants[0].sku;
+      }
+    }
+    
+    cart.items.push({
+      productId,
+      quantity: parseInt(quantity),
+      size,
+      color,
+      variantSku, // Add variantSku to cart item
+      gstRate: product.gstRate || 0, // Add GST rate from product
+      productDetails
+    });
+  }
+  
+  await cart.save();
+  
+  // Return updated cart with populated product details including variants
+  return await Cart.findById(cart._id)
+    .populate({
+      path: 'items.productId',
+      select: 'title price images slug variants'
+    });
+};
+
+/**
+ * Helper function to update cart item (used by both user and guest cart)
+ */
+const updateCartItemHelper = async (cart, itemId, quantity) => {
+  // Find the item in the cart
+  const cartItem = cart.items.id(itemId);
+  if (!cartItem) {
+    throw new AppError('Cart item not found', 404);
+  }
+  
+  // Update quantity
+  cartItem.quantity = parseInt(quantity);
+  
+  // Get the latest product data to update price and GST rate
+  const product = await Product.findById(cartItem.productId);
+  if (product) {
+    // Update the GST rate
+    cartItem.gstRate = product.gstRate || 0;
+    
+    // Update the stored product details with the latest price
+    if (product.variants && product.variants.length > 0) {
+      cartItem.productDetails.price = parseFloat(product.variants[0].price);
+    }
+  }
+  
+  await cart.save();
+  
+  // Return updated cart with populated product details including variants
+  return await Cart.findById(cart._id)
+    .populate({
+      path: 'items.productId',
+      select: 'title price images slug variants'
+    });
+};
+
 // All controller functions are exported individually with 'export' keyword
 
 /**
@@ -79,74 +183,14 @@ export const addToCart = async (req, res, next) => {
     const userId = req.user.id;
     const { productId, quantity = 1, size = null, color = null } = req.body;
     
-    // Validate product exists
-    const product = await Product.findById(productId);
-    if (!product) {
-      return next(new AppError('Product not found', 404));
-    }
-    
     // Find user's cart or create a new one
     let cart = await Cart.findOne({ userId });
     if (!cart) {
       cart = new Cart({ userId, items: [] });
     }
     
-    // Check if product already exists in cart with same size/color
-    const existingItemIndex = cart.items.findIndex(item => 
-      item.productId.toString() === productId && 
-      item.size === size && 
-      item.color === color
-    );
-    
-    if (existingItemIndex > -1) {
-      // Update quantity if item exists
-      cart.items[existingItemIndex].quantity += parseInt(quantity);
-    } else {
-      // Add new item
-      const productDetails = {
-        title: product.title,
-        price: product.variants && product.variants.length > 0 ? parseFloat(product.variants[0].price) : 0,
-        image: product.images && product.images.length > 0 ? product.images[0] : null,
-        slug: product.slug
-      };
-      
-      // Get the variant SKU from the request or find it based on attributes
-      let variantSku = req.body.variantSku;
-      
-      // If no variantSku provided, try to find the matching variant
-      if (!variantSku && product.variants && product.variants.length > 0) {
-        const matchingVariant = product.variants.find(v => 
-          (!size || (v.attributes && v.attributes.get('size') === size)) && 
-          (!color || (v.attributes && v.attributes.get('color') === color))
-        );
-        
-        if (matchingVariant) {
-          variantSku = matchingVariant.sku;
-        } else {
-          // Use the first variant as fallback
-          variantSku = product.variants[0].sku;
-        }
-      }
-      
-      cart.items.push({
-        productId,
-        quantity: parseInt(quantity),
-        size,
-        color,
-        variantSku, // Add variantSku to cart item
-        gstRate: product.gstRate || 0, // Add GST rate from product
-        productDetails
-      });
-    }
-    
-    await cart.save();
-    
-    // Return updated cart with populated product details including variants
-    const updatedCart = await Cart.findById(cart._id)
-      .populate({
-        path: 'items.productId',
-        select: 'title price images slug variants'
-      });
+    // Use helper function to add item to cart
+    const updatedCart = await addItemToCart(cart, productId, quantity, size, color, req);
     
     logger.info(`Item added to cart for user ${userId}`);
     return res.status(200).json({
@@ -171,74 +215,14 @@ export const addToGuestCart = async (req, res, next) => {
       return next(new AppError('Guest session ID is required', 400));
     }
     
-    // Validate product exists
-    const product = await Product.findById(productId);
-    if (!product) {
-      return next(new AppError('Product not found', 404));
-    }
-    
     // Find guest's cart or create a new one
     let cart = await Cart.findOne({ guestSessionId });
     if (!cart) {
       cart = new Cart({ guestSessionId, items: [] });
     }
     
-    // Check if product already exists in cart with same size/color
-    const existingItemIndex = cart.items.findIndex(item => 
-      item.productId.toString() === productId && 
-      item.size === size && 
-      item.color === color
-    );
-    
-    if (existingItemIndex > -1) {
-      // Update quantity if item exists
-      cart.items[existingItemIndex].quantity += parseInt(quantity);
-    } else {
-      // Add new item
-      const productDetails = {
-        title: product.title,
-        price: product.variants && product.variants.length > 0 ? parseFloat(product.variants[0].price) : 0,
-        image: product.images && product.images.length > 0 ? product.images[0] : null,
-        slug: product.slug
-      };
-      
-      // Get the variant SKU from the request or find it based on attributes
-      let variantSku = req.body.variantSku;
-      
-      // If no variantSku provided, try to find the matching variant
-      if (!variantSku && product.variants && product.variants.length > 0) {
-        const matchingVariant = product.variants.find(v => 
-          (!size || (v.attributes && v.attributes.get('size') === size)) && 
-          (!color || (v.attributes && v.attributes.get('color') === color))
-        );
-        
-        if (matchingVariant) {
-          variantSku = matchingVariant.sku;
-        } else {
-          // Use the first variant as fallback
-          variantSku = product.variants[0].sku;
-        }
-      }
-      
-      cart.items.push({
-        productId,
-        quantity: parseInt(quantity),
-        size,
-        color,
-        variantSku, // Add variantSku to cart item
-        gstRate: product.gstRate || 0, // Add GST rate from product
-        productDetails
-      });
-    }
-    
-    await cart.save();
-    
-    // Return updated cart with populated product details including variants
-    const updatedCart = await Cart.findById(cart._id)
-      .populate({
-        path: 'items.productId',
-        select: 'title price images slug variants'
-      });
+    // Use helper function to add item to cart
+    const updatedCart = await addItemToCart(cart, productId, quantity, size, color, req);
     
     logger.info(`Item added to cart for guest session ${guestSessionId}`);
     return res.status(200).json({
@@ -266,35 +250,8 @@ export const updateCartItem = async (req, res, next) => {
       return next(new AppError('Cart not found', 404));
     }
     
-    // Find the item in the cart
-    const cartItem = cart.items.id(itemId);
-    if (!cartItem) {
-      return next(new AppError('Cart item not found', 404));
-    }
-    
-    // Update quantity
-    cartItem.quantity = parseInt(quantity);
-    
-    // Get the latest product data to update price and GST rate
-    const product = await Product.findById(cartItem.productId);
-    if (product) {
-      // Update the GST rate
-      cartItem.gstRate = product.gstRate || 0;
-      
-      // Update the stored product details with the latest price
-      if (product.variants && product.variants.length > 0) {
-        cartItem.productDetails.price = parseFloat(product.variants[0].price);
-      }
-    }
-    
-    await cart.save();
-    
-    // Return updated cart with populated product details including variants
-    const updatedCart = await Cart.findById(cart._id)
-      .populate({
-        path: 'items.productId',
-        select: 'title price images slug variants'
-      });
+    // Use helper function to update cart item
+    const updatedCart = await updateCartItemHelper(cart, itemId, quantity);
     
     logger.info(`Cart item updated for user ${userId}`);
     return res.status(200).json({
@@ -325,35 +282,8 @@ export const updateGuestCartItem = async (req, res, next) => {
       return next(new AppError('Cart not found', 404));
     }
     
-    // Find the item in the cart
-    const cartItem = cart.items.id(itemId);
-    if (!cartItem) {
-      return next(new AppError('Cart item not found', 404));
-    }
-    
-    // Update quantity
-    cartItem.quantity = parseInt(quantity);
-    
-    // Get the latest product data to update price and GST rate
-    const product = await Product.findById(cartItem.productId);
-    if (product) {
-      // Update the GST rate
-      cartItem.gstRate = product.gstRate || 0;
-      
-      // Update the stored product details with the latest price
-      if (product.variants && product.variants.length > 0) {
-        cartItem.productDetails.price = parseFloat(product.variants[0].price);
-      }
-    }
-    
-    await cart.save();
-    
-    // Return updated cart with populated product details including variants
-    const updatedCart = await Cart.findById(cart._id)
-      .populate({
-        path: 'items.productId',
-        select: 'title price images slug variants'
-      });
+    // Use helper function to update cart item
+    const updatedCart = await updateCartItemHelper(cart, itemId, quantity);
     
     logger.info(`Cart item updated for guest session ${guestSessionId}`);
     return res.status(200).json({

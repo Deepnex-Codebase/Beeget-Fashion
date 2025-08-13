@@ -1,7 +1,8 @@
 import express from 'express';
 import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
 import { isEditor, isViewer, preventDeletion } from '../middlewares/cms-permissions.middleware.js';
-import { cmsUpload, videoUpload } from '../config/multer.js';
+import { cmsUpload, videoUpload, pngUpload } from '../config/multer.js';
+import { logger } from '../utils/logger.js';
 import {
   getHomePage,
   updateHomePage,
@@ -51,8 +52,20 @@ router.get('/enquiries', verifyToken, isViewer, getEnquiries);
 router.put('/enquiries/:id/status', verifyToken, isEditor, updateEnquiryStatus);
 router.delete('/enquiries/:id', verifyToken, isEditor, deleteEnquiry);
 
-// Image upload route
+// Image upload routes
 router.post('/upload-image', verifyToken, isEditor, cmsUpload.single('image'), uploadCmsImage);
+
+// PNG image upload route
+router.post('/upload-png', verifyToken, isEditor, pngUpload.single('image'), (req, res, next) => {
+  logger.debug('PNG upload request received');
+  uploadCmsImage(req, res, next);
+});
+
+// Hero section image upload route
+router.post('/hero/upload-image', verifyToken, isEditor, cmsUpload.single('image'), (req, res, next) => {
+  logger.debug('Hero section image upload request received');
+  uploadCmsImage(req, res, next);
+});
 
 // Video upload route
 router.post('/upload-video', verifyToken, isEditor, videoUpload.single('video'), uploadCmsVideo);

@@ -1,6 +1,25 @@
 import { createContext, useState, useEffect } from 'react'
 import axios from '../utils/api'
-import { toast } from 'react-toastify'
+
+// Helper function to transform backend cart items to frontend format
+const transformCartItems = (items, variantSku = null) => {
+  return items.map(item => ({
+    id: item.productId._id,
+    _id: item._id, // Store the cart item ID for future operations
+    name: item.productDetails?.title || item.productId.title,
+    title: item.productDetails?.title || item.productId.title,
+    price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+    mrp: item.productDetails?.mrp || item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].mrp || item.productId.variants[0].price) : (item.productId.mrp || item.productId.price || 0)),
+    slug: item.productDetails?.slug || item.productId.slug,
+    image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+    quantity: item.quantity,
+    size: item.size || null,
+    color: item.color || null,
+    gstRate: item.gstRate || 0, // Add GST rate from product
+    variantSku: item.variantSku || variantSku, // Ensure variantSku is set
+    addedAt: new Date().toISOString()
+  }))
+}
 
 const CartContext = createContext()
 
@@ -26,16 +45,14 @@ export const CartProvider = ({ children }) => {
     if (storedCart) {
       try {
         const parsedCart = JSON.parse(storedCart)
-        // console.log('Loading cart from localStorage:', parsedCart.length, 'items')
         setCart(parsedCart)
       } catch (error) {
-        // console.error('Error parsing stored cart data:', error)
         // Clear invalid data
         localStorage.removeItem('cart')
         setCart([])
       }
     } else {
-      // console.log('No cart data found in localStorage')
+      // No cart data found in localStorage
     }
     setIsInitialized(true)
   }, []) // Run only once on component mount
@@ -43,13 +60,9 @@ export const CartProvider = ({ children }) => {
   // Then, fetch cart from backend if user is authenticated or has a guest session
   useEffect(() => {
     const fetchCartFromBackend = async () => {
-      // console.log('Authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated')
-      // console.log('Current cart state before backend fetch:', cart.length, 'items')
-      
       // Skip backend fetch if we already have cart data in localStorage
       const storedCart = localStorage.getItem('cart')
       if (storedCart && JSON.parse(storedCart).length > 0) {
-        // console.log('Skipping backend fetch - localStorage has cart data')
         return
       }
       
@@ -58,33 +71,16 @@ export const CartProvider = ({ children }) => {
         
         if (isAuthenticated) {
           // Fetch cart for authenticated user
-          // console.log('Attempting to fetch cart from backend for authenticated user...')
           const response = await axios.get('/cart')
-          // console.log('Cart fetch successful:', response.data)
           if (response.data.success) {
             // Transform backend cart format to frontend format
-            const backendCart = response.data.data.items.map(item => ({
-              id: item.productId._id,
-              _id: item._id, // Store the cart item ID for future operations
-              name: item.productDetails?.title || item.productId.title,
-              title: item.productDetails?.title || item.productId.title,
-              price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-              slug: item.productDetails?.slug || item.productId.slug,
-              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-              quantity: item.quantity,
-              size: item.size || null,
-              color: item.color || null,
-              gstRate: item.gstRate || 0, // Add GST rate from product
-              variantSku: item.variantSku, // Ensure variantSku is set
-              addedAt: new Date().toISOString()
-            }))
-            // console.log('Backend cart loaded:', backendCart.length, 'items')
+            const backendCart = transformCartItems(response.data.data.items)
             // Only update cart if backend has items, otherwise keep localStorage cart
             if (backendCart.length > 0) {
               setCart(backendCart)
               localStorage.setItem('cart', JSON.stringify(backendCart))
             } else {
-              // console.log('Backend cart is empty, keeping localStorage cart')
+              // Backend cart is empty, keeping localStorage cart
             }
           }
         } else {
@@ -93,47 +89,26 @@ export const CartProvider = ({ children }) => {
           
           if (guestSessionId) {
             // Fetch cart for guest user
-            // console.log('Attempting to fetch cart from backend for guest user...')
             const response = await axios.get(`/cart/guest/${guestSessionId}`)
-            // console.log('Guest cart fetch successful:', response.data)
             if (response.data.success) {
-              // Transform backend cart format to frontend format
-              const backendCart = response.data.data.items.map(item => ({
-                id: item.productId._id,
-                _id: item._id, // Store the cart item ID for future operations
-                name: item.productDetails?.title || item.productId.title,
-                title: item.productDetails?.title || item.productId.title,
-                price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-                slug: item.productDetails?.slug || item.productId.slug,
-                image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-                quantity: item.quantity,
-                size: item.size || null,
-                color: item.color || null,
-                gstRate: item.gstRate || 0, // Add GST rate from product
-                variantSku: item.variantSku, // Ensure variantSku is set
-                addedAt: new Date().toISOString()
-              }))
+            // Transform backend cart format to frontend format
+            const backendCart = transformCartItems(response.data.data.items)
               // Only update cart if backend has items, otherwise keep localStorage cart
               if (backendCart.length > 0) {
                 setCart(backendCart)
                 localStorage.setItem('cart', JSON.stringify(backendCart))
               } else {
-                // console.log('Backend guest cart is empty, keeping localStorage cart')
+                // Backend guest cart is empty, keeping localStorage cart
               }
             }
           } else {
             // Create a new guest session ID
             const newGuestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15)
             localStorage.setItem('guestSessionId', newGuestSessionId)
-            // console.log('Created new guest session ID:', newGuestSessionId)
           }
         }
       } catch (err) {
-        // console.error('Error fetching cart from backend:', err)
-        // console.log('Error status:', err.response?.status)
-        // console.log('Error message:', err.response?.data)
         // Keep localStorage cart on backend error
-        // console.log('Keeping localStorage cart due to backend error')
       } finally {
         setLoading(false)
       }
@@ -147,7 +122,6 @@ export const CartProvider = ({ children }) => {
     // Only save to localStorage after initialization and when cart actually changes
     if (isInitialized) {
       localStorage.setItem('cart', JSON.stringify(cart))
-      // console.log('Cart saved to localStorage:', cart.length, 'items')
     }
   }, [cart, isInitialized])
   
@@ -195,6 +169,7 @@ export const CartProvider = ({ children }) => {
         color,
         variantSku: variantSku,
         gstRate: product.gstRate || 0, // Add GST rate from product
+        mrp: product.mrp || product.price, // Ensure MRP is included
         addedAt: new Date().toISOString()
       }
       
@@ -210,21 +185,7 @@ export const CartProvider = ({ children }) => {
         
         if (response.data.success) {
           // Transform backend cart format to frontend format
-          const backendCart = response.data.data.items.map(item => ({
-            id: item.productId._id,
-            _id: item._id, // Store the cart item ID for future operations
-            name: item.productDetails?.title || item.productId.title,
-            title: item.productDetails?.title || item.productId.title,
-            price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-            slug: item.productDetails?.slug || item.productId.slug,
-            image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-            quantity: item.quantity,
-            size: item.size || null,
-            color: item.color || null,
-            gstRate: item.gstRate || 0, // Add GST rate from product
-            variantSku: item.variantSku || variantSku, // Ensure variantSku is set
-            addedAt: new Date().toISOString()
-          }))
+          const backendCart = transformCartItems(response.data.data.items, variantSku)
           
           // Update state and localStorage in one place
           setCart(backendCart)
@@ -256,6 +217,7 @@ export const CartProvider = ({ children }) => {
               name: item.productDetails?.title || item.productId.title,
               title: item.productDetails?.title || item.productId.title,
               price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
+              mrp: item.productDetails?.mrp || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].mrp || item.productId.variants[0].price) : (item.productId.mrp || item.productId.price || 0)),
               slug: item.productDetails?.slug || item.productId.slug,
               image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
               quantity: item.quantity,
@@ -282,21 +244,7 @@ export const CartProvider = ({ children }) => {
           
           if (response.data.success) {
             // Transform backend cart format to frontend format
-            const backendCart = response.data.data.items.map(item => ({
-              id: item.productId._id,
-              _id: item._id, // Store the cart item ID for future operations
-              name: item.productDetails?.title || item.productId.title,
-              title: item.productDetails?.title || item.productId.title,
-              price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-              slug: item.productDetails?.slug || item.productId.slug,
-              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-              quantity: item.quantity,
-              size: item.size || null,
-              color: item.color || null,
-              gstRate: item.gstRate || 0, // Add GST rate from product
-              variantSku: item.variantSku || variantSku, // Ensure variantSku is set
-              addedAt: new Date().toISOString()
-            }))
+            const backendCart = transformCartItems(response.data.data.items, variantSku)
             
             // Update state and localStorage in one place
             setCart(backendCart)
@@ -310,16 +258,8 @@ export const CartProvider = ({ children }) => {
       window.dispatchEvent(event)
       
     } catch (error) {
-      // console.error('Error adding to cart:', error)
       setError(error.message || 'Failed to add to cart')
-      toast.error('Failed to add to cart. Please try again.', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Failed to add to cart
     } finally {
       setLoading(false)
     }
@@ -346,19 +286,7 @@ export const CartProvider = ({ children }) => {
           
           if (response.data.success) {
             // Transform backend cart format to frontend format
-            const backendCart = response.data.data.items.map(item => ({
-              id: item.productId._id,
-              _id: item._id, // Store the cart item ID for future operations
-              name: item.productId.title,
-              title: item.productId.title,
-              price: item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0,
-              image: item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null,
-              quantity: item.quantity,
-              size: item.size || null,
-              color: item.color || null,
-              gstRate: item.gstRate || 0, // Add GST rate from product
-              addedAt: new Date().toISOString()
-            }))
+            const backendCart = transformCartItems(response.data.data.items)
             
             // Update state and localStorage in one place
             setCart(backendCart)
@@ -387,20 +315,7 @@ export const CartProvider = ({ children }) => {
             
             if (response.data.success) {
               // Transform backend cart format to frontend format
-              const backendCart = response.data.data.items.map(item => ({
-                id: item.productId._id,
-                _id: item._id, // Store the cart item ID for future operations
-                name: item.productDetails?.title || item.productId.title,
-                title: item.productDetails?.title || item.productId.title,
-                price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-                slug: item.productDetails?.slug || item.productId.slug,
-                image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-                quantity: item.quantity,
-                size: item.size || null,
-                color: item.color || null,
-                gstRate: item.gstRate || 0, // Add GST rate from product
-                addedAt: new Date().toISOString()
-              }))
+              const backendCart = transformCartItems(response.data.data.items)
               
               // Update state and localStorage in one place
               setCart(backendCart)
@@ -430,14 +345,7 @@ export const CartProvider = ({ children }) => {
     } catch (error) {
       // console.error('Error removing from cart:', error)
       setError(error.message || 'Failed to remove item from cart')
-      toast.error('Failed to remove item from cart. Please try again.', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Failed to remove item from cart
     } finally {
       setLoading(false)
     }
@@ -487,6 +395,7 @@ export const CartProvider = ({ children }) => {
               name: item.productId.title,
               title: item.productId.title,
               price: item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0,
+              mrp: item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].mrp || item.productId.variants[0].price) : (item.productId.mrp || item.productId.price || 0),
               image: item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null,
               quantity: item.quantity,
               size: item.size || null,
@@ -522,33 +431,13 @@ export const CartProvider = ({ children }) => {
             
             if (response.data.success) {
               // Transform backend cart format to frontend format
-              const backendCart = response.data.data.items.map(item => ({
-                id: item.productId._id,
-                _id: item._id, // Store the cart item ID for future operations
-                name: item.productDetails?.title || item.productId.title,
-                title: item.productDetails?.title || item.productId.title,
-                price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-                slug: item.productDetails?.slug || item.productId.slug,
-                image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-                quantity: item.quantity,
-                size: item.size || null,
-                color: item.color || null,
-                gstRate: item.gstRate || 0, // Add GST rate from product
-                addedAt: new Date().toISOString()
-              }))
+              const backendCart = transformCartItems(response.data.data.items)
               
               // Update state and localStorage in one place
               setCart(backendCart)
               localStorage.setItem('cart', JSON.stringify(backendCart))
               
-              toast.success('Cart updated!', {
-                position: "top-right",
-                autoClose: 3000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true
-              })
+              // Cart updated successfully
             }
           } else {
             throw new Error('Cart item not found')
@@ -559,7 +448,12 @@ export const CartProvider = ({ children }) => {
             if ((item.id === itemId || item._id === itemId) && 
                 (size ? item.size === size : true) && 
                 (color ? item.color === color : true)) {
-              return { ...item, quantity }
+              // Make sure we preserve the mrp value when updating quantity
+              return { 
+                ...item, 
+                quantity,
+                mrp: item.mrp || item.price || 0 // Ensure mrp is preserved
+              }
             }
             return item
           })
@@ -574,14 +468,7 @@ export const CartProvider = ({ children }) => {
     } catch (error) {
       // console.error('Error updating cart:', error)
       setError(error.message || 'Failed to update cart')
-      toast.error('Failed to update cart. Please try again.', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Failed to update cart
     } finally {
       setLoading(false)
     }
@@ -657,14 +544,7 @@ export const CartProvider = ({ children }) => {
     } catch (error) {
       // console.error('Error clearing cart:', error)
       setError(error.message || 'Failed to clear cart')
-      toast.error('Failed to clear cart. Please try again.', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Failed to clear cart
     } finally {
       setLoading(false)
     }
@@ -673,11 +553,12 @@ export const CartProvider = ({ children }) => {
   // Get cart total
   const getCartTotal = () => {
     const subtotal = cart.reduce((total, item) => {
-      // Ensure price is a number
-      const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0
+      // Always use MRP instead of price, ensure it's a valid number
+      const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price || 0)
       // Ensure quantity is a number
       const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
-      return total + (price * quantity)
+      // Ensure we don't add NaN to the total
+      return total + (isNaN(price * quantity) ? 0 : price * quantity)
     }, 0)
     
     // Calculate shipping cost (free over ₹1000)
@@ -685,8 +566,8 @@ export const CartProvider = ({ children }) => {
     
     // Calculate tax based on each product's GST rate
     const tax = cart.reduce((totalTax, item) => {
-      // Ensure price is a number
-      const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0
+      // Always use MRP instead of price
+      const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price) || 0
       // Ensure quantity is a number
       const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
       // Get GST rate from item or use 0 if not available
@@ -702,11 +583,12 @@ export const CartProvider = ({ children }) => {
   // Get cart subtotal (without discount)
   const getCartSubtotal = () => {
     return cart.reduce((total, item) => {
-      // Ensure price is a number
-      const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0
+      // Always use MRP instead of price, ensure it's a valid number
+      const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price || 0)
       // Ensure quantity is a number
       const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
-      return total + (price * quantity)
+      // Ensure we don't add NaN to the total
+      return total + (isNaN(price * quantity) ? 0 : price * quantity)
     }, 0)
   }
   
@@ -735,12 +617,12 @@ export const CartProvider = ({ children }) => {
         // Check minimum purchase requirement
         const subtotal = getCartSubtotal()
         if (minimumPurchase && subtotal < minimumPurchase) {
-          setCouponError(`Minimum purchase of ₹${minimumPurchase.toFixed(2)} required for this coupon`)
+          setCouponError(`Minimum purchase of ₹${parseInt(minimumPurchase)} required for this coupon`)
           setCouponCode('')
           setCouponDiscount(0)
           return { 
             success: false, 
-            error: `Minimum purchase of ₹${minimumPurchase.toFixed(2)} required for this coupon` 
+            error: `Minimum purchase of ₹${parseInt(minimumPurchase)} required for this coupon` 
           }
         }
         
@@ -770,14 +652,7 @@ export const CartProvider = ({ children }) => {
           }
         }
         
-        toast.success(`Coupon applied! You saved ₹${discount.toFixed(2)}`, {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true
-        })
+        // Coupon applied successfully
         
         return { 
           success: true, 
@@ -795,7 +670,6 @@ export const CartProvider = ({ children }) => {
         return { success: false, error: response.data.error || 'Invalid coupon code' }
       }
     } catch (err) {
-      // console.error('Error applying coupon:', err)
       const errorMessage = err.response?.data?.error || err.message || 'Failed to apply coupon'
       setCouponError(errorMessage)
       setCouponCode('')
@@ -824,31 +698,16 @@ export const CartProvider = ({ children }) => {
       setCouponDiscount(0)
       setCouponError(null)
       
-      toast.info('Coupon removed', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Coupon removed
       
       return { success: true }
     } catch (error) {
-      // console.error('Error removing coupon:', error)
       // Still update local state even if backend call fails
       setCouponCode('')
       setCouponDiscount(0)
       setCouponError(null)
       
-      toast.info('Coupon removed', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Coupon removed
       
       return { success: true }
     }
@@ -875,7 +734,6 @@ export const CartProvider = ({ children }) => {
         throw new Error(response.data.error || 'Failed to fetch guest orders');
       }
     } catch (err) {
-      // console.error('Error fetching guest orders:', err);
       const errorMessage = err.response?.data?.error || err.message || 'Failed to fetch guest orders';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -893,14 +751,7 @@ export const CartProvider = ({ children }) => {
       // Validate cart items
       if (!cart || cart.length === 0) {
         setError('Your cart is empty. Please add items to your cart before checkout.')
-        toast.error('Your cart is empty. Please add items to your cart before checkout.', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true
-        })
+        // Cart is empty
         return { success: false, error: 'Cart is empty' }
       }
       
@@ -925,15 +776,16 @@ export const CartProvider = ({ children }) => {
           const size = item.size || 'default';
           const color = item.color || 'default';
           variantSku = `${item.id || item._id}-${size}-${color}`;
-          
-          // console.log(`Generated fallback SKU: ${variantSku} for product ${item.id || item._id}`);
         }
+        
+        // Always use MRP instead of price if available
+        const price = item.mrp || item.price;
         
         return {
           productId: item.id || item._id,
           qty: item.quantity,
           variantSku: variantSku,
-          price: item.price,
+          price: price,
           size: item.size || null,
           color: item.color || null 
         };
@@ -970,17 +822,9 @@ export const CartProvider = ({ children }) => {
         // Only clear cart for non-Cashfree payment methods
         // For Cashfree, cart will be cleared after payment confirmation
         if (orderData.payment.method !== 'CASHFREE') {
-          // console.log('Clearing cart after successful order placement')
           await clearCart()
           
-          toast.success('Order placed successfully!', {
-            position: "top-right",
-            autoClose: 3000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true
-          })
+          // Order placed successfully
         } else {
           // For Cashfree, just store the order ID in localStorage
           const orderId = response.data.data.orderId || (response.data.data.order && response.data.data.order._id) || response.data.data._id;
@@ -994,17 +838,9 @@ export const CartProvider = ({ children }) => {
         throw new Error(response.data.error || 'Failed to complete checkout')
       }
     } catch (err) {
-      // console.error('Checkout error:', err)
       const errorMessage = err.response?.data?.error || err.message || 'Failed to complete checkout. Please try again.'
       setError(errorMessage)
-      toast.error(errorMessage, {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Checkout error
       return { success: false, error: errorMessage }
     } finally {
       setLoading(false)
@@ -1033,13 +869,10 @@ export const CartProvider = ({ children }) => {
         getGuestOrders,
         // Debug function to check cart state
         debugCart: () => {
-          // console.log('Current cart state:', cart)
-          // console.log('localStorage cart:', localStorage.getItem('cart'))
           return { cart, localStorage: localStorage.getItem('cart') }
         },
         // Force sync cart with backend
         syncCartWithBackend: async () => {
-          // console.log('Force syncing cart with backend...')
           // Clear the localStorage check to force backend fetch
           localStorage.removeItem('cart')
           // Trigger backend fetch

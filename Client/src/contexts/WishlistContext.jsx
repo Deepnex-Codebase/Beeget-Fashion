@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react'
 import { AuthContext } from './AuthContext'
 import api from '../utils/api'
-import { toast } from 'react-toastify'
+// toast removed
 
 const WishlistContext = createContext()
 
@@ -25,15 +25,59 @@ export const WishlistProvider = ({ children }) => {
           if (response.data.success) {
             // Transform backend format to frontend format if needed
             const backendWishlist = response.data.data.items.map(item => {
+              if (!item) return null; // Skip null items
+              
+              // Get MRP from productDetails or productId or fallback to price
+              const mrp = item.productId?.mrp || 
+                (item.productId?.variants && Array.isArray(item.productId.variants) && item.productId.variants.length > 0 ? 
+                  item.productId.variants[0].mrp : 
+                  null) || 
+                item.productDetails?.mrp || 
+                item.productDetails?.price || 
+                (item.productId?.price || 0);
+              
+              // Create a safe productId object
+              let safeProductId = null;
+              if (typeof item.productId === 'object' && item.productId !== null) {
+                safeProductId = {
+                  ...item.productId,
+                  _id: item.productId._id || '',
+                  mrp: mrp, // Ensure MRP is set in productId
+                  title: item.productId.title || '',
+                  price: item.productId.price || 0,
+                  variants: Array.isArray(item.productId.variants) ? item.productId.variants : [],
+                  images: Array.isArray(item.productId.images) ? item.productId.images : []
+                };
+              } else if (typeof item.productId === 'string') {
+                safeProductId = {
+                  _id: item.productId,
+                  mrp: mrp,
+                  title: '',
+                  price: 0,
+                  variants: [],
+                  images: []
+                };
+              } else {
+                safeProductId = {
+                  _id: '',
+                  mrp: mrp,
+                  title: '',
+                  price: 0,
+                  variants: [],
+                  images: []
+                };
+              }
+                
               // Always set hasStock to true as per requirement
               const enhancedItem = {
                 ...item,
-                id: item._id,
-                productId: item.productId._id || item.productId,
-                title: item.productDetails?.title || (item.productId.title || ''),
-                price: item.productDetails?.price || (item.productId.price || 0),
-                image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-                slug: item.productDetails?.slug || (item.productId.slug || item.productId._id),
+                id: item._id || '',
+                productId: safeProductId,
+                title: item.productDetails?.title || (safeProductId.title || ''),
+                price: item.productDetails?.price || (safeProductId.price || 0),
+                mrp: mrp, // Ensure MRP is set at top level
+                image: item.productDetails?.image || (Array.isArray(safeProductId.images) && safeProductId.images.length > 0 ? safeProductId.images[0] : null),
+                slug: item.productDetails?.slug || (safeProductId.slug || safeProductId._id || ''),
                 hasStock: true // Override stock status to always be in stock
               }
               
@@ -43,7 +87,8 @@ export const WishlistProvider = ({ children }) => {
               }
               
               return enhancedItem
-            })
+            }).filter(item => item !== null) // Remove any null items
+            
             setWishlist(backendWishlist)
           }
         } else {
@@ -52,25 +97,62 @@ export const WishlistProvider = ({ children }) => {
           if (storedWishlist) {
             try {
               // Parse and ensure all items show as in stock
-              const parsedWishlist = JSON.parse(storedWishlist).map(item => ({
-                ...item,
-                hasStock: true,
-                productDetails: item.productDetails ? {
-                  ...item.productDetails,
-                  hasStock: true
-                } : undefined
-              }))
+              const parsedWishlist = JSON.parse(storedWishlist)
+                .filter(item => item !== null) // Filter out null items
+                .map(item => {
+                  // Create a safe productId object
+                  let safeProductId = null;
+                  if (typeof item.productId === 'object' && item.productId !== null) {
+                    safeProductId = {
+                      ...item.productId,
+                      _id: item.productId._id || '',
+                      title: item.productId.title || '',
+                      price: item.productId.price || 0,
+                      variants: Array.isArray(item.productId.variants) ? item.productId.variants : [],
+                      images: Array.isArray(item.productId.images) ? item.productId.images : []
+                    };
+                  } else if (typeof item.productId === 'string') {
+                    safeProductId = {
+                      _id: item.productId,
+                      title: '',
+                      price: 0,
+                      variants: [],
+                      images: []
+                    };
+                  } else {
+                    safeProductId = {
+                      _id: '',
+                      title: '',
+                      price: 0,
+                      variants: [],
+                      images: []
+                    };
+                  }
+                  
+                  return {
+                    ...item,
+                    hasStock: true,
+                    productId: safeProductId,
+                    productDetails: item.productDetails ? {
+                      ...item.productDetails,
+                      hasStock: true
+                    } : undefined
+                  };
+                });
+              
               setWishlist(parsedWishlist)
             } catch (error) {
               console.error('Error parsing stored wishlist data:', error)
               // Clear invalid data
               localStorage.removeItem('wishlist')
+              setWishlist([])
             }
           }
         }
       } catch (err) {
         console.error('Error fetching wishlist:', err)
         setError('Failed to load wishlist. Please try again.')
+        setRetryCount(prevCount => prevCount + 1)
         
         // Fallback to localStorage if API fails
         const storedWishlist = localStorage.getItem('wishlist')
@@ -96,7 +178,7 @@ export const WishlistProvider = ({ children }) => {
     }
     
     fetchWishlist()
-  }, [isAuthenticated])
+  }, [isAuthenticated, retryCount])
   
   // Save wishlist to localStorage for non-authenticated users
   useEffect(() => {
@@ -127,7 +209,7 @@ export const WishlistProvider = ({ children }) => {
     
     // Check if product already exists in wishlist
     if (isInWishlist(productId)) {
-      toast.info('Product already in wishlist');
+      // Product already in wishlist
       return; // Already in wishlist
     }
     
@@ -143,14 +225,28 @@ export const WishlistProvider = ({ children }) => {
         if (response.data.success) {
           // Transform backend format to frontend format
           const backendWishlist = response.data.data.items.map(item => {
+            // Get MRP from productDetails or productId or fallback to price
+            const mrp = item.productId?.mrp || 
+              (item.productId?.variants && item.productId.variants.length > 0 ? 
+                item.productId.variants[0].mrp : 
+                null) || 
+              item.productDetails?.mrp || 
+              item.productDetails?.price || 
+              (item.productId?.price || 0);
+              
             const enhancedItem = {
               ...item,
               id: item._id,
-              productId: item.productId._id || item.productId,
-              title: item.productDetails?.title || (item.productId.title || ''),
-              price: item.productDetails?.price || (item.productId.price || 0),
-              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-              slug: item.productDetails?.slug || (item.productId.slug || item.productId._id),
+              productId: {
+                ...item.productId,
+                _id: item.productId?._id || item.productId,
+                mrp: mrp // Ensure MRP is set in productId
+              },
+              title: item.productDetails?.title || (item.productId?.title || ''),
+              price: item.productDetails?.price || (item.productId?.price || 0),
+              mrp: mrp, // Ensure MRP is set at top level
+              image: item.productDetails?.image || (item.productId?.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+              slug: item.productDetails?.slug || (item.productId?.slug || item.productId?._id),
               hasStock: true // Override stock status to always be in stock
             };
             
@@ -163,7 +259,7 @@ export const WishlistProvider = ({ children }) => {
           });
           
           setWishlist(backendWishlist);
-          toast.success('Added to wishlist');
+          // Added to wishlist
         } else {
           throw new Error('Failed to add to wishlist');
         }
@@ -177,13 +273,18 @@ export const WishlistProvider = ({ children }) => {
               _id: productId,
               title: product.title || product.name,
               price: product.price || 0,
+              mrp: product.mrp || product.price || 0, // Ensure MRP is set
               images: product.images || (product.image ? [product.image] : []),
               slug: product.slug || productId // Ensure slug is set
             },
             slug: product.slug || productId, // Set slug at top level too
             _id: productId, // Ensure _id is set for removal
             addedAt: new Date().toISOString(),
-            hasStock: true // Always in stock
+            hasStock: true, // Always in stock
+            productDetails: {
+              ...product.productDetails,
+              mrp: product.mrp || product.price || 0 // Ensure MRP is set in productDetails too
+            }
           };
           
           const newWishlist = [...prevWishlist, enhancedProduct];
@@ -191,12 +292,12 @@ export const WishlistProvider = ({ children }) => {
           return newWishlist;
         });
         
-        toast.success('Added to wishlist');
+        // Added to wishlist
       }
     } catch (err) {
       console.error('Error adding to wishlist:', err);
       setError('Failed to add to wishlist. Please try again.');
-      toast.error('Failed to add to wishlist');
+      // Failed to add to wishlist
     } finally {
       setLoading(false);
     }
@@ -217,14 +318,28 @@ export const WishlistProvider = ({ children }) => {
         if (response.data.success) {
           // Transform backend format to frontend format
           const backendWishlist = response.data.data.items.map(item => {
+            // Get MRP from productDetails or productId or fallback to price
+            const mrp = item.productId?.mrp || 
+              (item.productId?.variants && item.productId.variants.length > 0 ? 
+                item.productId.variants[0].mrp : 
+                null) || 
+              item.productDetails?.mrp || 
+              item.productDetails?.price || 
+              (item.productId?.price || 0);
+              
             const enhancedItem = {
               ...item,
               id: item._id,
-              productId: item.productId._id || item.productId,
-              title: item.productDetails?.title || (item.productId.title || ''),
-              price: item.productDetails?.price || (item.productId.price || 0),
-              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-              slug: item.productDetails?.slug || (item.productId.slug || item.productId._id),
+              productId: {
+                ...item.productId,
+                _id: item.productId?._id || item.productId,
+                mrp: mrp // Ensure MRP is set in productId
+              },
+              title: item.productDetails?.title || (item.productId?.title || ''),
+              price: item.productDetails?.price || (item.productId?.price || 0),
+              mrp: mrp, // Ensure MRP is set at top level
+              image: item.productDetails?.image || (item.productId?.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
+              slug: item.productDetails?.slug || (item.productId?.slug || item.productId?._id),
               hasStock: true // Override stock status to always be in stock
             };
             
@@ -237,7 +352,7 @@ export const WishlistProvider = ({ children }) => {
           })
           
           setWishlist(backendWishlist)
-          toast.success('Removed from wishlist')
+          // Removed from wishlist
         } else {
           throw new Error('Failed to remove from wishlist')
         }
@@ -249,12 +364,12 @@ export const WishlistProvider = ({ children }) => {
           return newWishlist
         })
         
-        toast.success('Removed from wishlist')
+        // Removed from wishlist
       }
     } catch (err) {
       console.error('Error removing from wishlist:', err)
       setError('Failed to remove from wishlist. Please try again.')
-      toast.error('Failed to remove from wishlist')
+      // Failed to remove from wishlist
     } finally {
       setLoading(false)
     }
@@ -262,9 +377,12 @@ export const WishlistProvider = ({ children }) => {
   
   // Check if item is in wishlist
   const isInWishlist = (itemId) => {
+    if (!itemId || !wishlist || !Array.isArray(wishlist)) return false;
+    
     return wishlist.some(item => {
+      if (!item) return false;
       // Check all possible ID formats
-      const id = item._id || item.id || (item.productId && (item.productId._id || item.productId))
+      const id = item?._id || item?.id || (item?.productId && (typeof item.productId === 'object' ? item.productId?._id : item.productId))
       return id === itemId
     })
   }
@@ -282,7 +400,7 @@ export const WishlistProvider = ({ children }) => {
         
         if (response.data.success) {
           setWishlist([])
-          toast.success('Wishlist cleared')
+          // Wishlist cleared
         } else {
           throw new Error('Failed to clear wishlist')
         }
@@ -290,12 +408,12 @@ export const WishlistProvider = ({ children }) => {
         // Clear local wishlist for non-authenticated users
         setWishlist([])
         localStorage.setItem('wishlist', JSON.stringify([]))
-        toast.success('Wishlist cleared')
+        // Wishlist cleared
       }
     } catch (err) {
       console.error('Error clearing wishlist:', err)
       setError('Failed to clear wishlist. Please try again.')
-      toast.error('Failed to clear wishlist')
+      // Failed to clear wishlist
     } finally {
       setLoading(false)
     }
@@ -317,13 +435,16 @@ export const WishlistProvider = ({ children }) => {
   
   // Get wishlist item count
   const getWishlistItemCount = () => {
-    return wishlist.length
+    return wishlist && Array.isArray(wishlist) ? wishlist.length : 0
   }
+  
+  // Ensure wishlist is always an array to prevent direct object rendering
+  const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
   
   return (
     <WishlistContext.Provider
       value={{
-        wishlist,
+        wishlist: safeWishlist,
         loading,
         error,
         addToWishlist,

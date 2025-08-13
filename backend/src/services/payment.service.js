@@ -97,9 +97,21 @@ class PaymentService {
       };
     } catch (error) {
       logger.error('Error creating payment order:', error);
+      // Log more detailed error information
+      logger.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers
+      });
+      
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: error.response?.data || error.message,
+        details: {
+          status: error.response?.status,
+          message: error.message
+        }
       };
     }
   }
@@ -125,8 +137,23 @@ class PaymentService {
       } = orderData;
 
       // Validate required fields
-      if (!orderId || !orderAmount || !customerEmail || !customerPhone) {
-        throw new Error('Missing required payment parameters');
+      if (!orderId || !orderAmount) {
+        throw new Error('Missing required payment parameters: orderId or orderAmount');
+      }
+      
+      if (!customerEmail) {
+        console.warn(`Missing customerEmail for order ${orderId}, using fallback`);
+        customerEmail = 'guest@example.com';
+      }
+      
+      if (!customerPhone) {
+        console.warn(`Missing customerPhone for order ${orderId}, using fallback`);
+        customerPhone = '0000000000';
+      }
+      
+      if (!customerName) {
+        console.warn(`Missing customerName for order ${orderId}, using fallback`);
+        customerName = 'Customer';
       }
 
       const payload = {
@@ -150,7 +177,14 @@ class PaymentService {
       const tokenResponse = await this.generateToken(payload);
       
       if (!tokenResponse.success) {
-        throw new Error('Failed to generate payment token');
+        logger.error(`Token generation failed for order ${orderId}:`, tokenResponse.error);
+        
+        // Throw error with more details
+        const errorMessage = tokenResponse.details?.message || 'Failed to generate payment token';
+        const error = new Error(errorMessage);
+        error.details = tokenResponse.details;
+        error.response = tokenResponse.error;
+        throw error;
       }
       
       logger.info(`Popup checkout payment order created: ${orderId}`);
@@ -168,9 +202,24 @@ class PaymentService {
       };
     } catch (error) {
       logger.error('Error creating popup checkout payment order:', error);
+      
+      // Log more detailed error information
+      logger.error('Popup checkout error details:', {
+        message: error.message,
+        response: error.response,
+        details: error.details,
+        orderId: orderId,
+        payload: JSON.stringify(payload)
+      });
+      
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: error.response?.data || error.message,
+        details: {
+          status: error.details?.status,
+          message: error.message,
+          orderId: orderId
+        }
       };
     }
   }
@@ -199,9 +248,23 @@ class PaymentService {
       };
     } catch (error) {
       logger.error('Error generating payment token:', error);
+      
+      // Log more detailed error information
+      logger.error('Token generation error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers,
+        orderData: JSON.stringify(orderData)
+      });
+      
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: error.response?.data || error.message,
+        details: {
+          status: error.response?.status,
+          message: error.message
+        }
       };
     }
   }
@@ -265,6 +328,8 @@ class PaymentService {
       };
 
       // The baseUrl already includes '/pg/orders', so we just need to append the order_id
+      // Note: Cashfree API expects the order_id that was used during payment creation
+      // which should be the order.order_id (BG123456) format, not MongoDB _id
       const response = await axios.get(
         `${this.baseUrl}/${orderId}`,
         { headers }
@@ -277,6 +342,15 @@ class PaymentService {
       };
     } catch (error) {
       logger.error(`Error fetching payment status for order ${orderId}:`, error);
+      
+      // Log more detailed error information
+      logger.error('Payment status error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers
+      });
+      
       return {
         success: false,
         error: error.response?.data || error.message

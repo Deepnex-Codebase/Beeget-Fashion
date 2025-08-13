@@ -257,18 +257,23 @@ const createDefaultFooter = async () => {
     socialLinks: [
       {
         platform: 'Facebook',
-        url: 'https://facebook.com',
+        url: 'https://www.facebook.com/share/16yorjMnQi/',
         icon: 'facebook'
       },
       {
         platform: 'Instagram',
-        url: 'https://instagram.com',
+        url: 'https://www.instagram.com/beegetfashion?igsh=YWc5MGM0eGdrbzly',
         icon: 'instagram'
       },
       {
-        platform: 'Twitter',
-        url: 'https://twitter.com',
-        icon: 'twitter'
+        platform: 'YouTube',
+        url: 'https://youtube.com/@beegetfashion?si=EhstRf4mrsg8_jmJ',
+        icon: 'youtube'
+      },
+      {
+        platform: 'LinkedIn',
+        url: 'https://www.linkedin.com/company/beeget-fashion/',
+        icon: 'linkedin'
       }
     ],
     quickLinksTitle: 'Quick Links',
@@ -288,7 +293,13 @@ const createDefaultFooter = async () => {
       { label: 'Privacy Policy', url: '/privacy-policy' }
     ],
     newsletterHeadline: 'Newsletter',
-    newsletterSubtext: 'Subscribe to our newsletter for updates on new arrivals, sales, and more.'
+    newsletterSubtext: 'Subscribe to our newsletter for updates on new arrivals, sales, and more.',
+    contactInfo: {
+      address: 'First and Second Floor Plot 258 Ambika Nagar Bamroli Surat',
+      phone: '+91 9714730985',
+      whatsapp: '+91 9714730985',
+      email: 'customersupport@beegetfashion.com'
+    }
   });
   
   await defaultFooter.save();

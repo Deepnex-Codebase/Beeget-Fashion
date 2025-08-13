@@ -5,7 +5,7 @@ import Button from "../components/Common/Button";
 import { SiteContentContext } from "../contexts/SiteContentContext";
 import api from "../utils/api";
 import useCart from "../hooks/useCart";
-import { toast } from "react-toastify";
+// toast removed
 import Image from "../components/Common/Image";
 
 // Animation variants
@@ -76,7 +76,7 @@ const Home = () => {
         _id: product._id || product.id,
         name: product.name || product.title,
         title: product.name || product.title,
-        price: product.price,
+        price: product.mrp,
         slug: product.slug,
         image:
           product.image ||
@@ -93,8 +93,7 @@ const Home = () => {
       defaultColor
     );
 
-    // Show success message
-    toast.success(`${product.name || product.title} added to cart!`);
+    // Product added to cart
   };
 
   // State for latest products
@@ -105,6 +104,41 @@ const Home = () => {
   const [mostPurchasedProducts, setMostPurchasedProducts] = useState([]);
   const [loadingMostPurchasedProducts, setLoadingMostPurchasedProducts] =
     useState(false);
+
+  // State for selected sizes in Most Purchased Products
+  const [selectedSizes, setSelectedSizes] = useState({});
+
+  // Function to get MRP for selected size
+  const getMRPForSize = (product, selectedSize) => {
+    if (!product.variants || product.variants.length === 0) {
+      return product.mrp || product.originalPrice;
+    }
+    
+    // If no size is selected, use the first available size
+    const sizeToUse = selectedSize || (product.sizes && product.sizes[0]);
+    
+    if (!sizeToUse) {
+      return product.mrp || product.originalPrice;
+    }
+    
+    const variant = product.variants.find(
+      (v) => v.attributes && v.attributes.size === sizeToUse
+    );
+    
+    const mrp = variant
+      ? variant.mrp || variant.compareAtPrice 
+      : product.mrp || product.originalPrice;
+    
+    return mrp;
+  };
+
+  // Function to handle size selection
+  const handleSizeSelect = (productId, size) => {
+    setSelectedSizes(prev => ({
+      ...prev,
+      [productId]: size
+    }));
+  };
 
   // State for debugging promotional banners
   const [bannerDebug, setBannerDebug] = useState({});
@@ -254,7 +288,7 @@ const Home = () => {
             ? slide.desktop_image.url
             : slide.background_image && slide.background_image.url
               ? slide.background_image.url
-              : "https://via.placeholder.com/1920x1080?text=No+Image";
+              : "https://placehold.co/1920x1080?text=No+Image";
         });
 
         const mobileImages = processedData.heroSection.slides.map((slide) => {
@@ -267,7 +301,7 @@ const Home = () => {
                 ? slide.desktop_image.url
                 : slide.background_image && slide.background_image.url
                   ? slide.background_image.url
-                  : "https://via.placeholder.com/800x1200?text=No+Image";
+                  : "https://placehold.co/800x1200?text=No+Image";
         });
 
         setHeroImages(desktopImages);
@@ -287,16 +321,16 @@ const Home = () => {
         }
       } else {
         // Fallback if no images are found
-        setHeroImages(["https://via.placeholder.com/1920x1080?text=No+Image"]);
+        setHeroImages(["https://placehold.co/1920x1080?text=No+Image"]);
         setMobileHeroImages([
-          "https://via.placeholder.com/800x1200?text=No+Image",
+          "https://placehold.co/800x1200?text=No+Image",
         ]);
       }
     } else {
       // Fallback if no hero section is found
-      setHeroImages(["https://via.placeholder.com/1920x1080?text=No+Image"]);
+      setHeroImages(["https://placehold.co/1920x1080?text=No+Image"]);
       setMobileHeroImages([
-        "https://via.placeholder.com/800x1200?text=No+Image",
+        "https://placehold.co/800x1200?text=No+Image",
       ]);
     }
 
@@ -405,19 +439,19 @@ const Home = () => {
     const fetchLatestProducts = async () => {
       try {
         setLoadingLatestProducts(true);
-        // Fetch latest products (newest first, limit to 6)
+        // Fetch latest products (newest first, limit to 12 to ensure we have enough with videos)
         const response = await api.get(
-          "/products?sort=createdAt&order=desc&limit=6"
+          "/products?sort=createdAt&order=desc&limit=12"
         );
         if (response.data.success) {
           // Transform backend data to match frontend format if needed
-          const products = response.data.data.products.map((product) => ({
+          const allProducts = response.data.data.products.map((product) => ({
             id: product._id,
             _id: product._id,
             title: product.title,
             description: product.description,
             category: product.category?.name || "Uncategorized",
-            price:
+            mrp:
               product.variants && product.variants.length > 0
                 ? product.variants[0].price
                 : 0,
@@ -429,7 +463,8 @@ const Home = () => {
             image:
               product.images && product.images.length > 0
                 ? product.images[0]
-                : "https://via.placeholder.com/400x500",
+                : "https://placehold.co/400x500",
+            video: product.video || null, // Include video field
             slug: product.slug || product._id,
             rating: 4.5, // Default rating
             // Extract unique sizes from variants
@@ -455,10 +490,15 @@ const Home = () => {
             // Store the variants array for later use
             variants: product.variants || [],
           }));
-          setLatestProducts(products);
+          
+          // Filter products to only include those with videos
+          const productsWithVideos = allProducts.filter(product => product.video);
+          
+          // If we have products with videos, use those, otherwise fallback to all products
+          setLatestProducts(productsWithVideos.length > 0 ? productsWithVideos.slice(0, 6) : allProducts.slice(0, 6));
         }
       } catch (error) {
-        console.error("Error fetching latest products:", error);
+        // Error handling for latest products fetch
       } finally {
         setLoadingLatestProducts(false);
       }
@@ -537,16 +577,21 @@ const Home = () => {
               price:
                 product.variants && product.variants.length > 0
                   ? product.variants[0].price
-                  : 0,
+                  : '',
               originalPrice:
                 product.variants && product.variants.length > 0
                   ? product.variants[0].compareAtPrice ||
                     product.variants[0].price
-                  : 0,
+                  : '',
+              mrp:
+                product.variants && product.variants.length > 0
+                  ? product.variants[0].compareAtPrice ||
+                    product.variants[0].price
+                  : '',
               image:
                 product.images && product.images.length > 0
                   ? product.images[0]
-                  : "https://via.placeholder.com/400x500",
+                  : "https://placehold.co/400x500",
               slug: product.slug || product._id,
               rating: 4.8,
               sizes: product.variants
@@ -615,15 +660,19 @@ const Home = () => {
           price:
             product.variants && product.variants.length > 0
               ? product.variants[0].price
-              : 0,
+              : '',
           originalPrice:
             product.variants && product.variants.length > 0
               ? product.variants[0].compareAtPrice || product.variants[0].price
-              : 0,
+              : '',
+          mrp:
+            product.variants && product.variants.length > 0
+              ? product.variants[0].compareAtPrice || product.variants[0].price
+              : '',
           image:
             product.images && product.images.length > 0
               ? product.images[0]
-              : "https://via.placeholder.com/400x500",
+              : "https://placehold.co/400x500",
           slug: product.slug || product._id,
           rating: 4.8, // Slightly higher rating for featured products
           // Extract unique sizes from variants
@@ -636,6 +685,18 @@ const Home = () => {
                 ),
               ]
             : [],
+          // Extract unique colors from variants
+          colors: product.variants
+            ? [
+                ...new Set(
+                  product.variants
+                    .filter((v) => v.attributes && v.attributes.color)
+                    .map((v) => v.attributes.color)
+                ),
+              ]
+            : [],
+          // Store the variants array for later use
+          variants: product.variants || [],
         }));
 
         setMostPurchasedProducts(products);
@@ -659,10 +720,15 @@ const Home = () => {
                   ? product.variants[0].compareAtPrice ||
                     product.variants[0].price
                   : 0,
+              mrp:
+                product.variants && product.variants.length > 0
+                  ? product.variants[0].compareAtPrice ||
+                    product.variants[0].price
+                  : 0,
               image:
                 product.images && product.images.length > 0
                   ? product.images[0]
-                  : "https://via.placeholder.com/400x500",
+                  : "https://placehold.co/400x500",
               slug: product.slug || product._id,
               rating: 4.8,
               sizes: product.variants
@@ -674,11 +740,23 @@ const Home = () => {
                     ),
                   ]
                 : [],
+              // Extract unique colors from variants
+              colors: product.variants
+                ? [
+                    ...new Set(
+                      product.variants
+                        .filter((v) => v.attributes && v.attributes.color)
+                        .map((v) => v.attributes.color)
+                    ),
+                  ]
+                : [],
+              // Store the variants array for later use
+              variants: product.variants || [],
             }));
             setMostPurchasedProducts(products);
           }
         } catch (fallbackError) {
-          console.error("Error in fallback fetch:", fallbackError);
+          // Error handling for fallback fetch
         }
       } finally {
         setLoadingMostPurchasedProducts(false);
@@ -794,14 +872,16 @@ const Home = () => {
                   className={`absolute inset-0 ${heroSection.slides[currentSlide]?.overlay_style === "light" ? "bg-white/30" : "bg-black/30"} flex items-center justify-center`}
                 >
                   <div className="text-center text-white max-w-4xl px-4">
-                    <h1 className="text-3xl md:text-5xl font-bold mb-2 md:mb-4">
-                      {heroSection.slides[currentSlide]?.headline ||
-                        "Summer Collection 2023"}
-                    </h1>
-                    <p className="text-base md:text-xl mb-4 md:mb-8">
-                      {heroSection.slides[currentSlide]?.subheadline ||
-                        "Discover the latest trends for the season"}
-                    </p>
+                    {heroSection.slides[currentSlide]?.headline && (
+                      <h1 className="text-3xl md:text-5xl font-bold mb-2 md:mb-4">
+                        {heroSection.slides[currentSlide].headline}
+                      </h1>
+                    )}
+                    {heroSection.slides[currentSlide]?.subheadline && (
+                      <p className="text-base md:text-xl mb-4 md:mb-8">
+                        {heroSection.slides[currentSlide].subheadline}
+                      </p>
+                    )}
                     {heroSection.slides[currentSlide]?.cta_text && (
                       <Link
                         to={
@@ -818,8 +898,9 @@ const Home = () => {
                       </Link>
                     )}
                   </div>
-                </div>
-              </motion.div>
+                  </div>
+                    </motion.div>
+             
             </AnimatePresence>
 
             {/* Navigation arrows - Only show if there are multiple slides */}
@@ -886,13 +967,16 @@ const Home = () => {
           // Legacy format or fallback
           <div className="flex items-center justify-center h-full bg-gray-200">
             <div className="text-center text-gray-600 max-w-4xl px-4">
-              <h1 className="text-3xl md:text-5xl font-bold mb-2 md:mb-4">
-                {heroSection?.headline || "Welcome to Our Store"}
-              </h1>
-              <p className="text-base md:text-xl mb-4 md:mb-8">
-                {heroSection?.subheadline ||
-                  "Discover the latest trends for the season"}
-              </p>
+              {heroSection?.headline && (
+                <h1 className="text-3xl md:text-5xl font-bold mb-2 md:mb-4">
+                  {heroSection.headline}
+                </h1>
+              )}
+              {heroSection?.subheadline && (
+                <p className="text-base md:text-xl mb-4 md:mb-8">
+                  {heroSection.subheadline}
+                </p>
+              )}
               {heroSection?.cta && (
                 <Link to={heroSection.cta.url || "/shop"}>
                   <Button
@@ -919,7 +1003,7 @@ const Home = () => {
                 key={index}
                 className="relative overflow-hidden h-[350px] md:h-[500px] lg:h-[700px] group"
               >
-                {/* {console.log('Category:', category)} */}
+
                 {category.media_type === "video" &&
                 category.video &&
                 category.video.video_url ? (
@@ -954,7 +1038,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Latest Products Section */}
+      {/* Latest Products Section - Slider */}
       <section className="py-10 md:py-14 lg:py-16 bg-gray-50">
         <div className="container-custom">
           <h2 className="text-2xl md:text-3xl font-heading font-semibold mb-6 md:mb-8 lg:mb-10 text-center">
@@ -976,20 +1060,43 @@ const Home = () => {
               ))}
             </div>
           ) : (
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              {latestProducts && latestProducts.length > 0 ? (
-                latestProducts.map((product, index) => {
+            <div className="relative">
+              {/* Slider Navigation Buttons */}
+              <button 
+                onClick={() => document.querySelector('.latest-arrivals-slider').scrollBy({left: -300, behavior: 'smooth'})} 
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md -ml-4 hidden md:flex items-center justify-center"
+                aria-label="Previous slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <button 
+                onClick={() => document.querySelector('.latest-arrivals-slider').scrollBy({left: 300, behavior: 'smooth'})} 
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md -mr-4 hidden md:flex items-center justify-center"
+                aria-label="Next slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              
+              <motion.div 
+                className="latest-arrivals-slider flex overflow-x-auto pb-5 snap-x snap-mandatory scrollbar-hide -mx-4 px-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {latestProducts && latestProducts.length > 0 ? (
+                  latestProducts.map((product, index) => {
                   // Calculate discount percentage if applicable
                   const discountPercentage =
                     product.originalPrice &&
-                    product.price < product.originalPrice
+                    product.mrp < product.originalPrice
                       ? Math.round(
-                          ((product.originalPrice - product.price) /
+                          ((product.originalPrice - product.mrp) /
                             product.originalPrice) *
                             100
                         )
@@ -998,7 +1105,7 @@ const Home = () => {
                   return (
                     <motion.div
                       key={product.id || index}
-                      className="group relative rounded-xl xs:rounded-2xl border border-gray-100 bg-white shadow transition-all hover:shadow-lg overflow-hidden"
+                      className="group relative rounded-xl xs:rounded-2xl border border-gray-100 bg-white shadow transition-all hover:shadow-lg overflow-hidden flex-shrink-0 snap-start w-[280px] sm:w-[320px] md:w-[350px] mx-2"
                       variants={itemVariants}
                     >
                       {/* Discount Tag */}
@@ -1027,19 +1134,32 @@ const Home = () => {
                         </svg>
                       </button>
 
-                      {/* Product Image Container */}
+                      {/* Product Image/Video Container */}
                       <div className="relative overflow-hidden">
                         <Link
                           to={`/product/${product.slug || product.id}`}
                           className="block"
                         >
-                          <Image
-                            src={product.image}
-                            alt={product.title || "Product Image"}
-                            fallbackSrc="/image_default.png"
-                            className="w-full h-56 xs:h-64 sm:h-72 md:h-80 object-cover transition-transform group-hover:scale-105 duration-500 ease-in-out"
-                            loading="lazy"
-                          />
+                          {product.video ? (
+                            <div className="w-full h-56 xs:h-64 sm:h-72 md:h-80 overflow-hidden">
+                              <video
+                                src={product.video}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500 ease-in-out"
+                              />
+                            </div>
+                          ) : (
+                            <Image
+                              src={product.image}
+                              alt={product.title || "Product Image"}
+                              fallbackSrc="/image_default.png"
+                              className="w-full h-56 xs:h-64 sm:h-72 md:h-80 object-cover transition-transform group-hover:scale-105 duration-500 ease-in-out"
+                              loading="lazy"
+                            />
+                          )}
 
                           {/* Product Image Overlay with subtle gradient */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-60 group-hover:opacity-40 transition-opacity duration-300 pointer-events-none"></div>
@@ -1095,18 +1215,21 @@ const Home = () => {
                           <div className="flex items-baseline gap-1 xs:gap-1.5">
                             <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">
                               ₹
-                              {product.price && product.price !== null
-                                ? product.price.toFixed(2)
-                                : "0.00"}
+                              {product.mrp && product.mrp !== null
+                                ? parseInt(product.mrp)
+                                : product.variants && product.variants.length > 0 && product.variants[0].mrp
+                                ? parseInt(product.variants[0].mrp)
+                                : "0"
+                                }
                             </p>
                             {product.originalPrice &&
-                              product.originalPrice > product.price && (
+                              product.originalPrice > product.mrp && (
                                 <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">
                                   ₹
                                   {product.originalPrice &&
                                   product.originalPrice !== null
-                                    ? product.originalPrice.toFixed(2)
-                                    : "0.00"}
+                                    ? parseInt(product.originalPrice)
+                                    : "0"}
                                 </p>
                               )}
                           </div>
@@ -1119,14 +1242,32 @@ const Home = () => {
                               AVAILABLE SIZES:
                             </p>
                             <div className="flex flex-wrap gap-1 xs:gap-1.5">
-                              {product.sizes.map((size, sizeIndex) => (
-                                <span
-                                  key={sizeIndex}
-                                  className="inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:bg-java-50 hover:border-java-200 transition-all cursor-pointer"
-                                >
-                                  {size}
-                                </span>
-                              ))}
+                              {product.sizes.map((size, sizeIndex) => {
+                                // Find variant with this size to get its MRP
+                                const sizeVariant = product.variants && product.variants.find(
+                                  v => v.attributes && v.attributes.size === size
+                                );
+                                
+                                return (
+                                  <span
+                                    key={sizeIndex}
+                                    className="inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:bg-java-50 hover:border-java-200 transition-all cursor-pointer"
+                                    onClick={() => {
+                                      // Update the product's displayed MRP based on selected size
+                                      const updatedProduct = {...product};
+                                      if (sizeVariant && sizeVariant.mrp) {
+                                        updatedProduct.mrp = sizeVariant.mrp;
+                                      }
+                                      // Force re-render by updating the state
+                                      const updatedLatestProducts = [...latestProducts];
+                                      updatedLatestProducts[latestProducts.findIndex(p => p._id === product._id)] = updatedProduct;
+                                      setLatestProducts(updatedLatestProducts);
+                                    }}
+                                  >
+                                    {size}
+                                  </span>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -1166,6 +1307,7 @@ const Home = () => {
                 </div>
               )}
             </motion.div>
+            </div>
           )}
           <div className="text-center mt-10">
             <Link to="/shop">
@@ -1544,7 +1686,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Products Section */}
+      {/* Featured Products Section - Slider */}
       <section className="py-10 md:py-14 lg:py-16 bg-gray-50">
         <div className="container-custom">
           <h2 className="text-2xl md:text-3xl font-heading font-semibold mb-6 md:mb-8 lg:mb-10 text-center">
@@ -1567,18 +1709,41 @@ const Home = () => {
               ))}
             </div>
           ) : (
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
+            <div className="relative">
+              {/* Slider Navigation Buttons */}
+              <button 
+                onClick={() => document.querySelector('.most-purchased-slider').scrollBy({left: -300, behavior: 'smooth'})} 
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md -ml-4 hidden md:flex items-center justify-center"
+                aria-label="Previous slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <button 
+                onClick={() => document.querySelector('.most-purchased-slider').scrollBy({left: 300, behavior: 'smooth'})} 
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md -mr-4 hidden md:flex items-center justify-center"
+                aria-label="Next slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              
+              <motion.div 
+                className="most-purchased-slider flex overflow-x-auto pb-5 snap-x snap-mandatory scrollbar-hide -mx-4 px-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
               {mostPurchasedProducts && mostPurchasedProducts.length > 0 ? (
                 mostPurchasedProducts.map((product) => {
                   // Calculate discount percentage if applicable
                   const discountPercentage = product.originalPrice
                     ? Math.round(
-                        ((product.originalPrice - product.price) /
+                        ((product.originalPrice - product.mrp) /
                           product.originalPrice) *
                           100
                       )
@@ -1587,7 +1752,7 @@ const Home = () => {
                   return (
                     <motion.div
                       key={product.id}
-                      className="group relative rounded-xl xs:rounded-2xl border border-gray-100 bg-white shadow transition-all hover:shadow-lg overflow-hidden"
+                      className="group relative rounded-xl xs:rounded-2xl border border-gray-100 bg-white shadow transition-all hover:shadow-lg overflow-hidden flex-shrink-0 snap-start w-[280px] sm:w-[320px] md:w-[350px] mx-2"
                       variants={itemVariants}
                     >
                       {/* Discount Tag - Only show if there's a discount */}
@@ -1679,16 +1844,16 @@ const Home = () => {
                           <div className="flex items-baseline gap-1 xs:gap-1.5">
                             <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">
                               ₹
-                              {product.price
-                                ? product.price.toFixed(2)
-                                : "0.00"}
+                              {getMRPForSize(product, selectedSizes[product.id])
+                                ? parseInt(getMRPForSize(product, selectedSizes[product.id]))
+                                : "0"}
                             </p>
                             {product.originalPrice && (
                               <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">
                                 ₹
                                 {product.originalPrice
-                                  ? product.originalPrice.toFixed(2)
-                                  : "0.00"}
+                                  ? parseInt(product.originalPrice)
+                                  : "0"}
                               </p>
                             )}
                           </div>
@@ -1706,14 +1871,22 @@ const Home = () => {
                               AVAILABLE SIZES:
                             </p>
                             <div className="flex flex-wrap gap-1 xs:gap-1.5">
-                              {product.sizes.map((size, index) => (
-                                <span
-                                  key={index}
-                                  className="inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:bg-java-50 hover:border-java-200 transition-all cursor-pointer"
-                                >
-                                  {size}
-                                </span>
-                              ))}
+                              {product.sizes.map((size, index) => {
+                                const isSelected = selectedSizes[product.id] === size || (!selectedSizes[product.id] && index === 0);
+                                return (
+                                  <span
+                                    key={index}
+                                    onClick={() => handleSizeSelect(product.id, size)}
+                                    className={`inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs border rounded-full transition-all cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-java-500 border-java-500 text-white'
+                                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-java-50 hover:border-java-200'
+                                    }`}
+                                  >
+                                    {size}
+                                  </span>
+                                );
+                              })}
                             </div>
                           </div>
                         ) : (
@@ -1759,6 +1932,7 @@ const Home = () => {
                 </div>
               )}
             </motion.div>
+            </div>
           )}
 
           <div className="text-center mt-10">
@@ -2022,12 +2196,12 @@ const Home = () => {
         <div className="container-custom px-4 sm:px-6 text-center">
           <h2 className="text-2xl sm:text-2xl md:text-3xl font-heading font-semibold mb-2 sm:mb-3 md:mb-4">
             {homePageData?.newsletter_signup?.headline ||
-              newsletter.headline ||
+              (newsletter?.newsletter?.headline || newsletter?.headline) ||
               "Newsletter"}
           </h2>
           <p className="text-sm sm:text-base md:text-lg mb-4 sm:mb-6 md:mb-8 max-w-2xl mx-auto">
             {homePageData?.newsletter_signup?.subtext ||
-              newsletter.description ||
+              (newsletter?.newsletter?.description || newsletter?.description) ||
               "Subscribe to our newsletter for updates."}
           </p>
 
@@ -2037,6 +2211,7 @@ const Home = () => {
             >
               <p className="text-base sm:text-lg font-medium">
                 {homePageData?.newsletter_signup?.success_message ||
+                  (newsletter?.newsletter?.success_message) ||
                   "Thank you for subscribing!"}
               </p>
             </div>
@@ -2049,6 +2224,7 @@ const Home = () => {
                 type="email"
                 placeholder={
                   homePageData?.newsletter_signup?.placeholder_text ||
+                  (newsletter?.newsletter?.placeholder_text) ||
                   "Your email address"
                 }
                 className="flex-grow px-3 sm:px-4 py-2 rounded-md sm:rounded-l-md sm:rounded-r-none focus:outline-none text-charcoal"
@@ -2061,7 +2237,7 @@ const Home = () => {
                 className="rounded-md sm:rounded-l-none sm:rounded-r-md w-full sm:w-auto"
               >
                 {homePageData?.newsletter_signup?.button_text ||
-                  newsletter.button_text ||
+                  (newsletter?.newsletter?.button_text || newsletter?.button_text) ||
                   "Subscribe"}
               </Button>
             </form>

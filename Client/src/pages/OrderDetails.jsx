@@ -375,7 +375,7 @@ const OrderDetails = () => {
                             </div>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatCurrency(item.price)}
+                            {formatCurrency(item.mrp || item.price)}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.qty || item.quantity}
@@ -387,7 +387,7 @@ const OrderDetails = () => {
                           </td> */}
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                             {formatCurrency(
-                              item.price * (item.qty || item.quantity)
+                              (item.mrp || item.price) * (item.qty || item.quantity)
                             )}
                           </td>
                         </tr>

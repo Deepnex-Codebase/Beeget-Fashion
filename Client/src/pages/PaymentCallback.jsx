@@ -54,14 +54,27 @@ const PaymentCallback = () => {
             setOrderStatus(orderStatus);
             
             if (paymentStatus === 'PAID') {
-              setStatus('success');
-              // Clear stored orderId from localStorage after successful verification
-              localStorage.removeItem('pendingOrderId');
-              
-              // Clear cart if not already cleared
-              if (!cartCleared) {
-                clearCart();
-                setCartCleared(true);
+              // Check if there's a stock issue
+              if (orderStatus === 'STOCK_ISSUE') {
+                setStatus('stock_issue');
+                // Clear stored orderId from localStorage
+                localStorage.removeItem('pendingOrderId');
+                
+                // Clear cart if not already cleared
+                if (!cartCleared) {
+                  clearCart();
+                  setCartCleared(true);
+                }
+              } else {
+                setStatus('success');
+                // Clear stored orderId from localStorage after successful verification
+                localStorage.removeItem('pendingOrderId');
+                
+                // Clear cart if not already cleared
+                if (!cartCleared) {
+                  clearCart();
+                  setCartCleared(true);
+                }
               }
             } else if (paymentStatus === 'FAILED') {
               setStatus('failed');
@@ -145,14 +158,27 @@ const PaymentCallback = () => {
             setOrderStatus(orderStatus);
             
             if (paymentStatus === 'PAID') {
-              setStatus('success');
-              // Clear stored orderId from localStorage after successful verification
-              localStorage.removeItem('pendingOrderId');
-              
-              // Clear cart if not already cleared
-              if (!cartCleared) {
-                clearCart();
-                setCartCleared(true);
+              // Check if there's a stock issue
+              if (orderStatus === 'STOCK_ISSUE') {
+                setStatus('stock_issue');
+                // Clear stored orderId from localStorage
+                localStorage.removeItem('pendingOrderId');
+                
+                // Clear cart if not already cleared
+                if (!cartCleared) {
+                  clearCart();
+                  setCartCleared(true);
+                }
+              } else {
+                setStatus('success');
+                // Clear stored orderId from localStorage after successful verification
+                localStorage.removeItem('pendingOrderId');
+                
+                // Clear cart if not already cleared
+                if (!cartCleared) {
+                  clearCart();
+                  setCartCleared(true);
+                }
               }
             } else if (paymentStatus === 'FAILED') {
               setStatus('failed');
@@ -188,6 +214,8 @@ const PaymentCallback = () => {
   
   const isFailed = paymentStatus === 'FAILED' || paymentStatus === 'FAILURE' || 
                   paymentStatus === 'CANCELLED';
+                  
+  const hasStockIssue = orderStatus === 'STOCK_ISSUE';
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -200,11 +228,25 @@ const PaymentCallback = () => {
               <FaSpinner className="animate-spin text-4xl text-blue-500 mb-4" />
               <p className="text-gray-600">Verifying payment status...</p>
             </div>
-          ) : status === 'success' || isSuccessful ? (
+          ) : status === 'success' || (isSuccessful && !hasStockIssue) ? (
             <div className="text-center py-6">
               <FaCheckCircle className="text-6xl text-green-500 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-green-600 mb-2">Payment Successful!</h3>
               <p className="text-gray-600 mb-6">Your order has been confirmed.</p>
+              <div className="flex flex-col space-y-3">
+                <Link to="/account/orders" className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition">
+                  View Order
+                </Link>
+                <Link to="/shop" className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 transition">
+                  Continue Shopping
+                </Link>
+              </div>
+            </div>
+          ) : hasStockIssue ? (
+            <div className="text-center py-6">
+              <FaCheckCircle className="text-6xl text-yellow-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-yellow-600 mb-2">Payment Successful, But Stock Issue</h3>
+              <p className="text-gray-600 mb-6">Your payment was successful, but we're experiencing stock issues with one or more items in your order. Our team will contact you shortly.</p>
               <div className="flex flex-col space-y-3">
                 <Link to="/account/orders" className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition">
                   View Order

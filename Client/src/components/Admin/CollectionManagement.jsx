@@ -1304,7 +1304,7 @@ const CollectionManagement = () => {
                               onError={(e) => {
                                 e.target.onerror = null;
                                 e.target.src =
-                                  "https://via.placeholder.com/40?text=No+Image";
+                                  "https://placehold.co/40?text=No+Image";
                               }}
                             />
                           </div>
@@ -1844,7 +1844,7 @@ const CollectionManagement = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/64?text=No+Image';
+                        e.target.src = 'https://placehold.co/64?text=No+Image';
                       }}
                     />
                   ) : (
@@ -1862,7 +1862,7 @@ const CollectionManagement = () => {
                     )}
                     {product.variants && product.variants[0]?.price && (
                       <span className="font-medium text-gray-700">
-                        ₹{parseFloat(product.variants[0].price).toFixed(2)}
+                        ₹{parseInt(parseFloat(product.variants[0].price))}
                       </span>
                     )}
                     {product.category?.name && (

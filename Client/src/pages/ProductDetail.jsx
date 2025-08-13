@@ -5,8 +5,6 @@ import useCart from '../hooks/useCart'
 import useAuth from '../hooks/useAuth'
 import useWishlist from '../hooks/useWishlist'
 import Button from '../components/Common/Button'
-import productImages from '../assets/product-images'
-import { toast } from 'react-toastify'
 import api from '../utils/api'
 import Image from '../components/Common/Image'
 
@@ -26,6 +24,7 @@ const ProductDetail = () => {
   const sizeChartRef = useRef(null)
   const [userRating, setUserRating] = useState(0)
   const [userReview, setUserReview] = useState('')
+  const [forceUpdate, setForceUpdate] = useState({})
   
     // Extract unique sizes and colors from variants
   const getUniqueVariantAttributes = () => {
@@ -56,11 +55,37 @@ const ProductDetail = () => {
       return null;
     }
     
-    return product.variants.find(variant => 
+    // First try to find a variant with exact size and color match
+    let selectedVariant = product.variants.find(variant => 
       variant.attributes && 
       variant.attributes.size === selectedSize && 
       variant.attributes.color === selectedColor
-    ) || product.variants[0]; // Fallback to first variant if no match
+    );
+    
+    // If no exact match, try to find a variant with just the selected size and any color
+    if (!selectedVariant) {
+      selectedVariant = product.variants.find(variant => 
+        variant.attributes && 
+        variant.attributes.size === selectedSize
+      );
+    }
+    
+    // If still no match, try to find a variant with just the selected color and any size
+    if (!selectedVariant && selectedColor) {
+      selectedVariant = product.variants.find(variant => 
+        variant.attributes && 
+        variant.attributes.color === selectedColor
+      );
+    }
+    
+    // If still no match, fallback to first variant
+    if (!selectedVariant) {
+      selectedVariant = product.variants[0];
+    }
+    
+
+    
+    return selectedVariant;
   };
   
   // Check if a specific variant is in stock
@@ -69,13 +94,34 @@ const ProductDetail = () => {
       return false;
     }
     
-    const variant = product.variants.find(v => 
-      v.attributes && 
-      v.attributes.size === size && 
-      v.attributes.color === color
-    );
+    // If both size and color are provided, check for exact match
+    if (size && color) {
+      const variant = product.variants.find(v => 
+        v.attributes && 
+        v.attributes.size === size && 
+        v.attributes.color === color
+      );
+      return variant && variant.stock > 0;
+    }
     
-    return variant && variant.stock > 0;
+    // If only size is provided, check if any variant with this size exists
+    if (size && !color) {
+      const variant = product.variants.find(v => 
+        v.attributes && v.attributes.size === size
+      );
+      return variant && variant.stock > 0;
+    }
+    
+    // If only color is provided, check if any variant with this color exists
+    if (!size && color) {
+      const variant = product.variants.find(v => 
+        v.attributes && v.attributes.color === color
+      );
+      return variant && variant.stock > 0;
+    }
+    
+    // If neither size nor color provided, return true (allow selection)
+    return true;
   };
   
   // Toggle size chart visibility
@@ -455,10 +501,10 @@ const ProductDetail = () => {
         })
         .catch(err => {
           // console.error('Error changing page:', err)
-          toast.error('Failed to load reviews for this page. Please try again.')
+          // Failed to load reviews for this page
         })
     } else {
-      toast.error('Product information is missing')
+      // Product information is missing
     }
   }
   
@@ -564,44 +610,36 @@ const ProductDetail = () => {
     const value = parseInt(e.target.value)
     if (value > 0) {
       setQuantity(value)
+      // Force re-render to update price display
+      setForceUpdate({})
     }
   }
   
   // Increment quantity
   const incrementQuantity = () => {
     setQuantity(prev => prev + 1)
+    // Force re-render to update price display
+    setForceUpdate({})
   }
   
   // Decrement quantity
   const decrementQuantity = () => {
     if (quantity > 1) {
       setQuantity(prev => prev - 1)
+      // Force re-render to update price display
+      setForceUpdate({})
     }
   }
   
   // Handle add to cart
   const handleAddToCart = () => {
     if (!selectedSize) {
-      toast.warning('Please select a size', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Please select a size before adding to bag
       return
     }
     
     if (!selectedColor) {
-      toast.warning('Please select a color', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Please choose a color before adding to bag
       return
     }
     
@@ -610,33 +648,49 @@ const ProductDetail = () => {
     
     // Check if selected variant is in stock
     if (!selectedVariant || selectedVariant.stock <= 0) {
-      toast.error('This product variant is out of stock', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // This product variant is out of stock
       return
     }
+    
+    // Get the actual color from the variant if available
+    const variantColor = selectedVariant.attributes?.color || selectedColor;
     
     // Create product object with selected variant details
     const productToAdd = {
       id: product._id,
       name: product.title,
-      price: selectedVariant.price ? parseFloat(selectedVariant.price) : 0,
+      price: selectedVariant.mrp 
+        ? parseFloat(selectedVariant.mrp) 
+        : selectedVariant.price 
+        ? parseFloat(selectedVariant.price) 
+        : 0,
+      mrp: selectedVariant.mrp 
+        ? parseFloat(selectedVariant.mrp) 
+        : selectedVariant.price 
+        ? parseFloat(selectedVariant.price) 
+        : 0,
+      originalPrice: selectedVariant.price ? parseFloat(selectedVariant.price) : 0,
       image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/image_default.png',
       variantId: selectedVariant._id,
       sku: selectedVariant.sku,
       variantSku: selectedVariant.sku, // Explicitly set variantSku to match the backend expectation
       variant: selectedVariant, // Include the full variant object for reference
       size: selectedSize,
-      color: selectedColor
+      color: variantColor
     }
     
     // Call addToCart with separate parameters as expected by the function
-    addToCart(productToAdd, quantity, selectedSize, selectedColor)
+    addToCart(productToAdd, quantity, selectedSize, variantColor)
+    
+    // Show success message with color information
+    toast.success(`${product.title} in ${variantColor} color added to bag!`, {
+      position: "top-right",
+      autoClose: 2000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true
+    })
     
     // Open cart sidebar automatically
     document.dispatchEvent(new CustomEvent('openCart'))
@@ -646,27 +700,15 @@ const ProductDetail = () => {
 
   const handleWishlist = () => {
     if (!isAuthenticated) {
-      toast.error('Please log in to add items to your wishlist', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Please log in to add items to your wishlist
       return
     }
     
     if (isInWishlist(product._id)) {
       removeFromWishlist(product._id)
-      toast.info(`${product.title} removed from wishlist!`, {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Force UI update
+      setForceUpdate({})
+      // Product removed from wishlist
     } else {
       addToWishlist({
         id: product._id,
@@ -675,14 +717,9 @@ const ProductDetail = () => {
         image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/image_default.png',
         slug: product.slug
       })
-      toast.success(`${product.title} added to wishlist!`, {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      })
+      // Force UI update
+      setForceUpdate({})
+      // Product added to wishlist
     }
   }
   
@@ -754,22 +791,40 @@ const ProductDetail = () => {
             <div className="md:col-span-7 relative">
               {/* Main Image Slider - Myntra Style */}
               <div className="relative overflow-hidden mb-3 group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300">
-                {product.salePrice && product.salePrice < product.price && (
+                {getSelectedVariant() && getSelectedVariant().mrp && getSelectedVariant().price && 
+                 parseFloat(getSelectedVariant().mrp) > parseFloat(getSelectedVariant().price) ? (
                   <div className="absolute top-4 left-4 z-10 bg-java-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                    {Math.round((1 - product.salePrice / product.price) * 100)}% OFF
+                    {Math.round(((parseFloat(getSelectedVariant().mrp) - parseFloat(getSelectedVariant().price)) / parseFloat(getSelectedVariant().mrp)) * 100)}% OFF
+                  </div>
+                ) : null}
+                
+                {/* Video Display - Show when product has video */}
+                {product.video && (
+                  <div className="w-full overflow-hidden rounded-lg border border-java-100 mb-4">
+                    <video 
+                      src={product.video} 
+                      controls 
+                      autoPlay 
+                      muted 
+                      loop
+                      playsInline
+                      className="w-full h-auto object-contain"
+                    />
+                    <p className="text-xs text-gray-500 text-center mt-1">Product video preview</p>
                   </div>
                 )}
                 
-                {/* Mobile Swipeable Gallery */}
-                <div 
-                  className="relative w-full overflow-hidden rounded-lg border border-java-100 touch-pan-y"
-                >
-                  {/* Main Image Container with Swipe Functionality */}
+                {/* Mobile Swipeable Gallery - Always show images if available */}
+                {product.images && Array.isArray(product.images) && product.images.length > 0 && (
                   <div 
-                      ref={imageRef}
-                     className={`relative w-full overflow-auto ${isZoomed ? 'cursor-zoom-out' : 'cursor-default'}`}
-                     onMouseMove={isZoomed ? handleImageZoom : undefined}
-                    >
+                    className="relative w-full overflow-hidden rounded-lg border border-java-100 touch-pan-y"
+                  >
+                    {/* Main Image Container with Swipe Functionality */}
+                    <div 
+                        ref={imageRef}
+                       className={`relative w-full overflow-auto ${isZoomed ? 'cursor-zoom-out' : 'cursor-default'}`}
+                       onMouseMove={isZoomed ? handleImageZoom : undefined}
+                      >
                       {/* Mobile View - Horizontal Slider */}
                       <div 
                         className="md:hidden w-full min-h-[400px] overflow-x-auto flex snap-x snap-mandatory scroll-smooth"
@@ -914,7 +969,8 @@ const ProductDetail = () => {
                       </div>
                     )}
                   </div>
-                </div>
+                  </div>
+                )}
                 
                 <button 
                   onClick={handleWishlist}
@@ -923,8 +979,8 @@ const ProductDetail = () => {
                 >
                   <svg 
                     xmlns="http://www.w3.org/2000/svg" 
-                    className={`h-6 w-6 ${isInWishlist(product._id) ? 'text-pink-500 fill-pink-500' : 'text-gray-400'}`} 
-                    fill="none" 
+                    className={`h-6 w-6 ${isInWishlist(product._id) ? 'text-java-500 fill-java-500' : 'text-gray-400'}`} 
+                    fill={isInWishlist(product._id) ? 'currentColor' : 'none'} 
                     viewBox="0 0 24 24" 
                     stroke="currentColor"
                   >
@@ -974,21 +1030,47 @@ const ProductDetail = () => {
                 </div>
                 
                 {/* Price */}
-                <div className="flex items-baseline mb-3 sm:mb-4">
+                <div className="flex flex-wrap items-baseline mb-3 sm:mb-4">
                   {product.variants && product.variants.length > 0 ? (
                     <>
-                      <span className="text-xl sm:text-2xl font-semibold text-gray-900">
-                        ₹{getSelectedVariant() && getSelectedVariant().price 
-                          ? parseFloat(getSelectedVariant().price).toFixed(2) 
-                          : '0.00'}
-                      </span>
-                      {/* No sale price in the API response, so we're just showing the regular price */}
+                      {/* Force re-render with key based on forceUpdate */}
+                      <div key={JSON.stringify(forceUpdate)} className="w-full">
+                        {getSelectedVariant() && getSelectedVariant().mrp && getSelectedVariant().price && 
+                         parseFloat(getSelectedVariant().mrp) > parseFloat(getSelectedVariant().price) ? (
+                          <div className="flex flex-wrap items-center">
+                            <span className="text-xl sm:text-2xl font-semibold text-gray-900 mr-2">
+                              ₹{parseInt(parseFloat(getSelectedVariant().mrp) * quantity)}
+                            </span>
+                           
+                            <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
+                              {Math.round(((parseFloat(getSelectedVariant().mrp) - parseFloat(getSelectedVariant().price)) / parseFloat(getSelectedVariant().mrp)) * 100)}% OFF
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xl sm:text-2xl font-semibold text-gray-900">
+                            ₹{getSelectedVariant() && getSelectedVariant().mrp 
+                              ? parseInt(parseFloat(getSelectedVariant().mrp) * quantity) 
+                              : getSelectedVariant() && getSelectedVariant().price 
+                              ? parseInt(parseFloat(getSelectedVariant().price) * quantity)
+                              : '0'}
+                          </span>
+                        )}
+                      </div>
                     </>
                   ) : (
-                    <span className="text-xl sm:text-2xl font-semibold text-gray-900">₹0.00</span>
+                    <span className="text-xl sm:text-2xl font-semibold text-gray-900">₹0</span>
                   )}
                 </div>
 
+                {/* Unit Price */}
+                <div className="text-xs text-gray-600 mb-1">
+                  Unit Price: ₹{getSelectedVariant() && getSelectedVariant().mrp 
+                    ? parseInt(parseFloat(getSelectedVariant().mrp)) 
+                    : getSelectedVariant() && getSelectedVariant().price 
+                    ? parseInt(parseFloat(getSelectedVariant().price))
+                    : '0'}
+                </div>
+                
                 {/* Inclusive of all taxes */}
                 <div className="text-xs text-gray-500 mb-4">Inclusive of all taxes</div>
                 
@@ -1008,9 +1090,11 @@ const ProductDetail = () => {
               <div className="space-y-6 mb-6">
                 {/* Size Selection */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-gray-900">SELECT SIZE</h3>
-                    <button 
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">Choose Size</h3>
+                    <p className="text-xs text-gray-600 mb-3">Select your preferred size option</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <span></span>
+                      <button 
                       onClick={toggleSizeChart} 
                       className="text-sm font-medium text-java-500 hover:text-java-600 bg-transparent border-0 p-0 cursor-pointer flex items-center"
                     >
@@ -1034,7 +1118,7 @@ const ProductDetail = () => {
                         />
                         <motion.div 
                           ref={sizeChartRef}
-                          className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 overflow-y-auto shadow-xl"
+                          className="fixed right-0 top-0 h-full w-full max-w-[500px] bg-white z-50 overflow-y-auto shadow-xl"
                           initial={{ x: '100%' }}
                           animate={{ x: 0 }}
                           exit={{ x: '100%' }}
@@ -1053,47 +1137,77 @@ const ProductDetail = () => {
                               </button>
                             </div>
                             
-                            <div className="border border-java-200 rounded-lg overflow-hidden mb-6 shadow-sm">
-                              <table className="w-full text-sm">
+                            <div className="border border-java-200 rounded-lg mb-6 shadow-sm overflow-x-auto">
+                              <table className="w-full text-sm min-w-full">
                                 <thead>
                                   <tr className="bg-java-50">
-                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800">Size</th>
-                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800">Chest (in)</th>
-                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800">Waist (in)</th>
-                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800">Hips (in)</th>
+                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800 whitespace-nowrap">Size</th>
+                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800 whitespace-nowrap">Chest (in)</th>
+                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800 whitespace-nowrap">Waist (in)</th>
+                                    <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800 whitespace-nowrap">Hips (in)</th>
+                                    {product.variants && product.variants.some(v => v.shoulderSize) && (
+                                      <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800 whitespace-nowrap">Shoulder (in)</th>
+                                    )}
+                                    {product.variants && product.variants.some(v => v.sizeLength) && (
+                                      <th className="py-3 px-4 border-b border-java-100 text-left font-medium text-java-800 whitespace-nowrap">Length (in)</th>
+                                    )}
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  <tr className="hover:bg-java-50 transition-colors duration-150">
-                                    <td className="py-3 px-4 border-b border-java-100 font-medium">XS</td>
-                                    <td className="py-3 px-4 border-b border-java-100">31-32</td>
-                                    <td className="py-3 px-4 border-b border-java-100">24-25</td>
-                                    <td className="py-3 px-4 border-b border-java-100">34-35</td>
-                                  </tr>
-                                  <tr className="hover:bg-java-50 transition-colors duration-150">
-                                    <td className="py-3 px-4 border-b border-java-100 font-medium">S</td>
-                                    <td className="py-3 px-4 border-b border-java-100">33-34</td>
-                                    <td className="py-3 px-4 border-b border-java-100">26-27</td>
-                                    <td className="py-3 px-4 border-b border-java-100">36-37</td>
-                                  </tr>
-                                  <tr className="hover:bg-java-50 transition-colors duration-150">
-                                    <td className="py-3 px-4 border-b border-java-100 font-medium">M</td>
-                                    <td className="py-3 px-4 border-b border-java-100">35-36</td>
-                                    <td className="py-3 px-4 border-b border-java-100">28-29</td>
-                                    <td className="py-3 px-4 border-b border-java-100">38-39</td>
-                                  </tr>
-                                  <tr className="hover:bg-java-50 transition-colors duration-150">
-                                    <td className="py-3 px-4 border-b border-java-100 font-medium">L</td>
-                                    <td className="py-3 px-4 border-b border-java-100">37-38</td>
-                                    <td className="py-3 px-4 border-b border-java-100">30-31</td>
-                                    <td className="py-3 px-4 border-b border-java-100">40-41</td>
-                                  </tr>
-                                  <tr className="hover:bg-java-50 transition-colors duration-150">
-                                    <td className="py-3 px-4 font-medium">XL</td>
-                                    <td className="py-3 px-4">39-40</td>
-                                    <td className="py-3 px-4">32-33</td>
-                                    <td className="py-3 px-4">42-43</td>
-                                  </tr>
+                                  {product.variants && product.variants.length > 0 ? (
+                                    // Group variants by size and display their measurements
+                                    getUniqueVariantAttributes().sizes.map((size) => {
+                                      // Find a variant with this size to get measurements
+                                      const variant = product.variants.find(v => 
+                                        v.attributes && v.attributes.size === size
+                                      );
+                                      
+                                      return (
+                                        <tr key={size} className="hover:bg-java-50 transition-colors duration-150">
+                                          <td className="py-3 px-4 border-b border-java-100 font-medium whitespace-nowrap">{size}</td>
+                                          <td className="py-3 px-4 border-b border-java-100 whitespace-nowrap">
+                                            {variant && variant.bustSize ? variant.bustSize : '-'}
+                                          </td>
+                                          <td className="py-3 px-4 border-b border-java-100 whitespace-nowrap">
+                                            {variant && variant.waistSize ? variant.waistSize : '-'}
+                                          </td>
+                                          <td className="py-3 px-4 border-b border-java-100 whitespace-nowrap">
+                                            {variant && variant.hipSize ? variant.hipSize : '-'}
+                                          </td>
+                                          {product.variants && product.variants.some(v => v.shoulderSize) && (
+                                            <td className="py-3 px-4 border-b border-java-100 whitespace-nowrap">
+                                              {variant && variant.shoulderSize ? variant.shoulderSize : '-'}
+                                            </td>
+                                          )}
+                                          {product.variants && product.variants.some(v => v.sizeLength) && (
+                                            <td className="py-3 px-4 border-b border-java-100 whitespace-nowrap">
+                                              {variant && variant.sizeLength ? variant.sizeLength : '-'}
+                                            </td>
+                                          )}
+                                        </tr>
+                                      );
+                                    })
+                                  ) : (
+                                    // Fallback to default size chart if no variants
+                                    ['XS', 'S', 'M', 'L', 'XL'].map((size, index) => {
+                                      const measurements = [
+                                        { chest: '31-32', waist: '24-25', hips: '34-35' },
+                                        { chest: '33-34', waist: '26-27', hips: '36-37' },
+                                        { chest: '35-36', waist: '28-29', hips: '38-39' },
+                                        { chest: '37-38', waist: '30-31', hips: '40-41' },
+                                        { chest: '39-40', waist: '32-33', hips: '42-43' }
+                                      ];
+                                      
+                                      return (
+                                        <tr key={size} className="hover:bg-java-50 transition-colors duration-150">
+                                          <td className="py-3 px-4 border-b border-java-100 font-medium">{size}</td>
+                                          <td className="py-3 px-4 border-b border-java-100">{measurements[index].chest}</td>
+                                          <td className="py-3 px-4 border-b border-java-100">{measurements[index].waist}</td>
+                                          <td className="py-3 px-4 border-b border-java-100">{measurements[index].hips}</td>
+                                        </tr>
+                                      );
+                                    })
+                                  )}
                                 </tbody>
                               </table>
                             </div>
@@ -1129,24 +1243,84 @@ const ProductDetail = () => {
                             ${selectedSize === size 
                               ? 'bg-java-500 text-white border-2 border-java-500 shadow-sm' 
                               : 'bg-white text-gray-900 border border-gray-300 hover:border-java-400 hover:shadow-sm'}
-                            ${!isVariantInStock(size, selectedColor) ? 'opacity-50 cursor-not-allowed' : ''}
                           `}
-                          onClick={() => isVariantInStock(size, selectedColor) && setSelectedSize(size)}
-                          disabled={!isVariantInStock(size, selectedColor)}
+                          onClick={() => {
+                            // Always allow size selection
+                            setSelectedSize(size);
+                            
+                            // Find the variant with this size and selected color
+                            let variant = product.variants.find(v => 
+                              v.attributes && 
+                              v.attributes.size === size && 
+                              v.attributes.color === selectedColor
+                            );
+                            
+                            // If no exact match, find a variant with just this size
+                            if (!variant) {
+                              variant = product.variants.find(v => 
+                                v.attributes && v.attributes.size === size
+                              );
+                              
+                              // If we found a variant with this size but different color,
+                              // update the color to match the available variant
+                              if (variant && variant.attributes && variant.attributes.color) {
+                                setSelectedColor(variant.attributes.color);
+                              }
+                            }
+                            
+                            // Show feedback based on variant availability
+                              if (!variant) {
+                                toast.warning(`Size ${size} is not available for this product`, {
+                                  position: "top-right",
+                                  autoClose: 2000,
+                                  hideProgressBar: false,
+                                  closeOnClick: true,
+                                  pauseOnHover: true,
+                                  draggable: true
+                                });
+                              } else if (variant.stock <= 0) {
+                                toast.warning(`Size ${size} is currently out of stock`, {
+                                  position: "top-right",
+                                  autoClose: 2000,
+                                  hideProgressBar: false,
+                                  closeOnClick: true,
+                                  pauseOnHover: true,
+                                  draggable: true
+                                });
+                              } else {
+                                toast.success(`Size ${size} selected successfully!`, {
+                                  position: "top-right",
+                                  autoClose: 1500,
+                                  hideProgressBar: false,
+                                  closeOnClick: true,
+                                  pauseOnHover: true,
+                                  draggable: true
+                                });
+                              }
+                            
+                            // Force re-render to update price display
+                            setForceUpdate({});
+                          }}
+                          disabled={false}
                         >
                           {size}
                         </button>
                       ))
                     ) : (
                       // Fallback to default sizes if no variants with size attribute
-                      ['XS', 'S', 'M', 'L', 'XL'].map((size) => (
+                      ['S', 'M', 'L', 'XL', 'XXL'].map((size) => (
                         <button
                           key={size}
                           type="button"
                           className={`flex items-center justify-center h-10 w-10 text-sm font-medium rounded-full transition-all duration-200 ${selectedSize === size 
                             ? 'bg-java-500 text-white border-2 border-java-500 shadow-sm' 
                             : 'bg-white text-gray-900 border border-gray-300 hover:border-java-400 hover:shadow-sm'}`}
-                          onClick={() => setSelectedSize(size)}
+                          onClick={() => {
+                            setSelectedSize(size);
+                            // Force re-render to update price display
+                            const forceUpdate = {};
+                            setForceUpdate(forceUpdate);
+                          }}
                         >
                           {size}
                         </button>
@@ -1157,10 +1331,67 @@ const ProductDetail = () => {
                 
                 {/* Color Selection */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">SELECT COLOR</h3>
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">Choose Color</h3>
+                  <p className="text-xs text-gray-600 mb-3">Select your preferred color option</p>
                   <div className="flex flex-wrap gap-1.5 sm:gap-2 md:gap-3">
-                    {/* Display available colors based on variants */}
-                    {product.variants && product.variants.length > 0 ? (
+                    {/* Display available colors based on product.colors field or variants */}
+                    {product.colors && Array.isArray(product.colors) && product.colors.length > 0 ? (
+                      // Use product.colors field if available (multiple colors support)
+                      product.colors.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={`relative flex items-center justify-center h-9 sm:h-10 px-2 sm:px-3 rounded-md border transition-all duration-200 
+                            ${selectedColor === color 
+                              ? 'border-java-500 bg-java-50 text-java-700 shadow-sm' 
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-java-300 hover:bg-java-50/30'}
+                          `}
+                          onClick={() => {
+                            // Always allow color selection, but show appropriate feedback
+                            setSelectedColor(color);
+                            
+                            // Find the variant with selected size and this color
+                            let variant = product.variants.find(v => 
+                              v.attributes && 
+                              v.attributes.size === selectedSize && 
+                              v.attributes.color === color
+                            );
+                            
+                            // If no exact match with size, find a variant with just this color
+                            if (!variant) {
+                              variant = product.variants.find(v => 
+                                v.attributes && 
+                                v.attributes.color === color
+                              );
+                              
+                              // If we found a variant with this color but different size,
+                              // update the size to match the available variant
+                              if (variant && variant.attributes && variant.attributes.size) {
+                                setSelectedSize(variant.attributes.size);
+                                // Size updated to match available variant
+                              }
+                            }
+                            
+                            // Show feedback based on variant availability
+                            if (!variant) {
+                              // Color not available for this product
+                            } else if (variant.stock <= 0) {
+                              // Color is out of stock
+                            } else {
+                              // Color selected successfully
+                            }
+                            
+                            // Force re-render to update price display
+                            setForceUpdate({});
+                          }}
+                          disabled={false}
+                          aria-label={`Select ${color} color`}
+                        >
+                          <span className={`inline-block h-4 w-4 sm:h-5 sm:w-5 rounded-full mr-1.5 sm:mr-2 border border-gray-300 shadow-inner`} style={{backgroundColor: color.toLowerCase()}}></span>
+                          <span className="text-xs font-medium">{color}</span>
+                        </button>
+                      ))
+                    ) : product.variants && product.variants.length > 0 ? (
                       getUniqueVariantAttributes().colors.map((color) => (
                         <button
                           key={color}
@@ -1169,10 +1400,73 @@ const ProductDetail = () => {
                             ${selectedColor === color 
                               ? 'border-java-500 bg-java-50 text-java-700 shadow-sm' 
                               : 'border-gray-300 bg-white text-gray-700 hover:border-java-300 hover:bg-java-50/30'}
-                            ${!isVariantInStock(selectedSize, color) ? 'opacity-50 cursor-not-allowed' : ''}
                           `}
-                          onClick={() => isVariantInStock(selectedSize, color) && setSelectedColor(color)}
-                          disabled={!isVariantInStock(selectedSize, color)}
+                          onClick={() => {
+                            // Always allow color selection, but show appropriate feedback
+                            setSelectedColor(color);
+                            
+                            // Find the variant with selected size and this color
+                            let variant = product.variants.find(v => 
+                              v.attributes && 
+                              v.attributes.size === selectedSize && 
+                              v.attributes.color === color
+                            );
+                            
+                            // If no exact match with size, find a variant with just this color
+                            if (!variant) {
+                              variant = product.variants.find(v => 
+                                v.attributes && v.attributes.color === color
+                              );
+                              
+                              // If we found a variant with this color but different size,
+                              // update the size to match the available variant
+                              if (variant && variant.attributes && variant.attributes.size) {
+                                setSelectedSize(variant.attributes.size);
+                                toast.info(`Size updated to ${variant.attributes.size} based on color selection`, {
+                                  position: "top-right",
+                                  autoClose: 2000,
+                                  hideProgressBar: false,
+                                  closeOnClick: true,
+                                  pauseOnHover: true,
+                                  draggable: true
+                                });
+                              }
+                            }
+                            
+                            // Show feedback based on variant availability
+                            if (!variant) {
+                              toast.warning(`${color} color is not available for this product`, {
+                                position: "top-right",
+                                autoClose: 2000,
+                                hideProgressBar: false,
+                                closeOnClick: true,
+                                pauseOnHover: true,
+                                draggable: true
+                              });
+                            } else if (variant.stock <= 0) {
+                              toast.warning(`${color} color is out of stock`, {
+                                position: "top-right",
+                                autoClose: 2000,
+                                hideProgressBar: false,
+                                closeOnClick: true,
+                                pauseOnHover: true,
+                                draggable: true
+                              });
+                            } else {
+                              toast.success(`${color} color selected successfully!`, {
+                                position: "top-right",
+                                autoClose: 1500,
+                                hideProgressBar: false,
+                                closeOnClick: true,
+                                pauseOnHover: true,
+                                draggable: true
+                              });
+                            }
+                            
+                            // Force re-render to update price display
+                            setForceUpdate({});
+                          }}
+                          disabled={false}
                           aria-label={`Select ${color} color`}
                         >
                           <span className={`inline-block h-4 w-4 sm:h-5 sm:w-5 rounded-full mr-1.5 sm:mr-2 border border-gray-300 shadow-inner`} style={{backgroundColor: color.toLowerCase()}}></span>
@@ -1186,7 +1480,12 @@ const ProductDetail = () => {
                         { name: 'Black', class: 'bg-black' },
                         { name: 'Java', class: 'bg-java-400' },
                         { name: 'Navy', class: 'bg-blue-900' },
-                        { name: 'Charcoal', class: 'bg-java-800' }
+                        { name: 'Charcoal', class: 'bg-java-800' },
+                        { name: 'Red', class: 'bg-red-600' },
+                        { name: 'Green', class: 'bg-green-600' },
+                        { name: 'Yellow', class: 'bg-yellow-400' },
+                        { name: 'Purple', class: 'bg-purple-600' },
+                        { name: 'Pink', class: 'bg-pink-400' }
                       ].map((color) => (
                         <button
                           key={color.name}
@@ -1194,7 +1493,10 @@ const ProductDetail = () => {
                           className={`relative flex items-center justify-center h-9 sm:h-10 px-2 sm:px-3 rounded-md border transition-all duration-200 ${selectedColor === color.name 
                             ? 'border-java-500 bg-java-50 text-java-700 shadow-sm' 
                             : 'border-gray-300 bg-white text-gray-700 hover:border-java-300 hover:bg-java-50/30'}`}
-                          onClick={() => setSelectedColor(color.name)}
+                          onClick={() => {
+                            setSelectedColor(color.name);
+                            // Color selected successfully
+                          }}
                           aria-label={`Select ${color.name} color`}
                         >
                           <span className={`inline-block h-4 w-4 sm:h-5 sm:w-5 rounded-full mr-1.5 sm:mr-2 ${color.class} border border-gray-300 shadow-inner`}></span>
@@ -1394,7 +1696,9 @@ const ProductDetail = () => {
                       </svg>
                       Country of Origin
                     </h4>
-                    <p className="ml-5 sm:ml-7 bg-java-50 inline-block px-2 sm:px-3 py-1 rounded-md text-java-700">India</p>
+                    <p className="ml-5 sm:ml-7 bg-java-50 inline-block px-2 sm:px-3 py-1 rounded-md text-java-700">
+                      {getSelectedVariant() && getSelectedVariant().countryOfOrigin ? getSelectedVariant().countryOfOrigin : (product && product.countryOfOrigin ? product.countryOfOrigin : 'India')}
+                    </p>
                   </div>
                   
                   <div className="bg-white p-3 sm:p-4 rounded-lg border border-java-100 shadow-sm hover:shadow-md transition-all duration-300">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { toast } from 'react-toastify'
+// Toast import removed
+// import { toast } from 'react-toastify'
 import useWishlist from '../hooks/useWishlist'
 import useCart from '../hooks/useCart'
 import Button from '../components/Common/Button'
@@ -13,33 +14,45 @@ const AccountWishlist = () => {
   // Handle errors
   useEffect(() => {
     if (error) {
-      toast.error(error, {
-        position: "top-right",
-        autoClose: 3000,
-      })
+      // Error notification removed
+      // toast.error(error, {
+      //   position: "top-right",
+      //   autoClose: 3000,
+      // })
     }
   }, [error])
 
   // Add to cart handler
   const handleAddToCart = (item) => {
-    // Use productDetails price if available, otherwise use product price
-    const price = item.productDetails?.price || 
-      (item.productId.variants && item.productId.variants.length > 0 ? 
-        item.productId.variants[0].price : 
-        item.productId.price)
+    if (!item || !item.productId) return;
+    
+    // Get selling price (actual price to charge)
+    const sellingPrice = item.productId?.salePrice || item.productDetails?.price || 
+      (item.productId?.variants && Array.isArray(item.productId?.variants) && item.productId?.variants.length > 0 ? 
+        item.productId?.variants[0]?.price : 
+        item.productId?.price || 0)
+
+    // Get MRP (original price before discount)
+    const mrp = item.productDetails?.mrp || 
+      (item.productId?.variants && Array.isArray(item.productId?.variants) && item.productId?.variants.length > 0 ? 
+        item.productId?.variants[0]?.mrp : 
+        item.productId?.mrp || sellingPrice || 0)
 
     const productToAdd = {
-      id: item.productId._id || item.productId,
-      name: item.productId.title,
-      price: price,
-      image: item.productId.images?.[0] || item.productDetails?.image || ''
+      id: (typeof item.productId === 'object' ? item.productId?._id : item.productId) || '',
+      name: item.productId?.title || 'Unnamed Product',
+      price: sellingPrice,
+      mrp: mrp,
+      image: (Array.isArray(item.productId?.images) && item.productId?.images.length > 0) ? 
+        item.productId?.images[0] : (item.productDetails?.image || '')
     }
     
     addToCart(productToAdd, 1)
-    toast.success(`${item.productId.title} added to cart!`, {
-      position: "top-right",
-      autoClose: 3000,
-    })
+    // Success notification removed
+    // toast.success(`${item.productId?.title || 'Product'} added to cart!`, {
+    //   position: "top-right",
+    //   autoClose: 3000,
+    // })
     
     // Open cart sidebar automatically
     document.dispatchEvent(new CustomEvent('openCart'))
@@ -57,10 +70,11 @@ const AccountWishlist = () => {
       setIsClearing(true)
       clearWishlist()
       setIsClearing(false)
-      toast.info('Wishlist cleared!', {
-        position: "top-right",
-        autoClose: 3000,
-      })
+      // Info notification removed
+      // toast.info('Wishlist cleared!', {
+      //   position: "top-right",
+      //   autoClose: 3000,
+      // })
     }
   }
 
@@ -100,28 +114,39 @@ const AccountWishlist = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {wishlist.map((item) => {
+              if (!item) return null; // Skip rendering if item is null or undefined
+              
               // Get price from productDetails or from variants
               const price = item.productDetails?.price || 
-                (item.productId.variants && item.productId.variants.length > 0 ? 
-                  item.productId.variants[0].price : 
-                  item.productId.price || 0);
+                (item?.productId?.variants && Array.isArray(item?.productId?.variants) && item?.productId?.variants.length > 0 ? 
+                  item?.productId?.variants[0]?.price : 
+                  item?.productId?.price || 0);
+              
+              // Get MRP from productDetails or from variants
+              const mrp = item?.productId?.mrp || 
+                item?.mrp || 
+                item?.productDetails?.mrp || 
+                (item?.productId?.variants && Array.isArray(item?.productId?.variants) && item?.productId?.variants.length > 0 ? 
+                  item?.productId?.variants[0]?.mrp : 
+                  price || 0);
               
               // Always consider product in stock (as per requirement)
               const hasStock = true; // Override stock check to always show Add to Cart button
               
               // Get image from product or productDetails
-              const productImage = item.productId.images?.[0] || 
-                item.productDetails?.image || 
+              const productImage = (item?.productId && Array.isArray(item?.productId?.images) && item?.productId?.images.length > 0) ? 
+                item?.productId?.images[0] : 
+                item?.productDetails?.image || 
                 '/image_default.png';
               
               return (
-                <div key={item._id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300">
+                <div key={item?._id || `wishlist-item-${Math.random()}`} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300">
                   {/* Product Image with Badge */}
                   <div className="relative">
-                    <Link to={`/product/${item.productId.slug || item.productDetails?.slug || item.slug || item._id}`} className="block h-56 overflow-hidden bg-gray-100">
+                    <Link to={`/product/${item?.productId?.slug || item?.productDetails?.slug || item?.slug || item?._id || 'not-found'}`} className="block h-56 overflow-hidden bg-gray-100">
                       <img 
                         src={productImage} 
-                        alt={item.productId.title || item.productDetails?.title} 
+                        alt={(item?.productId?.title || item?.productDetails?.title || 'Product').toString()} 
                         className="w-full h-full object-cover transition-transform hover:scale-110 duration-500"
                       />
                     </Link>
@@ -130,47 +155,49 @@ const AccountWishlist = () => {
                   
                   {/* Product Info */}
                   <div className="p-4">
-                    <Link to={`/product/${item.productId.slug || item.productDetails?.slug || item.slug || item._id}`} className="block">
+                    <Link to={`/product/${item?.productId?.slug || item?.productDetails?.slug || item?.slug || item?._id || 'not-found'}`} className="block">
                       <h3 className="text-lg font-medium text-gray-800 hover:text-teal-600 transition-colors line-clamp-2">
-                        {item.productId.title || item.productDetails?.title}
+                        {(item?.productId?.title || item?.productDetails?.title || 'Unnamed Product').toString()}
                       </h3>
                     </Link>
                     
                     {/* Price Section */}
+                    
+                    {/* Price Section */}
                     <div className="mt-3 flex justify-between items-center">
                       <div>
-                        {item.productId.salePrice ? (
+                        {item?.productId?.salePrice ? (
                           <div className="flex items-center space-x-2">
                             <span className="text-lg font-semibold text-teal-600">
-                              ₹{item.productId.salePrice.toFixed(2)}
+                              ₹{parseInt(parseFloat(item?.productId?.salePrice || 0))}
                             </span>
                             <span className="text-sm text-gray-500 line-through">
-                              ₹{price.toFixed(2)}
+                              ₹{parseInt(parseFloat(mrp || 0))}
                             </span>
                           </div>
                         ) : (
                           <span className="text-lg font-semibold text-gray-800">
-                            ₹{price.toFixed(2)}
+                            ₹{parseInt(parseFloat(mrp || 0))}
                           </span>
                         )}
                       </div>
                       
                       <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        Added {new Date(item.addedAt).toLocaleDateString()}
+                        Added {new Date(item?.addedAt || new Date()).toLocaleDateString()}
                       </div>
                     </div>
                     
                     {/* Variants Info (if available) */}
-                    {item.productId.variants && item.productId.variants.length > 0 && (
+                    {item?.productId?.variants && Array.isArray(item?.productId?.variants) && item?.productId?.variants.length > 0 && (
                       <div className="mt-2 text-sm text-gray-600">
-                        <span className="font-medium">Variants:</span> {item.productId.variants.length} available
+                        <span className="font-medium">Variants:</span> {item?.productId?.variants.length} available
                       </div>
                     )}
                     
                     {/* Action Buttons */}
                     <div className="mt-4 flex space-x-2">
                       <Link 
-                        to={`/product/${item.productId.slug || item.productDetails?.slug || item.slug || item._id}`}
+                        to={`/product/${item?.productId?.slug || item?.productDetails?.slug || item?.slug || item?._id || 'not-found'}`}
                       >
                         <Button 
                           variant="primary" 
@@ -184,7 +211,7 @@ const AccountWishlist = () => {
                         variant="outline" 
                         size="sm" 
                         className="flex-none hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all duration-300"
-                        onClick={() => handleRemove(item._id)}
+                        onClick={() => item?._id ? handleRemove(item._id) : null}
                       >
                         Remove
                       </Button>

@@ -1,11 +1,14 @@
 import express from 'express';
 import { verifyToken } from '../middlewares/auth.middleware.js';
+import { authorize } from '../middlewares/role.middleware.js';
 import {
   createReview,
   getProductReviews,
   updateReview,
   deleteReview,
-  getUserReviews
+  getUserReviews,
+  adminCreateReview,
+  adminGetAllReviews
 } from '../controllers/review.controller.js';
 import { reviewUpload } from '../config/multer.js';
 
@@ -21,5 +24,9 @@ router.post('/', reviewUpload.array('images', 5), createReview);
 router.put('/:id', reviewUpload.array('images', 5), updateReview);
 router.delete('/:id', deleteReview);
 router.get('/user', getUserReviews);
+
+// Admin routes - require admin role
+router.get('/admin/all', authorize(['admin', 'super-admin']), adminGetAllReviews);
+router.post('/admin/create', authorize(['admin', 'super-admin']), reviewUpload.array('images', 5), adminCreateReview);
 
 export default router;
