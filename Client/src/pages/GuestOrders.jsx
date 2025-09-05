@@ -122,8 +122,8 @@ const GuestOrders = () => {
                 
                 <div className="p-4">
                   <div className="space-y-3">
-                    {order.items && order.items.length > 0 ? (
-                      order.items.map((item) => (
+                    {(order.order_items || order.items) && (order.order_items || order.items).length > 0 ? (
+                      (order.order_items || order.items).map((item) => (
                         <div key={item._id || Math.random().toString()} className="flex items-center space-x-3">
                           <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                             {item.productId?.images && item.productId.images.length > 0 ? (

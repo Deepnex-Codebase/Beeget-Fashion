@@ -29,14 +29,23 @@ const addItemToCart = async (cart, productId, quantity, size, color, req) => {
     // Add new item
     const productDetails = {
       title: product.title,
-      price: product.variants && product.variants.length > 0 ? parseFloat(product.variants[0].price) : 0,
-      mrp: product.variants && product.variants.length > 0 ? parseFloat(product.variants[0].mrp || product.variants[0].price) : (product.mrp || product.price || 0),
+      price: product.variants && product.variants.length > 0 ? 
+        (isNaN(parseFloat(product.variants[0].price)) ? 0 : parseFloat(product.variants[0].price)) : 
+        (isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price)),
+      mrp: product.variants && product.variants.length > 0 ? 
+        (isNaN(parseFloat(product.variants[0].mrp)) ? 
+          (isNaN(parseFloat(product.variants[0].price)) ? 0 : parseFloat(product.variants[0].price)) : 
+          parseFloat(product.variants[0].mrp)) : 
+        (isNaN(parseFloat(product.mrp)) ? 
+          (isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price)) : 
+          parseFloat(product.mrp)),
       image: product.images && product.images.length > 0 ? product.images[0] : null,
-      slug: product.slug
+      slug: product.slug,
+      gstRate: product.gstRate || 0 // Add GST rate to product details
     };
     
     // Get the variant SKU from the request or find it based on attributes
-    let variantSku = req.body.variantSku;
+    let variantSku = req && req.body && req.body.variantSku;
     
     // If no variantSku provided, try to find the matching variant
     if (!variantSku && product.variants && product.variants.length > 0) {
@@ -93,10 +102,15 @@ const updateCartItemHelper = async (cart, itemId, quantity) => {
     // Update the GST rate
     cartItem.gstRate = product.gstRate || 0;
     
-    // Update the stored product details with the latest price
+    // Update the stored product details with the latest price and GST rate
     if (product.variants && product.variants.length > 0) {
-      cartItem.productDetails.price = parseFloat(product.variants[0].price);
+      cartItem.productDetails.price = isNaN(parseFloat(product.variants[0].price)) ? 0 : parseFloat(product.variants[0].price);
+    } else if (product.price) {
+      cartItem.productDetails.price = isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price);
     }
+    
+    // Update the GST rate in product details
+    cartItem.productDetails.gstRate = product.gstRate || 0;
   }
   
   await cart.save();
@@ -181,7 +195,7 @@ export const getGuestCart = async (req, res, next) => {
 export const addToCart = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { productId, quantity = 1, size = null, color = null } = req.body;
+    const { productId, quantity = 1, size = null, color = null, variantSku = null } = req.body;
     
     // Find user's cart or create a new one
     let cart = await Cart.findOne({ userId });
@@ -209,7 +223,7 @@ export const addToCart = async (req, res, next) => {
 export const addToGuestCart = async (req, res, next) => {
   try {
     const { guestSessionId } = req.params;
-    const { productId, quantity = 1, size = null, color = null } = req.body;
+    const { productId, quantity = 1, size = null, color = null, variantSku = null } = req.body;
     
     if (!guestSessionId) {
       return next(new AppError('Guest session ID is required', 400));
@@ -554,11 +568,25 @@ export const applyCoupon = async (req, res, next) => {
       });
     } catch (error) {
       logger.error(`Error validating coupon: ${error.message}`);
-      return next(new AppError('Failed to validate coupon', 500));
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to validate coupon',
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'There was a problem validating your coupon. Please try again.'
+        }
+      });
     }
   } catch (error) {
     logger.error(`Error applying coupon: ${error.message}`);
-    return next(new AppError('Failed to apply coupon', 500));
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to apply coupon',
+      error: {
+        code: 'COUPON_APPLICATION_ERROR',
+        message: 'There was a problem applying your coupon. Please try again.'
+      }
+    });
   }
 };
 
@@ -673,11 +701,25 @@ export const applyGuestCoupon = async (req, res, next) => {
       });
     } catch (error) {
       logger.error(`Error validating coupon: ${error.message}`);
-      return next(new AppError('Failed to validate coupon', 500));
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to validate coupon',
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'There was a problem validating your coupon. Please try again.'
+        }
+      });
     }
   } catch (error) {
     logger.error(`Error applying coupon to guest cart: ${error.message}`);
-    return next(new AppError('Failed to apply coupon to guest cart', 500));
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to apply coupon',
+      error: {
+        code: 'COUPON_APPLICATION_ERROR',
+        message: 'There was a problem applying your coupon. Please try again.'
+      }
+    });
   }
 };
 

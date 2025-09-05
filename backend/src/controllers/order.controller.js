@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import Coupon from "../models/coupon.model.js";
 import { AppError } from "../middlewares/error.middleware.js";
 import { logger } from "../utils/logger.js";
+import mongoose from "mongoose";
 import paymentService from "../services/payment.service.js";
 import shippingService from "../services/shipping.service.js";
 import { sendOrderConfirmationEmail } from "../services/email.service.js";
@@ -47,6 +48,14 @@ export const createOrder = async (req, res, next) => {
 
     if (!shipping || !shipping.address) {
       throw new AppError("Shipping address is required", 400);
+    }
+    
+    // Validate required shipping address fields
+    const requiredFields = ['name', 'street', 'city', 'state', 'pincode', 'email', 'phone'];
+    for (const field of requiredFields) {
+      if (!shipping.address[field]) {
+        throw new AppError(`Shipping address ${field} is required`, 400);
+      }
     }
 
     if (!payment || !payment.method) {
@@ -134,9 +143,10 @@ export const createOrder = async (req, res, next) => {
       }
 
       // Calculate item price and GST (using MRP if available)
-      const price = variant.mrp || variant.price;
-      const gstAmount = (price * product.gstRate) / 100;
-      const totalPrice = price * qty;
+      const mrp = variant.mrp || variant.price;
+      const sellingPrice = variant.price || variant.mrp;
+      const gstAmount = (sellingPrice * product.gstRate) / 100;
+      const totalPrice = sellingPrice * qty;
       const totalGSTForItem = gstAmount * qty;
 
       // Add to processed items
@@ -144,7 +154,9 @@ export const createOrder = async (req, res, next) => {
         productId: productId,
         variantSku: variantSku,
         qty,
-        mrp: price,
+        mrp: mrp,
+        selling_price: sellingPrice, // Using snake_case for Shiprocket compatibility
+        sellingPrice: sellingPrice, // Keep for backward compatibility
         gstRate: product.gstRate,
         gstAmount: gstAmount,
         totalPrice,
@@ -204,13 +216,82 @@ export const createOrder = async (req, res, next) => {
     // Generate unique order ID
     const order_id = await generateOrderId();
     
+    // Format current date as YYYY-MM-DD HH:mm
+    const now = new Date();
+    const orderDate = now.toISOString().slice(0, 16).replace('T', ' ');
+
+    // Get additional order details from request body or set defaults
+    const pickup_location = req.body.pickup_location || "Home";
+    const comment = req.body.comment || "";
+    const shipping_is_billing = req.body.shipping_is_billing !== false; // Default to true if not explicitly set to false
+    
+    // Get shipping dimensions and weight
+    const length = req.body.length || 0;
+    const breadth = req.body.breadth || 0;
+    const height = req.body.height || 0;
+    const weight = req.body.weight || 0;
+    
+    // Get shipping and other charges
+    const shipping_charges = req.body.shipping_charges || 0;
+    const giftwrap_charges = req.body.giftwrap_charges || 0;
+    const transaction_charges = req.body.transaction_charges || 0;
+    
     // Create order
     const order = new Order({
       order_id,
+      order_date: orderDate, // Using snake_case for Shiprocket compatibility
       userId: userId,
       guestSessionId: !userId ? guestSessionId : undefined,
-      items: processedItems,
-      shipping,
+      pickup_location,
+      comment,
+      // Billing information
+      billing: {
+        customer_name: shipping.address.name.split(' ')[0] || "", // First name
+        last_name: shipping.address.name.split(' ').slice(1).join(' ') || "", // Last name
+        address: shipping.address.street,
+        address_2: shipping.address.address_2 || "",
+        city: shipping.address.city,
+        pincode: shipping.address.pincode,
+        state: shipping.address.state,
+        country: shipping.address.country || 'India',
+        email: shipping.address.email,
+        phone: shipping.address.phone
+      },
+      shipping_is_billing,
+      // Shipping information (if different from billing)
+      shipping: shipping_is_billing ? {
+        courier: shipping.courier,
+        trackingId: shipping.trackingId,
+        shipmentId: shipping.shipmentId
+      } : {
+        customer_name: shipping.address.name.split(' ')[0] || "",
+        last_name: shipping.address.name.split(' ').slice(1).join(' ') || "",
+        address: shipping.address.street,
+        address_2: shipping.address.address_2 || "",
+        city: shipping.address.city,
+        pincode: shipping.address.pincode,
+        state: shipping.address.state,
+        country: shipping.address.country || 'India',
+        email: shipping.address.email,
+        phone: shipping.address.phone,
+        courier: shipping.courier,
+        trackingId: shipping.trackingId,
+        shipmentId: shipping.shipmentId
+      },
+      
+      // Package dimensions and weight
+      length,
+      breadth,
+      height,
+      weight,
+      
+      // Additional charges
+       shipping_charges,
+       giftwrap_charges,
+       transaction_charges,
+       
+       // Order items
+       order_items: processedItems,
       payment: {
         ...payment,
         status: "PENDING",
@@ -385,7 +466,376 @@ export const createOrder = async (req, res, next) => {
           logger.warn(`No phone number found for guest order ${order._id}`);
         }
       }
+      
+      // Create order in ShipRocket automatically for COD orders
+      try {
+        // Prepare ShipRocket order data using the new model structure
+        const shipRocketOrderData = {
+          order_id: order.order_id,
+          order_date: order.order_date || new Date(order.createdAt).toISOString().slice(0, 16).replace('T', ' '),
+          pickup_location: order.pickup_location || 'Home',
+          comment: order.comment,
+          billing_customer_name: order.billing.customer_name || '',
+          billing_last_name: order.billing.last_name || '',
+          billing_address: order.billing.address || '',
+          billing_address_2: order.billing.address_2 || '',
+          billing_city: order.billing.city || '',
+          billing_pincode: order.billing.pincode || '',
+          billing_state: order.billing.state || '',
+          billing_country: order.billing.country || 'India',
+          billing_email: order.billing.email || '',
+          billing_phone: order.billing.phone || '',
+          shipping_is_billing: order.shipping_is_billing,
+          shipping_customer_name: order.shipping_is_billing ? (order.billing.customer_name || '') : (order.shipping.customer_name || ''),
+          shipping_last_name: order.shipping_is_billing ? (order.billing.last_name || '') : (order.shipping.last_name || ''),
+          shipping_address: order.shipping_is_billing ? (order.billing.address || '') : (order.shipping.address || ''),
+          shipping_address_2: order.shipping_is_billing ? (order.billing.address_2 || '') : (order.shipping.address_2 || ''),
+          shipping_city: order.shipping_is_billing ? (order.billing.city || '') : (order.shipping.city || ''),
+          shipping_pincode: order.shipping_is_billing ? (order.billing.pincode || '') : (order.shipping.pincode || ''),
+          shipping_state: order.shipping_is_billing ? (order.billing.state || '') : (order.shipping.state || ''),
+          shipping_country: order.shipping_is_billing ? (order.billing.country || 'India') : (order.shipping.country || 'India'),
+          shipping_email: order.shipping_is_billing ? (order.billing.email || '') : (order.shipping.email || ''),
+          shipping_phone: order.shipping_is_billing ? (order.billing.phone || '') : (order.shipping.phone || ''),
+          order_items: order.order_items.map(item => ({
+            name: item.name || (item.productId && item.productId.title) || 'Product',
+            sku: item.sku || item.variantSku,
+            units: item.units || item.qty,
+            selling_price: item.selling_price || item.sellingPrice,
+            discount: item.discount || 0,
+            tax: item.tax || item.gstAmount || 0,
+            hsn: item.hsn
+          })),
+          payment_method: order.payment.method === 'COD' ? 'COD' : 'Prepaid',
+          shipping_charges: order.shipping_charges || 0,
+          giftwrap_charges: order.giftwrap_charges || 0,
+          transaction_charges: order.transaction_charges || 0,
+          total_discount: order.discount || 0,
+          sub_total: order.total,
+          length: order.length || 0,
+          breadth: order.breadth || 0,
+          height: order.height || 0,
+          weight: order.weight || 0
+        };
+
+        // Call the createShipRocketOrder function to handle ShipRocket integration
+        const shipRocketResult = await createShipRocketOrder(order, shipRocketOrderData);
+        
+        if (shipRocketResult.success) {
+          logger.info(`Order ${order._id} successfully integrated with ShipRocket: ${JSON.stringify(shipRocketResult.data)}`);
+        } else {
+          logger.error(`Failed to integrate order ${order._id} with ShipRocket: ${shipRocketResult.error}`);
+        }
+      } catch (shipRocketError) {
+        logger.error(`Error in ShipRocket integration for order ${order._id}:`, shipRocketError);
+        // Continue processing even if ShipRocket integration fails
+      }
     }
+
+/**
+ * Create order in ShipRocket and handle all required scenarios
+ * 1. Create order in ShipRocket
+ * 2. Save ShipRocket order_id in DB
+ * 3. Keep MongoDB _id separate
+ * 4. Handle duplicate errors gracefully
+ * 5. Handle missing fields in ShipRocket response
+ */
+async function createShipRocketOrder(order, shipRocketOrderData) {
+  try {
+    // Check if order already has ShipRocket shipment ID
+    if (order.shipping && order.shipping.shipmentId) {
+      logger.info(`Order ${order._id} already has ShipRocket shipment ID: ${order.shipping.shipmentId}`);
+      return {
+        success: true,
+        data: {
+          message: 'Order already exists in ShipRocket',
+          shipment_id: order.shipping.shipmentId,
+          shiprocket_order_id: order.shipping.shiprocketOrderId || null,
+          tracking_id: order.shipping.trackingId || null
+        }
+      };
+    }
+    
+    // Ensure all required fields are present in the order data
+    const requiredFields = [
+      'order_id', 'order_date', 'billing_customer_name', 'billing_address',
+      'billing_city', 'billing_pincode', 'billing_state', 'billing_country',
+      'billing_email', 'billing_phone', 'order_items', 'payment_method'
+    ];
+    
+    const missingFields = [];
+    for (const field of requiredFields) {
+      if (!shipRocketOrderData[field]) {
+        missingFields.push(field);
+      }
+    }
+    
+    // Validate order items
+    if (shipRocketOrderData.order_items && Array.isArray(shipRocketOrderData.order_items)) {
+      if (shipRocketOrderData.order_items.length === 0) {
+        missingFields.push('order_items (empty array)');
+      } else {
+        // Check each order item for required fields
+        for (const [index, item] of shipRocketOrderData.order_items.entries()) {
+          if (!item.name || !item.units || item.selling_price === undefined) {
+            const itemMissing = [];
+            if (!item.name) itemMissing.push('name');
+            if (!item.units) itemMissing.push('units');
+            if (item.selling_price === undefined) itemMissing.push('selling_price');
+            
+            missingFields.push(`order_items[${index}]: ${itemMissing.join(', ')}`);
+          }
+        }
+      }
+    } else {
+      missingFields.push('order_items (not an array)');
+    }
+    
+    // If missing fields, return error
+    if (missingFields.length > 0) {
+      const errorMessage = `Missing required ShipRocket fields: ${missingFields.join(', ')}`;
+      logger.error(errorMessage);
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+
+    // Call ShipRocket API to create order
+    const shipRocketResponse = await shippingService.createOrder(shipRocketOrderData);
+
+    // Check if ShipRocket API call was successful
+    if (!shipRocketResponse.success) {
+      return {
+        success: false,
+        error: shipRocketResponse.error || 'Failed to create order in ShipRocket',
+        guidance: shipRocketResponse.guidance || ''
+      };
+    }
+
+    // Check if ShipRocket response contains required data
+    if (!shipRocketResponse.data || !shipRocketResponse.data.shipment_id) {
+      // Get guidance on missing shipment_id
+      const guidance = shipRocketResponse.data ? 
+        `ShipRocket order_id: ${shipRocketResponse.data.order_id || 'N/A'}. ` : '';
+      
+      return {
+        success: false,
+        error: 'ShipRocket response missing shipment_id',
+        guidance: guidance + 'This may happen when the order is created but not yet processed for shipping.'
+      };
+    }
+
+    // Initialize shipping object if it doesn't exist
+    if (!order.shipping) {
+      order.shipping = {};
+    }
+
+    // Store ShipRocket shipment ID
+    order.shipping.shipmentId = shipRocketResponse.data.shipment_id;
+    
+    // Store ShipRocket order_id if available
+    if (shipRocketResponse.data.order_id) {
+      order.shipping.shiprocketOrderId = shipRocketResponse.data.order_id;
+    }
+
+    // Save order with ShipRocket data
+    try {
+      await order.save();
+      logger.info(`Order ${order._id} updated with ShipRocket shipment ID: ${order.shipping.shipmentId}`);
+    } catch (saveError) {
+      // Handle MongoDB duplicate key error
+      if (saveError.name === 'MongoServerError' && saveError.code === 11000) {
+        logger.warn(`Duplicate key error when saving order ${order._id} with ShipRocket data: ${saveError.message}`);
+        
+        // Try to find the existing order
+        try {
+          const existingOrder = await mongoose.model('Order').findOne({ order_id: order.order_id });
+          if (existingOrder) {
+            // Update the existing order with ShipRocket data
+            existingOrder.shipping = existingOrder.shipping || {};
+            existingOrder.shipping.shipmentId = shipRocketResponse.data.shipment_id;
+            if (shipRocketResponse.data.order_id) {
+              existingOrder.shipping.shiprocketOrderId = shipRocketResponse.data.order_id;
+            }
+            await existingOrder.save();
+            logger.info(`Updated existing order ${existingOrder._id} with ShipRocket shipment ID: ${existingOrder.shipping.shipmentId}`);
+          }
+        } catch (findError) {
+          logger.error(`Error finding existing order: ${findError.message}`);
+          return {
+            success: false,
+            error: `Failed to update order with ShipRocket data: ${saveError.message}`,
+            guidance: 'There was a database error when trying to update the order with ShipRocket data. Check your database connection and try again.'
+          };
+        }
+      } else {
+        logger.error(`Error saving order with ShipRocket data: ${saveError.message}`);
+        return {
+          success: false,
+          error: `Failed to save order with ShipRocket data: ${saveError.message}`,
+          guidance: 'There was a database error when trying to save the order with ShipRocket data. Check your database connection and try again.'
+        };
+      }
+    }
+
+    // Generate AWB (tracking number) if we have a shipment ID
+    if (order.shipping.shipmentId) {
+      const awbResponse = await shippingService.generateAWB(order.shipping.shipmentId);
+      
+      if (awbResponse.success && awbResponse.data && awbResponse.data.awb_code) {
+        logger.info(`AWB generated for order ${order._id}: ${awbResponse.data.awb_code}`);
+        
+        // Store the AWB code as tracking ID
+        order.shipping.trackingId = awbResponse.data.awb_code;
+        
+        // Save order with tracking ID
+        try {
+          await order.save();
+          logger.info(`Order ${order._id} updated with tracking ID: ${order.shipping.trackingId}`);
+        } catch (saveError) {
+          logger.error(`Error saving order with tracking ID: ${saveError.message}`);
+          // Continue even if saving tracking ID fails
+        }
+        
+        return {
+          success: true,
+          data: {
+            message: 'Order created in ShipRocket and AWB generated',
+            shipment_id: order.shipping.shipmentId,
+            shiprocket_order_id: order.shipping.shiprocketOrderId,
+            tracking_id: order.shipping.trackingId
+          }
+        };
+      } else {
+        logger.error(`Failed to generate AWB for order ${order._id}:`, awbResponse.error);
+        
+        // Return success even if AWB generation fails
+        return {
+          success: true,
+          data: {
+            message: 'Order created in ShipRocket but AWB generation failed',
+            shipment_id: order.shipping.shipmentId,
+            shiprocket_order_id: order.shipping.shiprocketOrderId,
+            error: awbResponse.error || 'Failed to generate AWB',
+            guidance: awbResponse.guidance || 'You can try to generate AWB manually from ShipRocket panel or retry later.'
+          }
+        };
+      }
+    }
+
+    // Return success if everything went well
+    return {
+      success: true,
+      data: {
+        message: 'Order created in ShipRocket',
+        shipment_id: order.shipping.shipmentId,
+        shiprocket_order_id: order.shipping.shiprocketOrderId
+      }
+    };
+  } catch (error) {
+    logger.error(`Unexpected error in createShipRocketOrder: ${error.message}`);
+    return {
+      success: false,
+      error: `Unexpected error: ${error.message}`,
+      guidance: 'An unexpected error occurred during ShipRocket integration. Please check the server logs for more details.'
+    };
+  }
+}
+
+/**
+ * Create ShipRocket order manually
+ * This controller can be used to manually create an order in ShipRocket
+ * or retry a failed ShipRocket integration
+ */
+const createShipRocketOrderManually = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    
+    // Find the order by ID or order_id
+    let order;
+    if (mongoose.Types.ObjectId.isValid(orderId)) {
+      order = await Order.findById(orderId);
+    } else {
+      order = await Order.findOne({ order_id: orderId });
+    }
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    // Prepare ShipRocket order data
+    const shipRocketOrderData = {
+      order_id: order.order_id,
+      order_date: order.order_date || new Date(order.createdAt).toISOString().slice(0, 16).replace('T', ' '),
+      pickup_location: order.pickup_location || 'Home',
+      comment: order.comment,
+      billing_customer_name: order.billing.customer_name || '',
+      billing_last_name: order.billing.last_name || '',
+      billing_address: order.billing.address || '',
+      billing_address_2: order.billing.address_2 || '',
+      billing_city: order.billing.city || '',
+      billing_pincode: order.billing.pincode || '',
+      billing_state: order.billing.state || '',
+      billing_country: order.billing.country || 'India',
+      billing_email: order.billing.email || '',
+      billing_phone: order.billing.phone || '',
+      shipping_is_billing: order.shipping_is_billing,
+      shipping_customer_name: order.shipping_is_billing ? (order.billing.customer_name || '') : (order.shipping.customer_name || ''),
+      shipping_last_name: order.shipping_is_billing ? (order.billing.last_name || '') : (order.shipping.last_name || ''),
+      shipping_address: order.shipping_is_billing ? (order.billing.address || '') : (order.shipping.address || ''),
+      shipping_address_2: order.shipping_is_billing ? (order.billing.address_2 || '') : (order.shipping.address_2 || ''),
+      shipping_city: order.shipping_is_billing ? (order.billing.city || '') : (order.shipping.city || ''),
+      shipping_pincode: order.shipping_is_billing ? (order.billing.pincode || '') : (order.shipping.pincode || ''),
+      shipping_state: order.shipping_is_billing ? (order.billing.state || '') : (order.shipping.state || ''),
+      shipping_country: order.shipping_is_billing ? (order.billing.country || 'India') : (order.shipping.country || 'India'),
+      shipping_email: order.shipping_is_billing ? (order.billing.email || '') : (order.shipping.email || ''),
+      shipping_phone: order.shipping_is_billing ? (order.billing.phone || '') : (order.shipping.phone || ''),
+      order_items: order.order_items.map(item => ({
+        name: item.name || (item.productId && item.productId.title) || 'Product',
+        sku: item.sku || item.variantSku,
+        units: item.units || item.qty,
+        selling_price: item.selling_price || item.sellingPrice,
+        discount: item.discount || 0,
+        tax: item.tax || item.gstAmount || 0,
+        hsn: item.hsn
+      })),
+      payment_method: order.payment.method === 'COD' ? 'COD' : 'Prepaid',
+      shipping_charges: order.shipping_charges || 0,
+      giftwrap_charges: order.giftwrap_charges || 0,
+      transaction_charges: order.transaction_charges || 0,
+      total_discount: order.discount || 0,
+      sub_total: order.total,
+      length: order.length || 0,
+      breadth: order.breadth || 0,
+      height: order.height || 0,
+      weight: order.weight || 0
+    };
+    
+    // Call the createShipRocketOrder function
+    const shipRocketResult = await createShipRocketOrder(order, shipRocketOrderData);
+    
+    if (shipRocketResult.success) {
+      return res.status(200).json({
+        success: true,
+        message: 'Order created in ShipRocket successfully',
+        data: shipRocketResult.data
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create order in ShipRocket',
+        error: shipRocketResult.error
+      });
+    }
+  } catch (error) {
+    logger.error(`Error in createShipRocketOrderManually: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
 
     // Return created order
     res.status(201).json({
@@ -404,8 +854,51 @@ export const createOrder = async (req, res, next) => {
 
 /**
  * Get all orders with pagination and filters
+ * If the route is /orders/shiprocket, fetch orders from ShipRocket
  */
 export const getOrders = async (req, res, next) => {
+  // Check if the request is for ShipRocket orders
+  const isShipRocketRequest = req.originalUrl.includes('/shiprocket');
+  
+  if (isShipRocketRequest) {
+    try {
+      // Get orders from ShipRocket
+      const shipRocketService = new shippingService();
+      const shipRocketOrders = await shipRocketService.getAllOrders();
+      
+      // Filter orders based on user role
+      let filteredOrders = shipRocketOrders.data || [];
+      
+      // If not admin or subadmin with proper permissions, only show user's own orders
+      if (!(req.user.roles && req.user.roles.includes('admin')) && 
+          !(req.user.roles && req.user.roles.includes('subadmin') && 
+            req.user.department === 'orders' && 
+            req.user.permissions.includes('manage_orders'))) {
+        
+        // Filter orders by user email or phone number
+        filteredOrders = filteredOrders.filter(order => {
+          const orderEmail = order.customer_email?.toLowerCase();
+          const orderPhone = order.customer_phone;
+          const userEmail = req.user.email?.toLowerCase();
+          const userPhone = req.user.whatsappNumber || req.user.phone;
+          
+          return (orderEmail && userEmail && orderEmail === userEmail) || 
+                 (orderPhone && userPhone && orderPhone === userPhone);
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Orders fetched successfully from ShipRocket',
+        data: {
+          orders: filteredOrders
+        }
+      });
+    } catch (error) {
+      logger.error('Error fetching orders from ShipRocket:', error);
+      return next(new AppError(error.message || 'Failed to fetch orders from ShipRocket', 500));
+    }
+  }
   try {
     const {
       page = 1,
@@ -505,8 +998,52 @@ export const getOrders = async (req, res, next) => {
 
 /**
  * Get order by ID
+ * If the route is /orders/shiprocket/:id, fetch order details from ShipRocket
  */
 export const getOrderById = async (req, res, next) => {
+  // Check if the request is for ShipRocket order details
+  const isShipRocketRequest = req.originalUrl.includes('/shiprocket/');
+  
+  if (isShipRocketRequest) {
+    try {
+      const { id } = req.params;
+      
+      // Get order details from ShipRocket
+      const shipRocketService = new shippingService();
+      const shipRocketOrderDetails = await shipRocketService.getOrderDetails(id);
+      
+      // Check if order belongs to the current user (if not admin/subadmin)
+      if (!(req.user.roles && req.user.roles.includes('admin')) && 
+          !(req.user.roles && req.user.roles.includes('subadmin') && 
+            req.user.department === 'orders' && 
+            req.user.permissions.includes('manage_orders'))) {
+        
+        const orderData = shipRocketOrderDetails.data || {};
+        const orderEmail = orderData.customer_email?.toLowerCase();
+        const orderPhone = orderData.customer_phone;
+        const userEmail = req.user.email?.toLowerCase();
+        const userPhone = req.user.whatsappNumber || req.user.phone;
+        
+        // If order doesn't belong to user, return 403
+        if (!((orderEmail && userEmail && orderEmail === userEmail) || 
+               (orderPhone && userPhone && orderPhone === userPhone))) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have permission to view this order'
+          });
+        }
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Order details fetched successfully from ShipRocket',
+        data: shipRocketOrderDetails.data || {}
+      });
+    } catch (error) {
+      logger.error('Error fetching order details from ShipRocket:', error);
+      return next(new AppError(error.message || 'Failed to fetch order details from ShipRocket', 500));
+    }
+  }
   try {
     const { id } = req.params;
 
@@ -566,6 +1103,8 @@ export const updateOrderStatus = async (req, res, next) => {
       "DELIVERED",
       "CANCELLED",
       "RETURNED",
+      "PAYMENT_FAILED",
+      "STOCK_ISSUE",
     ];
 
     if (!validStatuses.includes(status)) {
@@ -633,7 +1172,7 @@ export const updateOrderStatus = async (req, res, next) => {
           const shipRocketOrderData = {
             order_id: order.order_id, // Use order.order_id instead of order._id.toString()
             order_date: new Date(order.createdAt).toISOString().split('T')[0],
-            pickup_location: 'Primary',
+            pickup_location: 'Home',
             billing_customer_name: order.shipping.address.name,
             billing_address: order.shipping.address.street,
             billing_city: order.shipping.address.city,
@@ -647,7 +1186,7 @@ export const updateOrderStatus = async (req, res, next) => {
               name: item.productId.title || 'Product',
               sku: item.variantSku,
               units: item.qty,
-              selling_price: item.price,
+              selling_price: item.sellingPrice,
               discount: 0,
               tax: item.gstAmount || 0
             })),
@@ -1140,7 +1679,7 @@ export const processPaymentCallback = async (req, res, next) => {
             const shipRocketOrderData = {
               order_id: order.order_id, // Use order.order_id instead of order._id.toString()
               order_date: new Date(order.createdAt).toISOString().split('T')[0],
-              pickup_location: 'Primary',
+              pickup_location: 'Home',
               billing_customer_name: order.shipping.address.name,
               billing_address: order.shipping.address.street,
               billing_city: order.shipping.address.city,
@@ -1556,7 +2095,7 @@ export const processPaymentWebhook = async (req, res, next) => {
             const shipRocketOrderData = {
               order_id: order.order_id, // Use order.order_id instead of order._id.toString()
               order_date: new Date(order.createdAt).toISOString().split('T')[0],
-              pickup_location: 'Primary',
+              pickup_location: 'Home',
               billing_customer_name: order.shipping.address.name,
               billing_address: order.shipping.address.street,
               billing_city: order.shipping.address.city,
@@ -2554,6 +3093,103 @@ export const createPaymentForOrder = async (req, res, next) => {
 /**
  * Get city-based analytics for orders
  */
+export const createShipRocketOrderManually = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    
+    if (!orderId) {
+      throw new AppError('Order ID is required', 400);
+    }
+    
+    // Find the order by ID
+    const order = await Order.findOne({ 
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(orderId) ? orderId : null },
+        { order_id: orderId }
+      ]
+    }).populate('order_items.productId');
+    
+    if (!order) {
+      throw new AppError('Order not found', 404);
+    }
+    
+    // Prepare ShipRocket order data
+    const orderItems = order.order_items.map(item => ({
+      name: item.name || '',
+      sku: item.sku || item.variantSku || '',
+      units: item.units || item.qty || 1,
+      selling_price: item.sellingPrice || item.mrp || 0,
+      discount: item.discount || 0,
+      tax: item.gstAmount || item.tax || 0,
+      hsn: item.hsn || ''
+    }));
+    
+    // Prepare billing details with fallbacks
+    const billing = {
+      billing_name: order.billing?.name || order.shipping?.name || '',
+      billing_address: order.billing?.address?.street || order.shipping?.address?.street || '',
+      billing_address_2: order.billing?.address?.landmark || order.shipping?.address?.landmark || '',
+      billing_city: order.billing?.address?.city || order.shipping?.address?.city || '',
+      billing_state: order.billing?.address?.state || order.shipping?.address?.state || '',
+      billing_country: order.billing?.address?.country || order.shipping?.address?.country || 'India',
+      billing_pincode: order.billing?.address?.pincode || order.shipping?.address?.pincode || '',
+      billing_email: order.billing?.email || order.shipping?.email || '',
+      billing_phone: order.billing?.phone || order.shipping?.phone || ''
+    };
+    
+    // Prepare shipping details with fallbacks
+    const shipping = {
+      shipping_is_billing: order.shipping_is_billing || false,
+      shipping_name: order.shipping?.name || '',
+      shipping_address: order.shipping?.address?.street || '',
+      shipping_address_2: order.shipping?.address?.landmark || '',
+      shipping_city: order.shipping?.address?.city || '',
+      shipping_state: order.shipping?.address?.state || '',
+      shipping_country: order.shipping?.address?.country || 'India',
+      shipping_pincode: order.shipping?.address?.pincode || '',
+      shipping_email: order.shipping?.email || '',
+      shipping_phone: order.shipping?.phone || ''
+    };
+    
+    // Prepare ShipRocket order data
+    const shipRocketOrderData = {
+      order_id: order.order_id,
+      order_date: order.createdAt,
+      pickup_location: "Home",
+      channel_id: order.channel_id || "",
+      comment: order.notes || "",
+      ...billing,
+      ...shipping,
+      order_items: orderItems,
+      payment_method: order.payment?.method || "prepaid",
+      sub_total: order.total || 0,
+      length: order.package_dimensions?.length || 10,
+      breadth: order.package_dimensions?.breadth || 10,
+      height: order.package_dimensions?.height || 10,
+      weight: order.package_dimensions?.weight || 1
+    };
+    
+    // Call the createShipRocketOrder function
+    const shipRocketResult = await createShipRocketOrder(order, shipRocketOrderData);
+    
+    if (shipRocketResult.success) {
+      return res.status(200).json({
+        success: true,
+        message: "Order created in ShipRocket successfully",
+        data: {
+          shipment_id: shipRocketResult.shipment_id,
+          tracking_id: shipRocketResult.tracking_id,
+          shiprocket_order_id: shipRocketResult.shiprocket_order_id
+        }
+      });
+    } else {
+      throw new AppError(shipRocketResult.message || "Failed to create order in ShipRocket", 400);
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getCityAnalytics = async (req, res, next) => {
   try {
     const { startDate, endDate, limit = 10 } = req.query;

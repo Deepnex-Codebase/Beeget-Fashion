@@ -521,7 +521,7 @@ const OrderManagement = () => {
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 mb-2">Order Items</h4>
                   <div className="border rounded-md divide-y divide-gray-200">
-                    {orderDetails.items?.map((item, index) => (
+                    {(orderDetails.order_items || orderDetails.items)?.map((item, index) => (
                       <div key={index} className="p-3 flex justify-between items-center">
                         <div>
                           <p className="text-sm font-medium">{item.product?.title || 'Product'}</p>

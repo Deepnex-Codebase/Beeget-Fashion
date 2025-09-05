@@ -87,6 +87,30 @@ export const createProduct = async (req, res, next) => {
         throw new AppError('Invalid variants format', 400);
       }
     }
+    
+    // Ensure each variant has the required Shiprocket fields with defaults if not provided
+    if (Array.isArray(parsedVariants)) {
+      parsedVariants = parsedVariants.map(variant => ({
+        ...variant,
+        // Add default Shiprocket fields if not provided
+        hsn: variant.hsn || '6204', // Default HSN code for ready-made garments
+        weight: variant.weight || 0.3, // Default weight in kg
+        dimensions: variant.dimensions || {
+          length: 30,
+          breadth: 25,
+          height: 2
+        },
+        // Ensure selling price is set
+        sellingPrice: variant.sellingPrice || variant.price || variant.mrp,
+        // Set isInStock based on stock
+        isInStock: variant.stock > 0,
+        // Setup marketplace prices
+        marketplacePrices: {
+          meesho: variant.meeshoPrice,
+          wrongDefective: variant.wrongDefectivePrice
+        }
+      }));
+    }
 
     // Use dynamic validation from config
     const productValidation = validateProduct({
@@ -136,6 +160,8 @@ export const createProduct = async (req, res, next) => {
       category,
       variants: parsedVariants,
       images,
+      // Set primaryImage to the first image if available
+      primaryImage: images.length > 0 ? images[0] : null,
       video, // Add video field
       media_type: media_type || (video ? 'video' : 'image'), // Set media_type based on uploaded content
       gstRate: gstRate || PRODUCT_CONFIG.DEFAULTS.gstRate,
@@ -234,9 +260,9 @@ export const getProducts = async (req, res, next) => {
 
     // Add price range filter if provided
     if (minPrice || maxPrice) {
-      query['variants.price'] = {};
-      if (minPrice) query['variants.price'].$gte = Number(minPrice);
-      if (maxPrice) query['variants.price'].$lte = Number(maxPrice);
+      query['variants.sellingPrice'] = {};
+      if (minPrice) query['variants.sellingPrice'].$gte = Number(minPrice);
+      if (maxPrice) query['variants.sellingPrice'].$lte = Number(maxPrice);
     }
 
     // Add search filter if provided
@@ -417,6 +443,41 @@ export const updateProduct = async (req, res, next) => {
           throw new AppError(firstError.message, 400);
         }
       });
+      
+      // Ensure each variant has the required Shiprocket fields with defaults if not provided
+      parsedVariants = parsedVariants.map(variant => {
+        // Handle price fields
+        const sellingPrice = variant.sellingPrice || variant.price || variant.mrp || 0;
+        const mrp = variant.mrp || sellingPrice;
+        
+        // Handle marketplace prices
+        const marketplacePrices = {
+          meesho: variant.meeshoPrice || variant.marketplacePrices?.meesho || sellingPrice,
+          wrongDefective: variant.wrongDefectivePrice || variant.marketplacePrices?.wrongDefective || sellingPrice * 0.8
+        };
+        
+        // Set stock status
+        const stock = variant.stock || 0;
+        const isInStock = stock > 0;
+        
+        return {
+          ...variant,
+          // Set price fields
+          sellingPrice,
+          mrp,
+          marketplacePrices,
+          stock,
+          isInStock,
+          // Add default Shiprocket fields if not provided
+          hsn: variant.hsn || '6204', // Default HSN code for ready-made garments
+          weight: variant.weight || 0.3, // Default weight in kg
+          dimensions: variant.dimensions || {
+            length: 30,
+            breadth: 25,
+            height: 2
+          }
+        };
+      });
 
       product.variants = parsedVariants;
     }
@@ -443,10 +504,19 @@ export const updateProduct = async (req, res, next) => {
           }
         });
 
+        // Check if primaryImage is being removed
+        const isPrimaryImageRemoved = product.primaryImage && imagesToRemove.includes(product.primaryImage);
+        
         // Remove images from product
         product.images = product.images.filter(imageUrl => 
           !imagesToRemove.includes(imageUrl)
         );
+        
+        // Update primaryImage if it was removed
+        if (isPrimaryImageRemoved) {
+          // Set to first available image or null if no images left
+          product.primaryImage = product.images.length > 0 ? product.images[0] : null;
+        }
       }
     }
 
@@ -473,14 +543,25 @@ export const updateProduct = async (req, res, next) => {
     
     // Add new images if uploaded
     if (req.files && req.files.images) {
+      const newImageUrls = [];
       req.files.images.forEach(file => {
-        // Just store the URL as string as per the model definition
-        product.images.push(getFileUrl(file.path));
+        // Store the URL as string as per the model definition
+        const imageUrl = getFileUrl(file.path);
+        product.images.push(imageUrl);
+        newImageUrls.push(imageUrl);
       });
       
       // If no video is set but images are present, ensure media_type is image
       if (!product.video && product.images.length > 0) {
         product.media_type = 'image';
+      }
+      
+      // Set primaryImage if it's not already set or if explicitly requested
+      if (!product.primaryImage && product.images.length > 0) {
+        product.primaryImage = product.images[0];
+      } else if (newImageUrls.length > 0 && req.body.updatePrimaryImage === 'true') {
+        // If updatePrimaryImage flag is set, use the first new image as primary
+        product.primaryImage = newImageUrls[0];
       }
     }
 
@@ -566,6 +647,8 @@ export const updateStock = async (req, res, next) => {
 
     // Update stock
     product.variants[variantIndex].stock = Number(quantity);
+    // Update isInStock based on stock quantity
+    product.variants[variantIndex].isInStock = Number(quantity) > 0;
     await product.save();
 
     // Return updated product
@@ -642,19 +725,34 @@ export const bulkUploadProducts = async (req, res, next) => {
         if (row.color) attributes.color = row.color;
         if (row.size) attributes.size = row.size;
         
-        // Create variant object with new fields
+        // Create variant object with new fields including Shiprocket fields
+        const sellingPrice = row.sellingPrice ? parseFloat(row.sellingPrice) : (row.price ? parseFloat(row.price) : parseFloat(row.mrp));
+        const stock = parseInt(row.stock, 10) || 0;
+        
         const variant = {
           sku: row.sku || '', // SKU is now optional
-          meeshoPrice: parseFloat(row.meeshoPrice),
-          wrongDefectivePrice: row.wrongDefectivePrice ? parseFloat(row.wrongDefectivePrice) : undefined,
+          sellingPrice: sellingPrice,
           mrp: parseFloat(row.mrp),
-          stock: parseInt(row.stock, 10),
+          marketplacePrices: {
+            meesho: row.meeshoPrice ? parseFloat(row.meeshoPrice) : sellingPrice,
+            wrongDefective: row.wrongDefectivePrice ? parseFloat(row.wrongDefectivePrice) : sellingPrice * 0.8
+          },
+          stock: stock,
+          isInStock: stock > 0,
           bustSize: parseFloat(row.bustSize),
           shoulderSize: parseFloat(row.shoulderSize),
           waistSize: parseFloat(row.waistSize),
           sizeLength: parseFloat(row.sizeLength),
           hipSize: row.hipSize ? parseFloat(row.hipSize) : undefined,
-          attributes
+          attributes,
+          // Shiprocket Fields
+          hsn: row.hsn || '6204', // Default HSN code for ready-made garments
+          weight: row.weight ? parseFloat(row.weight) : 0.3, // Default weight in kg
+          dimensions: {
+            length: row.length ? parseFloat(row.length) : 30,
+            breadth: row.breadth ? parseFloat(row.breadth) : 25,
+            height: row.height ? parseFloat(row.height) : 2
+          }
         };
         
         // Parse images (comma-separated URLs)
@@ -678,6 +776,8 @@ export const bulkUploadProducts = async (req, res, next) => {
             category: row.category,
             variants: [variant],
             images: images,
+            // Set primaryImage to the first image if available
+            primaryImage: images.length > 0 ? images[0] : null,
             gstRate: row.gstRate ? parseFloat(row.gstRate) : PRODUCT_CONFIG.DEFAULTS.gstRate
           };
         }

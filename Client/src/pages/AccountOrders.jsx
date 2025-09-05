@@ -76,7 +76,31 @@ const AccountOrders = () => {
     queryFn: async () => {
       try {
         const response = await axios.get(`/orders/${selectedOrder}`);
-        return response.data.data;
+        const data = response.data.data;
+        
+        // Ensure order items have valid price and quantity values
+        if (data.items && Array.isArray(data.items)) {
+          data.items = data.items.map(item => ({
+            ...item,
+            price: parseFloat(item.price || item.priceAtPurchase || 0),
+            priceAtPurchase: parseFloat(item.priceAtPurchase || item.price || 0),
+            qty: parseInt(item.qty || item.quantity || 0, 10),
+            quantity: parseInt(item.quantity || item.qty || 0, 10)
+          }));
+        }
+          
+        // Also handle order_items if present
+        if (data.order_items && Array.isArray(data.order_items)) {
+          data.order_items = data.order_items.map(item => ({
+            ...item,
+            price: parseFloat(item.price || item.priceAtPurchase || 0),
+            priceAtPurchase: parseFloat(item.priceAtPurchase || item.price || 0),
+            qty: parseInt(item.qty || item.quantity || 0, 10),
+            quantity: parseInt(item.quantity || item.qty || 0, 10)
+          }));
+        }
+        
+        return data;
       } catch (error) {
         // console.error('Error fetching order details:', error);
         throw error;
@@ -178,6 +202,10 @@ const AccountOrders = () => {
   
   // Format currency
   const formatCurrency = (amount) => {
+    // Check if amount is a valid number
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return '₹0.00';
+    }
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
@@ -670,27 +698,27 @@ const AccountOrders = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {orders.find(o => o._id === selectedOrder)?.items.map((item) => (
+                  {(orders.find(o => o._id === selectedOrder)?.order_items || orders.find(o => o._id === selectedOrder)?.items)?.map((item) => (
                     <tr key={item._id || item.variantSku}>
                       <td className="px-4 py-4">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-md overflow-hidden">
                             <Image 
-                              src={item.productId?.images?.[0] || '/image_default.png'} 
-                              alt={item.productId?.title} 
+                              src={item.productId?.images?.[0] || item.product?.images?.[0] || '/image_default.png'} 
+                              alt={item.productId?.title || item.product?.title || 'Product'} 
                               className="w-full h-full object-cover"
                               fallbackSrc="/image_default.png"
                             />
                           </div>
                           <div className="ml-4">
-                            <h4 className="font-medium">{item.productId?.title}</h4>
-                            <p className="text-sm text-gray-500">SKU: {item.variantSku}</p>
+                            <h4 className="font-medium">{item.productId?.title || item.product?.title || 'Product'}</h4>
+                            <p className="text-sm text-gray-500">SKU: {item.variantSku || item.sku || 'N/A'}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-center">{item.qty || item.quantity}</td>
-                      <td className="px-4 py-4 text-center">{formatCurrency(item.price || item.priceAtPurchase)}</td>
-                      <td className="px-4 py-4 text-right">{formatCurrency((item.price || item.priceAtPurchase) * (item.qty || item.quantity))}</td>
+                      <td className="px-4 py-4 text-center">{parseInt(item.qty || item.quantity || 0, 10)}</td>
+                      <td className="px-4 py-4 text-center">{formatCurrency(parseFloat(item.price || item.priceAtPurchase || 0))}</td>
+                      <td className="px-4 py-4 text-right">{formatCurrency(parseFloat((item.price || item.priceAtPurchase || 0)) * parseInt((item.qty || item.quantity || 0), 10))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1238,7 +1266,7 @@ const AccountOrders = () => {
                       <div className="flex items-center">
                         <p className="mr-2">{orderDetails.shipping.trackingId}</p>
                         <a 
-                          href={`https://shiprocket.co/tracking/${orderDetails.shipping.trackingId}`} 
+                          href={orderDetails.shipping.trackingUrl || `https://shiprocket.co/tracking/${orderDetails.shipping.trackingId}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:text-blue-800 text-sm underline"
@@ -1284,7 +1312,7 @@ const AccountOrders = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {orderDetails.items.map((item) => (
+                  {(orderDetails.order_items || orderDetails.items).map((item) => (
                     <tr key={item._id || item.variantSku}>
                       <td className="px-4 py-4">
                         <div className="flex items-center">
@@ -1311,23 +1339,23 @@ const AccountOrders = () => {
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan="3" className="px-4 py-3 text-right text-sm font-medium">Subtotal:</td>
-                    <td className="px-4 py-3 text-right text-sm">{formatCurrency(orderDetails.subtotal || (orderDetails.total - (orderDetails.totalGST || 0)))}</td>
+                    <td className="px-4 py-3 text-right text-sm">{formatCurrency(parseFloat(orderDetails.subtotal || (orderDetails.total - (orderDetails.totalGST || 0)) || 0))}</td>
                   </tr>
-                  {(orderDetails.totalGST > 0 || orderDetails.items.some(item => item.gstAmount > 0)) && (
+                  {(orderDetails.totalGST > 0 || (orderDetails.items && orderDetails.items.some(item => item.gstAmount > 0))) && (
                     <tr>
                       <td colSpan="3" className="px-4 py-3 text-right text-sm font-medium">GST:</td>
-                      <td className="px-4 py-3 text-right text-sm">{formatCurrency(orderDetails.totalGST || orderDetails.items.reduce((sum, item) => sum + (item.gstAmount || 0), 0))}</td>
+                      <td className="px-4 py-3 text-right text-sm">{formatCurrency(parseFloat(orderDetails.totalGST || (orderDetails.items ? orderDetails.items.reduce((sum, item) => sum + parseFloat(item.gstAmount || 0), 0) : 0)))}</td>
                     </tr>
                   )}
                   {orderDetails.discount > 0 && (
                     <tr>
                       <td colSpan="3" className="px-4 py-3 text-right text-sm font-medium">Discount:</td>
-                      <td className="px-4 py-3 text-right text-sm text-red-600">-{formatCurrency(orderDetails.discount)}</td>
+                      <td className="px-4 py-3 text-right text-sm text-red-600">-{formatCurrency(parseFloat(orderDetails.discount || 0))}</td>
                     </tr>
                   )}
                   <tr className="border-t-2 border-gray-300">
                     <td colSpan="3" className="px-4 py-3 text-right font-medium">Total:</td>
-                    <td className="px-4 py-3 text-right font-medium">{formatCurrency((orderDetails.total || orderDetails.totalAmount || 0) + (orderDetails.totalGST || 0))}</td>
+                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(parseFloat(orderDetails.total || orderDetails.totalAmount || (orderDetails.items ? orderDetails.items.reduce((sum, item) => sum + (parseFloat(item.price || item.priceAtPurchase || 0) * parseInt(item.qty || item.quantity || 0, 10)), 0) : 0)))}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -1341,8 +1369,8 @@ const AccountOrders = () => {
                   <p className="font-medium">{orderDetails.shipping?.address?.name || orderDetails.shippingAddress?.name || 'Shipping Address'}</p>
                   <p>{orderDetails.shipping?.address?.street || orderDetails.shippingAddress?.line1}</p>
                   <p>
-                    {orderDetails.shipping?.address?.city || orderDetails.shippingAddress?.city}, 
-                    {orderDetails.shipping?.address?.state || orderDetails.shippingAddress?.state} 
+                    {orderDetails.shipping?.address?.city || orderDetails.shippingAddress?.city}{(orderDetails.shipping?.address?.city || orderDetails.shippingAddress?.city) ? ', ' : ''}
+                    {orderDetails.shipping?.address?.state || orderDetails.shippingAddress?.state}{(orderDetails.shipping?.address?.state || orderDetails.shippingAddress?.state) ? ' ' : ''}
                     {orderDetails.shipping?.address?.pincode || orderDetails.shippingAddress?.zip}
                   </p>
                   <p>{orderDetails.shipping?.address?.country || orderDetails.shippingAddress?.country || 'India'}</p>
@@ -1358,8 +1386,8 @@ const AccountOrders = () => {
                     <p className="font-medium">{orderDetails.billing.address.name}</p>
                     <p>{orderDetails.billing.address.street}</p>
                     <p>
-                      {orderDetails.billing.address.city}, 
-                      {orderDetails.billing.address.state} 
+                      {orderDetails.billing.address.city}{orderDetails.billing.address.city ? ', ' : ''}
+                      {orderDetails.billing.address.state}{orderDetails.billing.address.state ? ' ' : ''}
                       {orderDetails.billing.address.pincode}
                     </p>
                     <p>{orderDetails.billing.address.country || 'India'}</p>

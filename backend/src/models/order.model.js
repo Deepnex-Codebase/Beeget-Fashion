@@ -1,147 +1,363 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const OrderSchema = new mongoose.Schema({
-  order_id: {
-    type: String,
-    unique: true
-  },
-  userId: { 
-    type: mongoose.Types.ObjectId, 
-    ref: 'User' 
-  },
-  guestSessionId: String,
-  items: [{
-    productId: { 
-      type: mongoose.Types.ObjectId, 
-      ref: 'Product', 
-      required: true 
+const OrderSchema = new mongoose.Schema(
+  {
+    order_id: {
+      type: String,
+      unique: true,
+      required: true,
     },
-    variantSku: { 
-      type: String, 
-      required: true 
+
+    order_date: {
+      type: String,
+      required: true,
     },
-    qty: { 
-      type: Number, 
-      required: true, 
-      min: 1 
+
+    /**
+     * Shiprocket Channel ID (optional for integration)
+     * This field is optional and allows orders to be sent without a channel ID
+     * If SHIPROCKET_CHANNEL_ID is set in environment, it will be used as default
+     */
+    channel_id: {
+      type: String,
+      required: false,
+      default: process.env.SHIPROCKET_CHANNEL_ID || null
     },
-    mrp: { 
-      type: Number, 
-      required: true, 
-      min: 0 
+
+    userId: {
+      type: mongoose.Types.ObjectId,
+      ref: "User",
     },
-    gstRate: Number,
-    gstAmount: Number,
-    totalPrice: Number
-  }],
-  shipping: {
-    address: {
-      type: Object,
-      required: true
+
+    guestSessionId: {
+      type: String,
     },
-    courier: String,
-    trackingId: String,
-    shipmentId: String  // Added shipmentId field to store ShipRocket shipment ID
-  },
-  payment: {
-    method: { 
-      type: String, 
-      enum: ['COD', 'ONLINE', 'CASHFREE'], 
-      required: true 
+
+    order_items: [
+      {
+        productId: {
+          type: mongoose.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        variantSku: {
+          type: String,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: false,
+        },
+        hsn: {
+          type: String,
+          required: false,
+        },
+        qty: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+        weight: {
+          type: Number,
+          required: false,
+        },
+        length: {
+          type: Number,
+          required: false,
+        },
+        breadth: {
+          type: Number,
+          required: false,
+        },
+        height: {
+          type: Number,
+          required: false,
+        },
+        mrp: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        sellingPrice: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        gstRate: {
+          type: Number,
+          default: 0,
+        },
+        gstAmount: {
+          type: Number,
+          default: 0,
+        },
+        totalPrice: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+      },
+    ],
+    
+    // For backward compatibility
+    items: {
+      type: Array,
+      default: function() {
+        return this.order_items;
+      }
     },
-    cfOrderId: String,
-    status: { 
-      type: String, 
-      enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'], 
-      default: 'PENDING' 
-    }
-  },
-  // Add coupon field
-  coupon: {
-    code: String,
-    discountType: String,
-    value: Number,
-    discount: Number
-  },
-  subtotal: Number,
-  discount: Number,
-  total: Number,
-  totalGST: Number,
-  status: {
-    type: String,
-    enum: ['CREATED', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED', 'PAYMENT_FAILED', 'STOCK_ISSUE'],
-    default: 'CREATED'
-  },
-  statusHistory: [{
-    status: { 
-      type: String, 
-      required: true 
+
+ pickup_location: {
+  type: String,
+  default: process.env.SHIPROCKET_PICKUP_LOCATION || "Home",
+},
+
+
+    // Comment for order (e.g. Reseller information)
+    comment: {
+      type: String,
     },
-    timestamp: { 
-      type: Date, 
-      default: Date.now 
+
+    // Billing information
+    billing: {
+      customer_name: {
+        type: String,
+        required: true,
+      },
+      last_name: {
+        type: String,
+      },
+      address: {
+        type: String,
+        required: true,
+      },
+      address_2: {
+        type: String,
+      },
+      city: {
+        type: String,
+        required: true,
+      },
+      pincode: {
+        type: String,
+        required: true,
+      },
+      state: {
+        type: String,
+        required: true,
+      },
+      country: {
+        type: String,
+        default: "India",
+      },
+      email: {
+        type: String,
+        required: true,
+      },
+      phone: {
+        type: String,
+        required: true,
+      },
     },
-    note: String
-  }],
-  returnRequest: {
-    reason: String,
-    images: [String],
-    status: { 
-      type: String, 
-      enum: ['REQUESTED', 'APPROVED', 'REJECTED', 'COMPLETED'] 
-    }
+
+    // Flag to indicate if shipping address is same as billing
+    shipping_is_billing: {
+      type: Boolean,
+      default: true,
+    },
+
+    // Shipping information
+    shipping: {
+      customer_name: {
+        type: String,
+      },
+      last_name: {
+        type: String,
+      },
+      address: {
+        type: String,
+      },
+      address_2: {
+        type: String,
+      },
+      city: {
+        type: String,
+      },
+      pincode: {
+        type: String,
+      },
+      state: {
+        type: String,
+      },
+      country: {
+        type: String,
+        default: "India",
+      },
+      email: {
+        type: String,
+      },
+      phone: {
+        type: String,
+      },
+      courier: String,
+      trackingId: String,
+      shipmentId: String, // Shiprocket shipment ID
+    },
+
+    payment: {
+      method: {
+        type: String,
+        enum: ["COD", "ONLINE", "CASHFREE"],
+        required: true,
+      },
+      cfOrderId: String,
+      status: {
+        type: String,
+        enum: ["PENDING", "PAID", "FAILED", "REFUNDED"],
+        default: "PENDING",
+      },
+    },
+
+    coupon: {
+      code: String,
+      discountType: {
+        type: String,
+        enum: ["PERCENTAGE", "FLAT"],
+      },
+      value: Number,
+      discount: {
+        type: Number,
+        default: 0,
+      },
+    },
+
+    subtotal: {
+      type: Number,
+      default: 0,
+    },
+    discount: {
+      type: Number,
+      default: 0,
+    },
+    totalGST: {
+      type: Number,
+      default: 0,
+    },
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    // Shipping charges
+    shipping_charges: {
+      type: Number,
+      default: 0,
+    },
+
+    // Gift wrap charges
+    giftwrap_charges: {
+      type: Number,
+      default: 0,
+    },
+
+    // Transaction charges
+    transaction_charges: {
+      type: Number,
+      default: 0,
+    },
+
+    // Package dimensions
+    length: {
+      type: Number,
+      default: 0,
+    },
+    breadth: {
+      type: Number,
+      default: 0,
+    },
+    height: {
+      type: Number,
+      default: 0,
+    },
+    weight: {
+      type: Number,
+      default: 0,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "CREATED",
+        "CONFIRMED",
+        "PROCESSING",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED",
+        "RETURNED",
+        "PAYMENT_FAILED",
+        "STOCK_ISSUE",
+      ],
+      default: "CREATED",
+    },
+
+    statusHistory: [
+      {
+        status: {
+          type: String,
+          required: true,
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+        note: String,
+      },
+    ],
+
+    returnRequest: {
+      reason: String,
+      images: [String],
+      status: {
+        type: String,
+        enum: ["REQUESTED", "APPROVED", "REJECTED", "COMPLETED"],
+      },
+    },
+
+    exchangeRequest: {
+      newVariant: String,
+      status: {
+        type: String,
+        enum: ["REQUESTED", "APPROVED", "COMPLETED"],
+      },
+    },
   },
-  exchangeRequest: {
-    newVariant: String,
-    status: { 
-      type: String, 
-      enum: ['REQUESTED', 'APPROVED', 'COMPLETED'] 
-    }
-  },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
-  },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true
-});
+);
 
-// Create indexes
+// Indexes
 OrderSchema.index({ userId: 1 });
-OrderSchema.index({ 'shipping.trackingId': 1 });
-OrderSchema.index({ userId: 1, 'shipping.trackingId': 1 });
-OrderSchema.index({ 'statusHistory.timestamp': 1 });
-OrderSchema.index({ 'returnRequest.status': 1 });
-OrderSchema.index({ 'exchangeRequest.status': 1 });
+OrderSchema.index({ channelId: 1 }); // 👈 Channel wise search
+OrderSchema.index({ "shipping.trackingId": 1 });
+OrderSchema.index({ userId: 1, "shipping.trackingId": 1 });
 
-// Update the updatedAt field on save
-OrderSchema.pre('save', function(next) {
+OrderSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Add a status to the status history when status changes
-OrderSchema.pre('save', function(next) {
-  const currentStatus = this.statusHistory && this.statusHistory.length > 0 
-    ? this.statusHistory[this.statusHistory.length - 1].status 
-    : null;
-  
-  // If this is a new order or status has changed, add to history
-  if (!currentStatus || (this.isModified('statusHistory') && this.statusHistory.length > 0 && 
-      this.statusHistory[this.statusHistory.length - 1].status !== currentStatus)) {
+OrderSchema.pre("save", function (next) {
+  if (this.isModified("status")) {
     this.statusHistory.push({
-      status: this.statusHistory[this.statusHistory.length - 1].status,
-      timestamp: Date.now()
+      status: this.status,
+      timestamp: Date.now(),
     });
   }
-  
   next();
 });
 
-const Order = mongoose.model('Order', OrderSchema);
+const Order = mongoose.model("Order", OrderSchema);
 
 export default Order;

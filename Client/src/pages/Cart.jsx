@@ -322,7 +322,7 @@ const Cart = () => {
                     <span>Total</span>
                     <span>₹{isNaN(total) ? 0 : parseInt(total)}</span>
                   </div>
-                  <p className="text-gray-500 text-xs mt-1">Including VAT</p>
+                  <p className="text-gray-500 text-xs mt-1">Including GST</p>
                 </div>
               </div>
               

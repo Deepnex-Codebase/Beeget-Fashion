@@ -19,7 +19,8 @@ import {
   markOrderShipped,
   markOrderOutForDelivery,
   createPaymentForOrder,
-  getOrdersByGuestSession
+  getOrdersByGuestSession,
+  createShipRocketOrderManually
 } from '../controllers/order.controller.js';
 
 const router = express.Router();
@@ -69,5 +70,8 @@ router.patch('/:id/mark-delivered', logMiddleware, hasDepartmentPermission('orde
 router.patch('/:id/return-exchange', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), processReturnExchangeRequest);
 router.get('/stats/dashboard', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), getOrderStats);
 router.get('/stats/cities', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), getCityAnalytics);
+
+// ShipRocket integration routes
+router.post('/:orderId/shiprocket', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), createShipRocketOrderManually);
 
 export default router;

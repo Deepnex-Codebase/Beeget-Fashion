@@ -155,7 +155,7 @@ const Checkout = () => {
       city: '',
       state: '',
       zipCode: '',
-      country: 'United States',
+      country: 'India',
       paymentMethod: 'credit-card',
       termsAccepted: false
     }
@@ -276,10 +276,10 @@ const Checkout = () => {
               
               setValue('email', address.email || '');
               setValue('phone', address.phone || '');
-              setValue('address', address.line1 || '');
+              setValue('address', address.street || address.line1 || '');
               setValue('city', address.city || '');
               setValue('state', address.state || '');
-              setValue('zipCode', address.zip || '');
+              setValue('zipCode', address.pincode || address.zip || '');
               setValue('country', address.country || 'India');
             }
           } else {
@@ -321,10 +321,17 @@ const Checkout = () => {
     
     setApplyingCoupon(true)
     try {
-      await applyCoupon(couponInput.trim())
-      setCouponInput('')
+      const result = await applyCoupon(couponInput.trim())
+      if (result.success) {
+        toast.success('Coupon applied successfully')
+        setCouponInput('')
+      } else if (result.error) {
+        toast.error(result.error)
+      }
     } catch (error) {
-      // console.error('Error applying coupon:', error)
+      // Handle any unexpected errors
+      console.error('Error applying coupon:', error)
+      toast.error('Failed to apply coupon. Please try again.')
     } finally {
       setApplyingCoupon(false)
     }
@@ -431,10 +438,10 @@ const Checkout = () => {
           setValue('lastName', nameParts.slice(1).join(' ') || '');
         }
         
-        setValue('address', selectedAddress.line1 || '');
+        setValue('address', selectedAddress.street || selectedAddress.line1 || '');
         setValue('city', selectedAddress.city || '');
         setValue('state', selectedAddress.state || '');
-        setValue('zipCode', selectedAddress.zip || '');
+        setValue('zipCode', selectedAddress.pincode || selectedAddress.zip || '');
         setValue('country', selectedAddress.country || 'India');
         
         if (selectedAddress.phone) {
@@ -448,17 +455,7 @@ const Checkout = () => {
   const subtotal = getCartSubtotal()
   const shippingCost = subtotal > 1000 ? 0 : 100 // Free shipping over ₹1000
   
-  // Get tax from cart items based on their individual GST rates instead of fixed 7%
-  const tax = cart.reduce((totalTax, item) => {
-    // Ensure price is a number
-    const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0
-    // Ensure quantity is a number
-    const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
-    // Get GST rate from item or use 0 if not available
-    const gstRate = item.gstRate || 0
-    // Calculate tax for this item
-    return totalTax + ((price * quantity * gstRate) / 100)
-  }, 0)
+
   
   const total = getCartTotal() // This includes subtotal, discount, shipping and tax
   
@@ -542,11 +539,10 @@ const Checkout = () => {
       
       // Format shipping address
       const shippingAddress = {
-        line1: data.address,
-        line2: '', // Adding empty line2 as it's in the schema
+        street: data.address, // Using street instead of line1 to match backend schema
         city: data.city,
         state: data.state,
-        zip: data.zipCode,
+        pincode: data.zipCode, // Using pincode instead of zip to match backend schema
         country: data.country,
         name: `${data.firstName} ${data.lastName}`,
         email: data.email,
@@ -560,11 +556,10 @@ const Checkout = () => {
             type: 'Home', // Default type
             name: `${data.firstName} ${data.lastName}`,
             phone: data.phone,
-            line1: data.address,
-            line2: '',
+            street: data.address, // Using street instead of line1 to match backend schema
             city: data.city,
             state: data.state,
-            zip: data.zipCode,
+            pincode: data.zipCode, // Using pincode instead of zip to match backend schema
             country: data.country,
             isDefault: false // Let backend handle default logic
           });
@@ -1352,16 +1347,14 @@ const Checkout = () => {
                   </span>
                 </div>
                 
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tax (GST)</span>
-                  <span className="font-medium">₹{parseInt(tax)}</span>
-                </div>
+
                 
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
                     <span>₹{parseInt(getCartTotal())}</span>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">Price inclusive of all taxes</p>
                   {getCartSubtotal() < 1000 && (
                     <p className="text-xs text-gray-500 mt-1">Add ₹{parseInt(1000 - getCartSubtotal())} more to get free shipping</p>
                   )}

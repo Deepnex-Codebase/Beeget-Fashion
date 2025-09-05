@@ -28,6 +28,7 @@ import cmsRoutes from './routes/cms.routes.js';
 import siteContentRoutes from './routes/site-content.routes.js';
 import guestVerificationRoutes from './routes/guest-verification.routes.js';
 import shippingRoutes from './routes/shipping.routes.js';
+import shiprocketRoutes from './routes/shiprocket.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -87,7 +88,6 @@ const staticFileMiddleware = (req, res, next) => {
 // Serve static files from uploads directory
 app.use('/uploads', staticFileMiddleware, express.static(
   path.join(process.cwd(), 'uploads'),
-  { maxAge: 86400000 } // 24 hours in milliseconds
 ));
 
 // Custom handler for missing files in uploads directory
@@ -119,7 +119,8 @@ const apiRoutes = [
   { path: '/api/cms', router: cmsRoutes },
   { path: '/api/site-content', router: siteContentRoutes },
   { path: '/api/guest-verification', router: guestVerificationRoutes },
-  { path: '/api/shipping', router: shippingRoutes }
+  { path: '/api/shipping', router: shippingRoutes },
+  { path: '/api/shiprocket', router: shiprocketRoutes }
 ];
 
 // Register all API routes

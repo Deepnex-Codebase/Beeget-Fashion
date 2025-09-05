@@ -25,6 +25,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import gstConfig from '../../config/gstConfig';
 
 const AdminDashboard = () => {
   // Initialize activeTab from localStorage or default to 'overview'
@@ -412,28 +413,17 @@ const AdminDashboard = () => {
       return [];
     }
     
-    // GST rates
-    const CGST_RATE = 0.09; // 9%
-    const SGST_RATE = 0.09; // 9%
-    const TOTAL_GST_RATE = CGST_RATE + SGST_RATE; // 18%
-    
-    // Calculate GST for each period
+    // Calculate GST for each period using gstConfig
     return salesData.map(item => {
-      // Calculate taxable amount (sales amount excluding GST)
-      // Formula: taxableAmount = salesAmount / (1 + GST_RATE)
-      const taxableAmount = item.sales / (1 + TOTAL_GST_RATE);
-      
-      // Calculate GST amounts
-      const cgstAmount = taxableAmount * CGST_RATE;
-      const sgstAmount = taxableAmount * SGST_RATE;
-      const totalGST = cgstAmount + sgstAmount;
+      // Use gstConfig to calculate GST
+      const gstResult = gstConfig.calculateGST(item.sales);
       
       return {
         ...item, // Keep original data (day/month/year and sales)
-        taxableAmount: Math.round(taxableAmount * 100) / 100, // Round to 2 decimal places
-        cgst: Math.round(cgstAmount * 100) / 100,
-        sgst: Math.round(sgstAmount * 100) / 100,
-        totalGST: Math.round(totalGST * 100) / 100
+        taxableAmount: gstResult.taxableAmount,
+        cgst: gstResult.cgst,
+        sgst: gstResult.sgst,
+        totalGST: gstResult.totalGST
       };
     });
   };
@@ -451,27 +441,8 @@ const AdminDashboard = () => {
       };
     }
     
-    // GST rates
-    const CGST_RATE = 0.09; // 9%
-    const SGST_RATE = 0.09; // 9%
-    const TOTAL_GST_RATE = CGST_RATE + SGST_RATE; // 18%
-    
-    // Calculate taxable amount (sales amount excluding GST)
-    // Formula: taxableAmount = salesAmount / (1 + GST_RATE)
-    const taxableAmount = stats.totalSales / (1 + TOTAL_GST_RATE);
-    
-    // Calculate GST amounts
-    const cgstAmount = taxableAmount * CGST_RATE;
-    const sgstAmount = taxableAmount * SGST_RATE;
-    const totalGST = cgstAmount + sgstAmount;
-    
-    return {
-      totalSales: stats.totalSales,
-      taxableAmount: Math.round(taxableAmount * 100) / 100,
-      totalGST: Math.round(totalGST * 100) / 100,
-      cgst: Math.round(cgstAmount * 100) / 100,
-      sgst: Math.round(sgstAmount * 100) / 100
-    };
+    // Use gstConfig to calculate GST
+    return gstConfig.calculateGST(stats.totalSales);
   };
   
   // Save activeTab to localStorage whenever it changes
@@ -519,6 +490,57 @@ const AdminDashboard = () => {
     refetchOnWindowFocus: true
   });
 
+  // Function to fetch order status distribution from Shiprocket API
+  const fetchShiprocketOrderStatus = async () => {
+    try {
+      // Call Shiprocket API to get order statuses
+      const shiprocketResponse = await axios.get('/api/shiprocket/orders/status');
+      const shiprocketOrders = shiprocketResponse.data?.data || [];
+      
+      // Calculate order status distribution from Shiprocket data
+      const orderStatusDistribution = {
+        'processing': 0,
+        'ready-to-ship': 0,
+        'shipped': 0,
+        'delivered': 0,
+        'cancelled': 0
+      };
+      
+      // Map Shiprocket status to our standard statuses
+      shiprocketOrders.forEach(order => {
+        const status = order.status?.toLowerCase() || '';
+        
+        // Map Shiprocket statuses to our standard statuses
+        if (status.includes('processing') || status.includes('new') || status === 'awb_assigned') {
+          orderStatusDistribution['processing'] += 1;
+        } else if (status.includes('ready') || status === 'pickup_scheduled' || status === 'pickup_generated') {
+          orderStatusDistribution['ready-to-ship'] += 1;
+        } else if (status.includes('ship') || status.includes('in_transit') || status.includes('out_for_delivery')) {
+          orderStatusDistribution['shipped'] += 1;
+        } else if (status.includes('deliver') || status === 'completed') {
+          orderStatusDistribution['delivered'] += 1;
+        } else if (status.includes('cancel') || status.includes('rto') || status === 'failed') {
+          orderStatusDistribution['cancelled'] += 1;
+        } else {
+          // Default to processing for unknown statuses
+          orderStatusDistribution['processing'] += 1;
+        }
+      });
+      
+      return orderStatusDistribution;
+    } catch (error) {
+      console.error('Error fetching Shiprocket order status:', error);
+      // Return default distribution on error
+      return {
+        'processing': 0,
+        'ready-to-ship': 0,
+        'shipped': 0,
+        'delivered': 0,
+        'cancelled': 0
+      };
+    }
+  };
+
   // Fetch dashboard stats with React Query
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
@@ -543,41 +565,31 @@ const AdminDashboard = () => {
         // Get top products (sort by inventory count for now as a proxy for popularity)
         const topProductsResponse = await axios.get('/products?limit=5&sort=-inventoryCount');
         const topProducts = topProductsResponse.data?.data?.products || [];
-        // console.log('Products response:', productsResponse.data)
-        
-        // If totalProducts is 0, keep it as 0 to show accurate count
-        // No fallback value needed as we want to show the real count
-        // if (totalProducts === 0) {
-        //   totalProducts = topProducts.length > 0 ? Math.max(topProducts.length * 5, 50) : 100;
-        // }
         
         // Get recent orders
         const ordersResponse = await axios.get('/orders?limit=5');
         const recentOrders = ordersResponse.data?.data?.orders || [];
         
-        // Get all orders for status distribution
+        // Get all orders for calculating total orders and sales
         const allOrdersResponse = await axios.get('/orders?limit=100');
         const allOrders = allOrdersResponse.data?.data?.orders || [];
         
-        // Calculate order status distribution
-        const orderStatusDistribution = {};
-        allOrders.forEach(order => {
-          // Get the current status from statusHistory
-          const currentStatus = order.statusHistory && order.statusHistory.length > 0 
-            ? order.statusHistory[order.statusHistory.length - 1].status.toLowerCase() 
-            : 'processing';
-          
-          // Increment the count for this status
-          orderStatusDistribution[currentStatus] = (orderStatusDistribution[currentStatus] || 0) + 1;
-        });
+        // Fetch order status distribution from Shiprocket
+        const orderStatusDistribution = await fetchShiprocketOrderStatus();
         
-        // Ensure we have all standard statuses even if count is 0
-        const standardStatuses = ['processing', 'ready-to-ship', 'shipped', 'delivered', 'cancelled'];
-        standardStatuses.forEach(status => {
-          if (!orderStatusDistribution[status]) {
-            orderStatusDistribution[status] = 0;
-          }
-        });
+        // If Shiprocket API fails or returns empty data, fallback to local calculation
+        if (Object.values(orderStatusDistribution).every(count => count === 0) && allOrders.length > 0) {
+          // Calculate order status distribution from local orders data as fallback
+          allOrders.forEach(order => {
+            // Get the current status from statusHistory
+            const currentStatus = order.statusHistory && order.statusHistory.length > 0 
+              ? order.statusHistory[order.statusHistory.length - 1].status.toLowerCase() 
+              : 'processing';
+            
+            // Increment the count for this status
+            orderStatusDistribution[currentStatus] = (orderStatusDistribution[currentStatus] || 0) + 1;
+          });
+        }
         
         // Calculate total sales and orders count from orders data
         const totalOrders = allOrdersResponse.data?.pagination?.total || allOrders.length || 0;
@@ -2033,17 +2045,17 @@ const AdminDashboard = () => {
                     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <h3 className="text-sm font-medium text-gray-700 mb-1">Total GST Collected</h3>
                       <p className="text-xl font-semibold text-java-600">₹{gstData.totalGST.toLocaleString()}</p>
-                      <div className="text-xs text-gray-500 mt-1">18% of taxable amount ₹{gstData.taxableAmount.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-1">{gstConfig.DISPLAY.TOTAL_GST_PERCENTAGE} of taxable amount ₹{gstData.taxableAmount.toLocaleString()}</div>
                     </div>
                     
                     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <h3 className="text-sm font-medium text-gray-700 mb-1">CGST (9%)</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-1">CGST {gstConfig.DISPLAY.CGST_PERCENTAGE}</h3>
                       <p className="text-xl font-semibold text-java-600">₹{gstData.cgst.toLocaleString()}</p>
                       <div className="text-xs text-gray-500 mt-1">Central Goods & Services Tax</div>
                     </div>
                     
                     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <h3 className="text-sm font-medium text-gray-700 mb-1">SGST (9%)</h3>
+                      <h3 className="text-sm font-medium text-gray-700 mb-1">SGST {gstConfig.DISPLAY.SGST_PERCENTAGE}</h3>
                       <p className="text-xl font-semibold text-java-600">₹{gstData.sgst.toLocaleString()}</p>
                       <div className="text-xs text-gray-500 mt-1">State Goods & Services Tax</div>
                     </div>
@@ -2077,14 +2089,14 @@ const AdminDashboard = () => {
                       <tr>
                         <th className="px-4 py-2">{salesTimeframe === 'monthly' ? 'Month' : 'Year'}</th>
                         <th className="px-4 py-2">Taxable Amount</th>
-                        <th className="px-4 py-2">CGST (9%)</th>
-                        <th className="px-4 py-2">SGST (9%)</th>
-                        <th className="px-4 py-2">Total GST</th>
+                        <th className="px-4 py-2">CGST {gstConfig.DISPLAY.CGST_PERCENTAGE}</th>
+                        <th className="px-4 py-2">SGST {gstConfig.DISPLAY.SGST_PERCENTAGE}</th>
+                        <th className="px-4 py-2">Total GST {gstConfig.DISPLAY.TOTAL_GST_PERCENTAGE}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const gstData = getGSTDataByTimeframe();
+                        const gstData = getGSTDataByTimeframe();  
                         
                         if (gstData.length === 0) {
                           return (
@@ -2130,12 +2142,16 @@ const AdminDashboard = () => {
                 <span>Processing</span>
               </div>
               <div className="flex items-center mr-3 mb-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-yellow-400 mr-1"></span>
+                <span>Ready to Ship</span>
+              </div>
+              <div className="flex items-center mr-3 mb-1">
                 <span className="inline-block w-3 h-3 rounded-full bg-green-400 mr-1"></span>
                 <span>Shipped</span>
               </div>
               <div className="flex items-center mr-3 mb-1">
-                <span className="inline-block w-3 h-3 rounded-full bg-yellow-400 mr-1"></span>
-                <span>Ready</span>
+                <span className="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-1"></span>
+                <span>Delivered</span>
               </div>
               <div className="flex items-center mb-1">
                 <span className="inline-block w-3 h-3 rounded-full bg-red-400 mr-1"></span>
@@ -2162,8 +2178,8 @@ const AdminDashboard = () => {
                   <LineChart
                     data={[
                       { name: 'Processing', value: stats?.orderStatusDistribution?.processing || 0, color: '#38bdf8' },
+                      { name: 'Ready to Ship', value: stats?.orderStatusDistribution?.['ready-to-ship'] || 0, color: '#facc15' },
                       { name: 'Shipped', value: stats?.orderStatusDistribution?.shipped || 0, color: '#4ade80' },
-                      { name: 'Ready', value: stats?.orderStatusDistribution?.['ready-to-ship'] || 0, color: '#facc15' },
                       { name: 'Delivered', value: stats?.orderStatusDistribution?.delivered || 0, color: '#10b981' },
                       { name: 'Cancelled', value: stats?.orderStatusDistribution?.cancelled || 0, color: '#f87171' }
                     ]}
@@ -2790,11 +2806,11 @@ const AdminDashboard = () => {
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex items-center">
-                      {order.items && order.items[0] && order.items[0].productId && order.items[0].productId.images && order.items[0].productId.images[0] ? (
+                      {((order.order_items || order.items) && (order.order_items || order.items)[0] && (order.order_items || order.items)[0].productId && (order.order_items || order.items)[0].productId.images && (order.order_items || order.items)[0].productId.images[0]) ? (
                         <div className="flex-shrink-0 h-10 w-10 mr-2">
                           <img 
-                            src={order.items[0].productId.images[0]} 
-                            alt={order.items[0].productId.title || 'Product'} 
+                            src={(order.order_items || order.items)[0].productId.images[0]} 
+                            alt={(order.order_items || order.items)[0].productId.title || 'Product'} 
                             className="h-10 w-10 rounded object-cover"
                           />
                         </div>
@@ -3207,11 +3223,11 @@ const AdminDashboard = () => {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex items-center">
-                        {order.items && order.items[0] && order.items[0].productId && order.items[0].productId.images && order.items[0].productId.images[0] ? (
+                        {((order.order_items || order.items) && (order.order_items || order.items)[0] && (order.order_items || order.items)[0].productId && (order.order_items || order.items)[0].productId.images && (order.order_items || order.items)[0].productId.images[0]) ? (
                           <div className="flex-shrink-0 h-10 w-10 mr-2">
                             <img 
-                              src={order.items[0].productId.images[0]} 
-                              alt={order.items[0].productId.title || 'Product'} 
+                              src={(order.order_items || order.items)[0].productId.images[0]} 
+                              alt={(order.order_items || order.items)[0].productId.title || 'Product'} 
                               className="h-10 w-10 rounded object-cover"
                             />
                           </div>
@@ -4135,8 +4151,8 @@ const AdminDashboard = () => {
               </div>
             </div>
             
-            {/* Orders Category */}
-            <div className="mb-4">
+            {/* Orders Category - Temporarily hidden */}
+            {/* <div className="mb-4">
               {!isSidebarCollapsed && <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Orders</h3>}
               <div className="space-y-1">
                 {tabs.filter(tab => tab.department === 'Orders').map((tab) => {
@@ -4192,7 +4208,7 @@ const AdminDashboard = () => {
                   );
                 })}
               </div>
-            </div>
+            </div> */}
             
             {/* Users & Communication Category */}
             <div className="mb-4">
@@ -4475,8 +4491,8 @@ const AdminDashboard = () => {
             <span className="text-xs mt-0.5 font-medium">Products</span>
           </button>
           
-          {/* Orders */}
-          <button
+          {/* Orders - Temporarily hidden */}
+          {/* <button
             onClick={() => setActiveTab('all-orders')}
             className={`flex flex-col items-center justify-center ${activeTab.includes('order') ? 'text-java-600' : 'text-gray-600'} active:bg-gray-100 rounded-md py-1 relative`}
           >
@@ -4485,7 +4501,7 @@ const AdminDashboard = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <span className="text-xs mt-0.5 font-medium">Orders</span>
-          </button>
+          </button> */}
           
           {/* Customers */}
           <button

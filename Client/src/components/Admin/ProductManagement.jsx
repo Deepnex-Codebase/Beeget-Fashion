@@ -1549,18 +1549,28 @@ const ProductManagement = () => {
         } else {
           let hasVariantErrors = false;
           formData.variants.forEach((variant, index) => {
-            // Use dynamic validation for variant fields
-            Object.keys(PRODUCT_CONFIG.VARIANT_FIELDS).forEach(fieldName => {
-              const fieldConfig = PRODUCT_CONFIG.VARIANT_FIELDS[fieldName];
-              if (fieldConfig.required) {
+            // Use dynamic validation for required variant fields
+            PRODUCT_CONFIG.VARIANT_FIELDS.REQUIRED.forEach(fieldName => {
+              const validation = validateField(fieldName, variant[fieldName]);
+              if (!validation.isValid) {
+                newErrors[`variant_${index}_${fieldName}`] = validation.message;
+                hasVariantErrors = true;
+              }
+            });
+            
+            // Use dynamic validation for optional variant fields
+            PRODUCT_CONFIG.VARIANT_FIELDS.OPTIONAL.forEach(fieldName => {
+              // Only validate if field has a value
+              if (variant[fieldName] !== undefined && variant[fieldName] !== null && variant[fieldName] !== '') {
                 const validation = validateField(fieldName, variant[fieldName]);
                 if (!validation.isValid) {
-                  newErrors[`variant_${index}_${fieldName}`] = validation.error;
+                  newErrors[`variant_${index}_${fieldName}`] = validation.message;
                   hasVariantErrors = true;
                 }
               }
             });
           });
+
           
           if (hasVariantErrors) {
             newErrors.variants = 'Please fix errors in variant details';
@@ -2663,6 +2673,9 @@ const ProductManagement = () => {
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Waist * (inches)</th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Length * (inches)</th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Hip (inches)</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">HSN Code</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Weight (g)</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Dimensions (LxWxH cm)</th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Actions</th>
                     </tr>
                   </thead>
@@ -2677,16 +2690,19 @@ const ProductManagement = () => {
                       const variant = formData.variants.find(v => v.attributes && v.attributes.size === size) || 
                                     { 
                                       sku: generatedSku, // Always use a generated SKU, never empty
-                                      price: '', 
+                                      price: 0, 
                                       stock: 0, 
-                                      meeshoPrice: '',
-                                      wrongDefectivePrice: '',
-                                      mrp: '',
-                                      bustSize: '',
-                                      shoulderSize: '',
-                                      waistSize: '',
-                                      sizeLength: '',
-                                      hipSize: '',
+                                      meeshoPrice: 0.01,
+                                      wrongDefectivePrice: 0,
+                                      mrp: 0.01,
+                                      bustSize: 0.01,
+                                      shoulderSize: 0.01,
+                                      waistSize: 0.01,
+                                      sizeLength: 0.01,
+                                      hipSize: 0,
+                                      hsn: '6204',
+                                      weight: 0.3,
+                                      dimensions: {length: 30, breadth: 25, height: 2},
                                       attributes: { size },
                                       images: [],
                                       imageFiles: []
@@ -2755,17 +2771,20 @@ const ProductManagement = () => {
                           
                           const newVariant = { 
                             sku: generatedSku, // Always use a generated SKU for new variants
-                            price: '', 
+                            price: 0, 
                             stock: 0, 
-                            meeshoPrice: '',
-                            wrongDefectivePrice: '',
-                            mrp: '',
-                            bustSize: '',
-                            shoulderSize: '',
-                            waistSize: '',
-                            sizeLength: '',
-                            hipSize: '',
+                            meeshoPrice: 0.01,
+                            wrongDefectivePrice: 0,
+                            mrp: 0.01,
+                            bustSize: 0.01,
+                            shoulderSize: 0.01,
+                            waistSize: 0.01,
+                            sizeLength: 0.01,
+                            hipSize: 0,
+                            hsn: '6204',
+                            weight: 0.3,
                             netWeight: 0.1,
+                            dimensions: {length: 30, breadth: 25, height: 2},
                             attributes: { size },
                             images: [],
                             imageFiles: [],
@@ -2905,7 +2924,77 @@ const ProductManagement = () => {
                               step="0.1"
                             />
                           </td>
-
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <input
+                              type="text"
+                              value={variant.hsn || ''}
+                              onChange={(e) => updateVariant('hsn', e.target.value)}
+                              placeholder="6204"
+                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <input
+                              type="number"
+                              value={variant.weight || ''}
+                              onChange={(e) => updateVariant('weight', e.target.value)}
+                              placeholder="0.3"
+                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
+                              min="0"
+                              step="0.1"
+                            />
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <div className="flex space-x-1">
+                              <input
+                                type="number"
+                                value={variant.dimensions?.length || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  updateVariant('dimensions', {
+                                    ...variant.dimensions,
+                                    length: value ? parseFloat(value) : 30
+                                  });
+                                }}
+                                placeholder="30"
+                                className="w-8 border border-gray-300 rounded-md px-1 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
+                                min="0"
+                                step="1"
+                              />
+                              <span className="text-xs text-gray-500">x</span>
+                              <input
+                                type="number"
+                                value={variant.dimensions?.breadth || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  updateVariant('dimensions', {
+                                    ...variant.dimensions,
+                                    breadth: value ? parseFloat(value) : 25
+                                  });
+                                }}
+                                placeholder="25"
+                                className="w-8 border border-gray-300 rounded-md px-1 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
+                                min="0"
+                                step="1"
+                              />
+                              <span className="text-xs text-gray-500">x</span>
+                              <input
+                                type="number"
+                                value={variant.dimensions?.height || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  updateVariant('dimensions', {
+                                    ...variant.dimensions,
+                                    height: value ? parseFloat(value) : 2
+                                  });
+                                }}
+                                placeholder="2"
+                                className="w-8 border border-gray-300 rounded-md px-1 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
+                                min="0"
+                                step="1"
+                              />
+                            </div>
+                          </td>
                           <td className="px-3 py-3 whitespace-nowrap">
                             <button
                               type="button"

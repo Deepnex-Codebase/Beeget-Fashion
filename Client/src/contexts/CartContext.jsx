@@ -15,7 +15,7 @@ const transformCartItems = (items, variantSku = null) => {
     quantity: item.quantity,
     size: item.size || null,
     color: item.color || null,
-    gstRate: item.gstRate || 0, // Add GST rate from product
+    gstRate: item.productDetails?.gstRate || item.productId.gstRate || 5, // Add GST rate from product with default 5%
     variantSku: item.variantSku || variantSku, // Ensure variantSku is set
     addedAt: new Date().toISOString()
   }))
@@ -211,22 +211,7 @@ export const CartProvider = ({ children }) => {
           
           if (response.data.success) {
             // Transform backend cart format to frontend format
-            const backendCart = response.data.data.items.map(item => ({
-              id: item.productId._id,
-              _id: item._id, // Store the cart item ID for future operations
-              name: item.productDetails?.title || item.productId.title,
-              title: item.productDetails?.title || item.productId.title,
-              price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-              mrp: item.productDetails?.mrp || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].mrp || item.productId.variants[0].price) : (item.productId.mrp || item.productId.price || 0)),
-              slug: item.productDetails?.slug || item.productId.slug,
-              image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-              quantity: item.quantity,
-              size: item.size || null,
-              color: item.color || null,
-              gstRate: item.gstRate || 0, // Add GST rate from product
-              variantSku: item.variantSku || variantSku, // Ensure variantSku is set
-              addedAt: new Date().toISOString()
-            }))
+            const backendCart = transformCartItems(response.data.data.items, variantSku)
             
             // Update state and localStorage in one place
             setCart(backendCart)
@@ -552,17 +537,12 @@ export const CartProvider = ({ children }) => {
   
   // Get cart total
   const getCartTotal = () => {
-    const subtotal = cart.reduce((total, item) => {
-      // Always use MRP instead of price, ensure it's a valid number
-      const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price || 0)
-      // Ensure quantity is a number
-      const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
-      // Ensure we don't add NaN to the total
-      return total + (isNaN(price * quantity) ? 0 : price * quantity)
-    }, 0)
+    // Use the updated getCartSubtotal function to ensure consistency
+    const subtotal = getCartSubtotal()
     
     // Calculate shipping cost (free over ₹1000)
-    const shippingCost = subtotal > 1000 ? 0 : 100
+    // Ensure proper number comparison
+    const shippingCost = Number(subtotal) > 1000 ? 0 : 100
     
     // Calculate tax based on each product's GST rate
     const tax = cart.reduce((totalTax, item) => {
@@ -570,26 +550,37 @@ export const CartProvider = ({ children }) => {
       const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price) || 0
       // Ensure quantity is a number
       const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
-      // Get GST rate from item or use 0 if not available
-      const gstRate = item.gstRate || 0
-      // Calculate tax for this item
-      return totalTax + ((price * quantity * gstRate) / 100)
+      // Get GST rate from item or use 5% as default if not available
+      const gstRate = typeof item.gstRate === 'number' ? item.gstRate : parseFloat(item.gstRate || 5) || 5
+      // Calculate tax for this item and ensure it's not NaN
+      const itemTax = (price * quantity * gstRate) / 100
+      return totalTax + (isNaN(itemTax) ? 0 : itemTax)
     }, 0)
     
     // Apply coupon discount if available and add shipping cost and tax
-    return subtotal - couponDiscount + shippingCost + tax
+    // Ensure all values are treated as numbers
+    const total = Number(subtotal) - Number(couponDiscount) + Number(shippingCost) + Number(tax)
+    
+    // Return as a number, not a string
+    return Number(total)
   }
   
   // Get cart subtotal (without discount)
   const getCartSubtotal = () => {
-    return cart.reduce((total, item) => {
+    // Ensure we're working with valid numbers throughout the calculation
+    const subtotal = cart.reduce((total, item) => {
       // Always use MRP instead of price, ensure it's a valid number
       const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price || 0)
       // Ensure quantity is a number
       const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
+      // Calculate item total and ensure it's not NaN
+      const itemTotal = price * quantity
       // Ensure we don't add NaN to the total
-      return total + (isNaN(price * quantity) ? 0 : price * quantity)
+      return total + (isNaN(itemTotal) ? 0 : itemTotal)
     }, 0)
+    
+    // Return as a number, not a string
+    return Number(subtotal)
   }
   
   // Get cart item count
@@ -615,14 +606,27 @@ export const CartProvider = ({ children }) => {
         const { discountType, discountValue, minimumPurchase } = response.data.data
         
         // Check minimum purchase requirement
+        // Calculate subtotal properly to ensure accurate comparison
         const subtotal = getCartSubtotal()
-        if (minimumPurchase && subtotal < minimumPurchase) {
-          setCouponError(`Minimum purchase of ₹${parseInt(minimumPurchase)} required for this coupon`)
+        console.log('Cart Subtotal:', subtotal, 'Minimum Purchase:', minimumPurchase)
+        
+        // Fix: Ensure proper number comparison by converting both to numbers and using toFixed(2) to handle precision issues
+        const subtotalNum = parseFloat(parseFloat(subtotal).toFixed(2))
+        const minPurchaseNum = parseFloat(parseFloat(minimumPurchase).toFixed(2))
+        
+        // Add detailed debugging
+        console.log('Subtotal (parsed):', subtotalNum, 'Min Purchase (parsed):', minPurchaseNum, 'Comparison result:', subtotalNum < minPurchaseNum)
+        
+        // The coupon is invalid if the subtotal is less than the minimum purchase
+        // Add a larger epsilon (0.1) to account for potential floating-point precision issues
+        // OR use direct comparison with <= to ensure coupon applies when subtotal equals minimum purchase
+        if (minPurchaseNum && subtotalNum < minPurchaseNum) {
+          setCouponError(`Minimum purchase of ₹${parseInt(minPurchaseNum)} required for this coupon`)
           setCouponCode('')
           setCouponDiscount(0)
           return { 
-            success: false, 
-            error: `Minimum purchase of ₹${parseInt(minimumPurchase)} required for this coupon` 
+            success: false,   
+            error: `Minimum purchase of ₹${parseInt(minPurchaseNum)} required for this coupon` 
           }
         }
         
@@ -643,13 +647,34 @@ export const CartProvider = ({ children }) => {
         setCouponDiscount(discount)
         
         // Apply coupon to backend cart if user is authenticated or has a guest session
+        let backendResponse;
         if (isAuthenticated) {
-          await axios.post('/cart/apply-coupon', { code: code })
+          backendResponse = await axios.post('/cart/apply-coupon', { code: code })
         } else {
           const guestSessionId = localStorage.getItem('guestSessionId')
           if (guestSessionId) {
-            await axios.post(`/cart/guest/${guestSessionId}/apply-coupon`, { code: code })
+            backendResponse = await axios.post(`/cart/guest/${guestSessionId}/apply-coupon`, { code: code })
           }
+        }
+        
+        // Check if backend application was successful
+        if (!backendResponse?.data?.success) {
+          // If backend rejected the coupon, reset local state
+          setCouponCode('')
+          setCouponDiscount(0)
+          
+          // Extract error message
+          let errorMessage = 'Failed to apply coupon';
+          if (backendResponse?.data?.error?.message) {
+            errorMessage = backendResponse.data.error.message;
+          } else if (backendResponse?.data?.message) {
+            errorMessage = backendResponse.data.message;
+          } else if (backendResponse?.data?.error) {
+            errorMessage = backendResponse.data.error;
+          }
+          
+          setCouponError(errorMessage);
+          return { success: false, error: errorMessage };
         }
         
         // Coupon applied successfully
@@ -670,7 +695,22 @@ export const CartProvider = ({ children }) => {
         return { success: false, error: response.data.error || 'Invalid coupon code' }
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to apply coupon'
+      // Handle error object or string appropriately
+      let errorMessage = 'Failed to apply coupon'
+      
+      if (err.response?.data?.error) {
+        // If error is an object with code and message properties
+        if (typeof err.response.data.error === 'object' && err.response.data.error.message) {
+          errorMessage = err.response.data.error.message
+        } else {
+          errorMessage = err.response.data.error
+        }
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
       setCouponError(errorMessage)
       setCouponCode('')
       setCouponDiscount(0)

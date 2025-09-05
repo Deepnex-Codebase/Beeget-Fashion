@@ -24,6 +24,8 @@ import {
 } from "recharts";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import gstConfig from "../../config/gstConfig";
+
 
 const GSTReports = () => {
   const navigate = useNavigate();
@@ -262,11 +264,6 @@ const GSTReports = () => {
     };
   };
 
-  // Constants for GST rates
-  const CGST_RATE = 0.09; // 9%
-  const SGST_RATE = 0.09; // 9%
-  const TOTAL_GST_RATE = CGST_RATE + SGST_RATE; // 18%
-
   // Function to calculate total GST collected with improved error handling
   const calculateTotalGST = () => {
     // If no stats available or totalSales is missing, throw an error
@@ -304,33 +301,9 @@ const GSTReports = () => {
         };
       }
 
-      // Calculate taxable amount (sales amount excluding GST)
-      // Formula: taxableAmount = salesAmount / (1 + GST_RATE)
-      const taxableAmount = totalSales / (1 + TOTAL_GST_RATE);
-
-      // Calculate GST amounts
-      const cgstAmount = taxableAmount * CGST_RATE;
-      const sgstAmount = taxableAmount * SGST_RATE;
-      const totalGST = cgstAmount + sgstAmount;
-
-      // Verify calculations
-      const calculatedTotal = taxableAmount + totalGST;
-      if (Math.abs(calculatedTotal - totalSales) > 1) {
-        // Allow for small rounding differences
-        // console.warn("GST calculation discrepancy:", {
-        //   original: totalSales,
-        //   calculated: calculatedTotal,
-        //   difference: totalSales - calculatedTotal,
-        // });
-      }
-
-      return {
-        totalSales: totalSales,
-        taxableAmount: Math.round(taxableAmount * 100) / 100,
-        totalGST: Math.round(totalGST * 100) / 100,
-        cgst: Math.round(cgstAmount * 100) / 100,
-        sgst: Math.round(sgstAmount * 100) / 100,
-      };
+      // Use the gstConfig to calculate GST
+      return gstConfig.calculateGST(totalSales);
+      
     } catch (error) {
       // console.error("Error calculating total GST:", error);
 
@@ -720,33 +693,16 @@ const GSTReports = () => {
           };
         }
 
-        // Calculate taxable amount (sales amount excluding GST)
-        // Formula: taxableAmount = salesAmount / (1 + GST_RATE)
-        const taxableAmount = sales / (1 + TOTAL_GST_RATE);
-
-        // Calculate GST amounts
-        const cgstAmount = taxableAmount * CGST_RATE;
-        const sgstAmount = taxableAmount * SGST_RATE;
-        const totalGST = cgstAmount + sgstAmount;
-
-        // Verify calculations
-        const calculatedTotal = taxableAmount + totalGST;
-        if (Math.abs(calculatedTotal - sales) > 1) {
-          // Allow for small rounding differences
-          console.warn("GST calculation discrepancy:", {
-            original: sales,
-            calculated: calculatedTotal,
-            difference: sales - calculatedTotal,
-          });
-        }
-
+        // Use gstConfig to calculate GST
+        const gstResult = gstConfig.calculateGST(sales);
+        
         return {
           ...item, // Keep original data (day/month/year and sales)
           orders: isNaN(orders) ? 0 : orders,
-          taxableAmount: Math.round(taxableAmount * 100) / 100, // Round to 2 decimal places
-          cgst: Math.round(cgstAmount * 100) / 100,
-          sgst: Math.round(sgstAmount * 100) / 100,
-          totalGST: Math.round(totalGST * 100) / 100,
+          taxableAmount: gstResult.taxableAmount,
+          cgst: gstResult.cgst,
+          sgst: gstResult.sgst,
+          totalGST: gstResult.totalGST,
         };
       });
     } catch (error) {
@@ -886,8 +842,8 @@ const GSTReports = () => {
 
   // Prepare data for pie chart
   const pieChartData = [
-    { name: "CGST (9%)", value: totalGSTData.cgst },
-    { name: "SGST (9%)", value: totalGSTData.sgst },
+    { name: `CGST (${gstConfig.DISPLAY.CGST_PERCENTAGE})`, value: totalGSTData.cgst },
+    { name: `SGST (${gstConfig.DISPLAY.SGST_PERCENTAGE})`, value: totalGSTData.sgst },
   ];
 
   // Colors for pie chart
@@ -1136,7 +1092,7 @@ const GSTReports = () => {
                 {formatCurrency(totalGSTData.totalGST)}
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                18% of taxable amount{" "}
+                5% of taxable amount{" "}
                 {formatCurrency(totalGSTData.taxableAmount)}
               </p>
             </motion.div>
@@ -1148,7 +1104,7 @@ const GSTReports = () => {
               transition={{ delay: 0.2 }}
             >
               <h2 className="text-sm font-medium text-gray-500 mb-2">
-                CGST (9%)
+                CGST ({gstConfig.DISPLAY.CGST_PERCENTAGE})
               </h2>
               <p className="text-3xl font-bold text-java-600">
                 {formatCurrency(totalGSTData.cgst)}
@@ -1165,7 +1121,7 @@ const GSTReports = () => {
               transition={{ delay: 0.3 }}
             >
               <h2 className="text-sm font-medium text-gray-500 mb-2">
-                SGST (9%)
+                SGST ({gstConfig.DISPLAY.SGST_PERCENTAGE})
               </h2>
               <p className="text-3xl font-bold text-java-600">
                 {formatCurrency(totalGSTData.sgst)}
@@ -1320,9 +1276,9 @@ const GSTReports = () => {
                       "Sales Amount",
                       reportType === "detailed" ? "Orders" : "",
                       "Taxable Amount",
-                      "CGST (9%)",
-                      "SGST (9%)",
-                      "Total GST (18%)",
+                      "CGST (2.5%)",
+                      "SGST (2.5%)",
+                      "Total GST (5%)",
                     ].filter(Boolean);
                     csvContent += headers.join(",") + "\n";
 
@@ -1400,10 +1356,10 @@ const GSTReports = () => {
                       Taxable Amount
                     </th>
                     <th className="px-6 py-3 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      CGST (9%)
+                      CGST ({gstConfig.DISPLAY.CGST_PERCENTAGE})
                     </th>
                     <th className="px-6 py-3 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      SGST (9%)
+                      SGST ({gstConfig.DISPLAY.SGST_PERCENTAGE})
                     </th>
                     <th className="px-6 py-3 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Total GST

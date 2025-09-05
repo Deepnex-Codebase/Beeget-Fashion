@@ -61,17 +61,31 @@ CouponSchema.methods.isValid = function(orderValue) {
   
   // Check if coupon is expired
   if (now > this.validUntil || now < this.validFrom) {
-    return { valid: false, reason: 'COUPON_EXPIRED' };
+    return { 
+      valid: false, 
+      reason: 'COUPON_EXPIRED',
+      message: 'This coupon has expired or is not yet active'
+    };
   }
   
   // Check if coupon has reached usage limit
   if (this.usageLimit !== null && this.usedCount >= this.usageLimit) {
-    return { valid: false, reason: 'COUPON_USAGE_EXCEEDED' };
+    return { 
+      valid: false, 
+      reason: 'COUPON_USAGE_EXCEEDED',
+      message: 'This coupon has reached its maximum usage limit'
+    };
   }
   
   // Check if order meets minimum value requirement
-  if (orderValue < this.minOrderValue) {
-    return { valid: false, reason: 'ORDER_VALUE_TOO_LOW', minOrderValue: this.minOrderValue };
+  // This ensures that when orderValue equals or exceeds minOrderValue, the coupon is valid
+  if (Number(orderValue) < Number(this.minOrderValue)) {
+    return { 
+      valid: false, 
+      reason: 'ORDER_VALUE_TOO_LOW', 
+      minOrderValue: this.minOrderValue,
+      message: `Minimum purchase of ₹${this.minOrderValue} required for this coupon`
+    };
   }
   
   // Calculate discount amount
