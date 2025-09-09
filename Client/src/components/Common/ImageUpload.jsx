@@ -12,7 +12,7 @@ const ImageUpload = ({
   placeholder = "Choose an image...",
   className = "",
   accept = "image/*",
-  maxSize = 5 * 1024 * 1024, // 5MB
+  maxSize = (import.meta.env.VITE_IMAGE_UPLOAD_MAX_SIZE || 50) * 1024 * 1024, // Default 5MB or from .env
   disabled = false,
   isHeroSection = false // New prop to identify hero section uploads
 }) => {
@@ -84,7 +84,14 @@ const ImageUpload = ({
         },
       });
 
-      const imageUrl = response.data.data.url;
+      // Use the environment variable for image URL base if available
+      let imageUrl = response.data.data.url;
+      const imageUrlBase = import.meta.env.VITE_IMAGE_URL_BASE;
+      
+      // If we have a base URL and the response URL is a relative path, prepend the base URL
+      if (imageUrlBase && imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = `${imageUrlBase}/${imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl}`;
+      }
       // Store the image URL in localStorage to persist it across page refreshes
       if (isHeroSection) {
         localStorage.setItem('heroSectionImage', imageUrl);

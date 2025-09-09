@@ -173,15 +173,15 @@ const pdfFileFilter = (req, file, cb) => {
   cb(new Error('Only PDF files are allowed!'), false);
 };
 
-// File size limits - Increased to 50MB for all file types
+// File size limits
 const maxSize = {
-  product: 50 * 1024 * 1024,   // 50MB - Product images
-  user: 50 * 1024 * 1024,     // 50MB - User profile images
-  invoice: 50 * 1024 * 1024,   // 50MB - Invoice PDFs
-  review: 50 * 1024 * 1024,    // 50MB - Review images
-  temp: 50 * 1024 * 1024,     // 50MB - Temporary files
-  cms: 50 * 1024 * 1024,      // 50MB - CMS images
-  video: 50 * 1024 * 1024     // 50MB - Videos
+  product: 50 * 1024 * 1024, // 50MB
+  user: 50 * 1024 * 1024,    // 50MB
+  invoice: 50 * 1024 * 1024, // 50MB
+  review: 50 * 1024 * 1024,   // 50MB
+  temp: 50 * 1024 * 1024,    // 50MB
+  cms: 50 * 1024 * 1024,      // 50MB for CMS images
+  video: 500 * 1024 * 1024    // 500MB for videos
 };
 
 // Configure multer instances
@@ -253,7 +253,7 @@ const reviewUpload = multer({
 // Regular CMS upload configuration
 const cmsUpload = multer({
   storage: cmsStorage,
-  limits: { fileSize: maxSize.cms }, // 50MB limit for images
+  limits: { fileSize: maxSize.cms }, // 10MB limit for images
   fileFilter: imageFileFilter
 });
 
@@ -273,7 +273,7 @@ const pngFileFilter = (req, file, cb) => {
 // Special configuration for PNG uploads
 const pngUpload = multer({
   storage: cmsStorage,
-  limits: { fileSize: maxSize.cms }, // 50MB limit for PNG images
+  limits: { fileSize: maxSize.cms }, // 10MB limit for PNG images
   fileFilter: pngFileFilter
 });
 

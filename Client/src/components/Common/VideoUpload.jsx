@@ -12,7 +12,7 @@ const VideoUpload = ({
   placeholder = "Choose a video...",
   className = "",
   accept = "video/*",
-  maxSize = 50 * 1024 * 1024, // 50MB
+  maxSize = (import.meta.env.VITE_VIDEO_UPLOAD_MAX_SIZE || 50) * 1024 * 1024, // Default 50MB or from .env
   disabled = false
 }) => {
   const [uploading, setUploading] = useState(false);
@@ -46,7 +46,14 @@ const VideoUpload = ({
         },
       });
 
-      const videoUrl = response.data.data.url;
+      // Use the environment variable for video URL base if available
+      let videoUrl = response.data.data.url;
+      const videoUrlBase = import.meta.env.VITE_VIDEO_URL_BASE;
+      
+      // If we have a base URL and the response URL is a relative path, prepend the base URL
+      if (videoUrlBase && videoUrl && !videoUrl.startsWith('http')) {
+        videoUrl = `${videoUrlBase}/${videoUrl.startsWith('/') ? videoUrl.substring(1) : videoUrl}`;
+      }
       setPreview(videoUrl);
       
       if (onChange) {

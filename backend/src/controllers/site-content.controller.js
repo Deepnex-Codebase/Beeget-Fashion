@@ -41,12 +41,42 @@ export const updateHomePage = async (req, res, next) => {
       logger.info('Created new home page document as none existed');
     }
     
+    // Log the blocks structure before update
+    logger.info('Blocks structure before update:', JSON.stringify(homePage.blocks));
+    
     // Update all fields from request body
     Object.keys(req.body).forEach(key => {
       if (key !== '_id' && key !== '__v') {
-        homePage[key] = req.body[key];
+        // Special handling for blocks to ensure proper structure
+        if (key === 'blocks' && Array.isArray(req.body.blocks)) {
+          // Process each block to ensure proper structure
+          homePage.blocks = req.body.blocks.map(block => {
+            // Process hero slider blocks
+            if (block.blockType === 'hero_slider' && block.slides) {
+              // Ensure each slide has proper image structure
+              block.slides = block.slides.map(slide => {
+                // Log the slide structure
+                logger.info('Processing slide:', JSON.stringify(slide));
+                
+                // Ensure image objects exist
+                if (!slide.desktop_image) slide.desktop_image = {};
+                if (!slide.background_image) slide.background_image = {};
+                if (!slide.mobile_image) slide.mobile_image = {};
+                if (!slide.mobile_background_image) slide.mobile_background_image = {};
+                
+                return slide;
+              });
+            }
+            return block;
+          });
+        } else {
+          homePage[key] = req.body[key];
+        }
       }
     });
+    
+    // Log the blocks structure after update
+    logger.info('Blocks structure after update:', JSON.stringify(homePage.blocks));
     
     // Increment version number
     homePage.version = (homePage.version || 0) + 1;
@@ -79,12 +109,42 @@ export const autosaveHomePage = async (req, res, next) => {
       logger.info('Created new home page document as none existed');
     }
     
+    // Log the blocks structure before update
+    logger.info('Blocks structure before autosave:', JSON.stringify(homePage.blocks));
+    
     // Update all fields from request body
     Object.keys(req.body).forEach(key => {
       if (key !== '_id' && key !== '__v') {
-        homePage[key] = req.body[key];
+        // Special handling for blocks to ensure proper structure
+        if (key === 'blocks' && Array.isArray(req.body.blocks)) {
+          // Process each block to ensure proper structure
+          homePage.blocks = req.body.blocks.map(block => {
+            // Process hero slider blocks
+            if (block.blockType === 'hero_slider' && block.slides) {
+              // Ensure each slide has proper image structure
+              block.slides = block.slides.map(slide => {
+                // Log the slide structure
+                logger.info('Processing slide for autosave:', JSON.stringify(slide));
+                
+                // Ensure image objects exist
+                if (!slide.desktop_image) slide.desktop_image = {};
+                if (!slide.background_image) slide.background_image = {};
+                if (!slide.mobile_image) slide.mobile_image = {};
+                if (!slide.mobile_background_image) slide.mobile_background_image = {};
+                
+                return slide;
+              });
+            }
+            return block;
+          });
+        } else {
+          homePage[key] = req.body[key];
+        }
       }
     });
+    
+    // Log the blocks structure after update
+    logger.info('Blocks structure after autosave:', JSON.stringify(homePage.blocks));
     
     // Update autosave timestamp
     homePage.lastAutosaved = Date.now();
