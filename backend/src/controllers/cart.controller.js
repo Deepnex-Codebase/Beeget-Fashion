@@ -482,7 +482,9 @@ export const applyCoupon = async (req, res, next) => {
     // Calculate cart subtotal for coupon validation
     let subtotal = 0;
     for (const item of cart.items) {
-      subtotal += item.productDetails.price * item.quantity;
+      // Use MRP instead of price to match frontend calculation
+      const itemPrice = item.productDetails.mrp || item.productDetails.price || 0;
+      subtotal += itemPrice * item.quantity;
     }
     
     // Verify coupon with coupon service
@@ -615,7 +617,9 @@ export const applyGuestCoupon = async (req, res, next) => {
     // Calculate cart subtotal for coupon validation
     let subtotal = 0;
     for (const item of cart.items) {
-      subtotal += item.productDetails.price * item.quantity;
+      // Use MRP instead of price to match frontend calculation
+      const itemPrice = item.productDetails.mrp || item.productDetails.price || 0;
+      subtotal += itemPrice * item.quantity;
     }
     
     // Verify coupon with coupon service

@@ -84,16 +84,13 @@ export const isSubAdmin = (req, res, next) => {
   }
   
   if (!req.user.roles || !Array.isArray(req.user.roles)) {
-    console.log('DEBUG - Invalid user roles in isSubAdmin:', req.user.roles);
     return next(new AppError('Invalid user roles', 'FORBIDDEN', 403));
   }
   
   if (!(req.user.roles.includes('admin') || req.user.roles.includes('subadmin'))) {
-    console.log('DEBUG - User does not have admin or subadmin role:', req.user.roles);
     return next(new AppError('Sub-admin access required', 'FORBIDDEN', 403));
   }
   
-  console.log('DEBUG - Sub-admin access granted for user:', req.user.email);
   next();
 };
 

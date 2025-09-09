@@ -831,6 +831,15 @@ export const CartProvider = ({ children }) => {
         };
       });
       
+      // Prepare final order payload
+      let finalOrderData = {
+        ...orderData, 
+        items: validatedItems,
+        couponCode: couponCode || null,
+        subtotal,
+        total
+      };
+      
       // Generate a guest session ID if user is not authenticated
       if (!isAuthenticated) {
         // Check if we already have a guest session ID in localStorage
@@ -842,21 +851,15 @@ export const CartProvider = ({ children }) => {
           localStorage.setItem('guestSessionId', guestSessionId);
         }
         
-        // Add guest session ID to order data
-        orderData.guestSessionId = guestSessionId;
+        // Add guest session ID to order data for guest users only
+        finalOrderData.guestSessionId = guestSessionId;
       }
       
       // Determine which endpoint to use based on authentication status
       const endpoint = isAuthenticated ? '/orders' : '/orders/guest';
       
       // Create order payload and send to backend
-      const response = await axios.post(endpoint, { 
-        ...orderData, 
-        items: validatedItems,
-        couponCode: couponCode || null,
-        subtotal,
-        total
-      })
+      const response = await axios.post(endpoint, finalOrderData)
       
       if (response.data.success) {
         // Only clear cart for non-Cashfree payment methods

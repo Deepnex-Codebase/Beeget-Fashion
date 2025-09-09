@@ -204,7 +204,7 @@ export const createOrder = async (req, res, next) => {
 
       appliedCoupon = {
         code: coupon.code,
-        discountType: coupon.discountType,
+        discountType: coupon.discountType === 'percent' ? 'PERCENTAGE' : 'FLAT',
         value: coupon.value,
         discount,
       };
@@ -953,7 +953,12 @@ export const getOrders = async (req, res, next) => {
       // Subadmin with correct department/permission: see all orders
     } else {
       // Other users: only their own orders
-      query.userId = req.user.id;
+      // Match by userId OR by email in billing/shipping address
+      query.$or = [
+        { userId: req.user.id },
+        { "billing.email": req.user.email.toLowerCase() },
+        { "shipping.email": req.user.email.toLowerCase() }
+      ];
     }
 
     // Add status filter if provided
@@ -1080,12 +1085,19 @@ export const getOrderById = async (req, res, next) => {
     }
 
     // Check if user is authorized to view this order
-    if (
-      req.user.role !== "admin" &&
-      req.user.role !== "sub-admin" &&
-      order.userId &&
-      order.userId._id.toString() !== req.user.id
-    ) {
+    const isAdmin = req.user.roles && req.user.roles.includes('admin');
+    const isSubadmin = req.user.roles && req.user.roles.includes('subadmin') && 
+                      req.user.department === 'orders' && 
+                      req.user.permissions.includes('manage_orders');
+    const isOrderOwner = order.userId && order.userId._id.toString() === req.user.id;
+    
+    // Also check if order belongs to user by email
+    const isOrderOwnerByEmail = (order.billing && order.billing.email && 
+                                order.billing.email.toLowerCase() === req.user.email.toLowerCase()) ||
+                               (order.shipping && order.shipping.email && 
+                                order.shipping.email.toLowerCase() === req.user.email.toLowerCase());
+    
+    if (!isAdmin && !isSubadmin && !isOrderOwner && !isOrderOwnerByEmail) {
       throw new AppError("You are not authorized to view this order", 403);
     }
 

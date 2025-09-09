@@ -726,7 +726,6 @@ const ProductManagement = () => {
           sku: generatedSku,
           price: '',
           stock: 0, // Initialize stock to 0 as per backend requirement
-          price: '',
           wrongDefectivePrice: '',
           mrp: '',
           bustSize: '',
