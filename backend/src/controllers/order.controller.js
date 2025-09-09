@@ -312,12 +312,35 @@ export const createOrder = async (req, res, next) => {
 
     await order.save();
 
-    // Update product stock
+    // Update product stock with logging
     for (const item of processedItems) {
-      await Product.updateOne(
+      const stockUpdateResult = await Product.updateOne(
         { _id: item.productId, "variants.sku": item.variantSku },
         { $inc: { "variants.$.stock": -item.qty } }
       );
+      
+      if (stockUpdateResult.modifiedCount > 0) {
+        logger.info(`Stock reduced for SKU ${item.variantSku}: -${item.qty} units (Order: ${order.order_id})`);
+        
+        // Check if stock is now low and log warning
+        const updatedProduct = await Product.findById(item.productId);
+        const updatedVariant = updatedProduct.variants.find(v => v.sku === item.variantSku);
+        
+        if (updatedVariant && updatedVariant.stock <= 5) {
+          logger.warn(`Low stock alert for SKU ${item.variantSku}: ${updatedVariant.stock} units remaining`);
+        }
+        
+        // Update isInStock status if stock reaches 0
+        if (updatedVariant && updatedVariant.stock <= 0) {
+          await Product.updateOne(
+            { _id: item.productId, "variants.sku": item.variantSku },
+            { $set: { "variants.$.isInStock": false } }
+          );
+          logger.info(`Variant ${item.variantSku} marked as out of stock`);
+        }
+      } else {
+        logger.error(`Failed to update stock for SKU ${item.variantSku} (Order: ${order.order_id})`);
+      }
     }
 
     // If payment method is CASHFREE, create payment order
@@ -2225,12 +2248,30 @@ export const cancelOrder = async (req, res, next) => {
 
     await order.save();
 
-    // Restore product stock
+    // Restore product stock with logging
     for (const item of order.items) {
-      await Product.updateOne(
+      const stockRestoreResult = await Product.updateOne(
         { _id: item.productId, "variants.sku": item.variantSku },
         { $inc: { "variants.$.stock": item.qty } }
       );
+      
+      if (stockRestoreResult.modifiedCount > 0) {
+        logger.info(`Stock restored for SKU ${item.variantSku}: +${item.qty} units (Order cancelled: ${order.order_id})`);
+        
+        // Update isInStock status back to true if stock is restored
+        const updatedProduct = await Product.findById(item.productId);
+        const updatedVariant = updatedProduct.variants.find(v => v.sku === item.variantSku);
+        
+        if (updatedVariant && updatedVariant.stock > 0 && !updatedVariant.isInStock) {
+          await Product.updateOne(
+            { _id: item.productId, "variants.sku": item.variantSku },
+            { $set: { "variants.$.isInStock": true } }
+          );
+          logger.info(`Variant ${item.variantSku} marked as back in stock`);
+        }
+      } else {
+        logger.error(`Failed to restore stock for SKU ${item.variantSku} (Order cancelled: ${order.order_id})`);
+      }
     }
 
     // Process refund if payment was completed
@@ -2505,12 +2546,32 @@ export const processReturnExchange = async (req, res, next) => {
         }
       }
 
-      // Restore product stock
+      // Restore product stock with logging
       for (const item of order.returnExchange.items) {
-        await Product.updateOne(
+        const stockRestoreResult = await Product.updateOne(
           { "variants.sku": item.variantSku },
           { $inc: { "variants.$.stock": item.qty } }
         );
+        
+        if (stockRestoreResult.modifiedCount > 0) {
+          logger.info(`Stock restored for SKU ${item.variantSku}: +${item.qty} units (Return completed: ${order.order_id})`);
+          
+          // Update isInStock status back to true if stock is restored
+          const updatedProduct = await Product.findOne({ "variants.sku": item.variantSku });
+          if (updatedProduct) {
+            const updatedVariant = updatedProduct.variants.find(v => v.sku === item.variantSku);
+            
+            if (updatedVariant && updatedVariant.stock > 0 && !updatedVariant.isInStock) {
+              await Product.updateOne(
+                { "variants.sku": item.variantSku },
+                { $set: { "variants.$.isInStock": true } }
+              );
+              logger.info(`Variant ${item.variantSku} marked as back in stock after return`);
+            }
+          }
+        } else {
+          logger.error(`Failed to restore stock for SKU ${item.variantSku} (Return completed: ${order.order_id})`);
+        }
       }
       
       // Send notification to customer

@@ -53,6 +53,7 @@ export const createProduct = async (req, res, next) => {
       variants,
       gstRate,
       media_type, // Add media_type field to determine if main media is video or image
+      styleCode, // Add styleCode field
       // Extract product detail fields
       color,
       colors, // Add support for multiple colors
@@ -106,9 +107,23 @@ export const createProduct = async (req, res, next) => {
         isInStock: variant.stock > 0,
         // Setup marketplace prices
         marketplacePrices: {
-          meesho: variant.meeshoPrice,
+          meesho: variant.price,
           wrongDefective: variant.wrongDefectivePrice
-        }
+        },
+        // Add additional size measurements with proper defaults
+        kurtaWaistSize: variant.kurtaWaistSize || 0,
+        kurtaLengthSize: variant.kurtaLengthSize || 0,
+        kurtaHipSize: variant.kurtaHipSize || 0,
+        bottomWaistSize: variant.bottomWaistSize || 0,
+        bottomLengthSize: variant.bottomLengthSize || 0,
+        bottomHipSize: variant.bottomHipSize || 0,
+        duppattaLengthSize: variant.duppattaLengthSize || 0,
+        // Ensure required size fields have valid defaults
+        bustSize: variant.bustSize || 32,
+        shoulderSize: variant.shoulderSize || 14,
+        waistSize: variant.waistSize || 28,
+        sizeLength: variant.sizeLength || 42,
+        hipSize: variant.hipSize || 1
       }));
     }
 
@@ -158,6 +173,7 @@ export const createProduct = async (req, res, next) => {
       title,
       description,
       category,
+      styleCode, // Add styleCode field
       variants: parsedVariants,
       images,
       // Set primaryImage to the first image if available
@@ -346,6 +362,7 @@ export const updateProduct = async (req, res, next) => {
       variants,
       gstRate,
       removeImages,
+      styleCode, // Add styleCode field
       // Extract product detail fields
       color,
       colors, // Add support for multiple colors
@@ -382,6 +399,7 @@ export const updateProduct = async (req, res, next) => {
     if (description) product.description = description;
     if (category) product.category = category;
     if (gstRate) product.gstRate = gstRate;
+    if (styleCode !== undefined) product.styleCode = styleCode;
     
     // Update product detail fields if provided
     if (color !== undefined) product.color = color;
@@ -452,7 +470,7 @@ export const updateProduct = async (req, res, next) => {
         
         // Handle marketplace prices
         const marketplacePrices = {
-          meesho: variant.meeshoPrice || variant.marketplacePrices?.meesho || sellingPrice,
+          meesho: variant.price || variant.marketplacePrices?.meesho || sellingPrice,
           wrongDefective: variant.wrongDefectivePrice || variant.marketplacePrices?.wrongDefective || sellingPrice * 0.8
         };
         
@@ -475,7 +493,21 @@ export const updateProduct = async (req, res, next) => {
             length: 30,
             breadth: 25,
             height: 2
-          }
+          },
+          // Add additional size measurements with proper defaults
+          kurtaWaistSize: variant.kurtaWaistSize || 0,
+          kurtaLengthSize: variant.kurtaLengthSize || 0,
+          kurtaHipSize: variant.kurtaHipSize || 0,
+          bottomWaistSize: variant.bottomWaistSize || 0,
+          bottomLengthSize: variant.bottomLengthSize || 0,
+          bottomHipSize: variant.bottomHipSize || 0,
+          duppattaLengthSize: variant.duppattaLengthSize || 0,
+          // Ensure required size fields have valid defaults
+          bustSize: variant.bustSize || 32,
+          shoulderSize: variant.shoulderSize || 14,
+          waistSize: variant.waistSize || 28,
+          sizeLength: variant.sizeLength || 42,
+          hipSize: variant.hipSize || 0
         };
       });
 
@@ -734,16 +766,16 @@ export const bulkUploadProducts = async (req, res, next) => {
           sellingPrice: sellingPrice,
           mrp: parseFloat(row.mrp),
           marketplacePrices: {
-            meesho: row.meeshoPrice ? parseFloat(row.meeshoPrice) : sellingPrice,
+            meesho: row.price ? parseFloat(row.price) : sellingPrice,
             wrongDefective: row.wrongDefectivePrice ? parseFloat(row.wrongDefectivePrice) : sellingPrice * 0.8
           },
           stock: stock,
           isInStock: stock > 0,
-          bustSize: parseFloat(row.bustSize),
-          shoulderSize: parseFloat(row.shoulderSize),
-          waistSize: parseFloat(row.waistSize),
-          sizeLength: parseFloat(row.sizeLength),
-          hipSize: row.hipSize ? parseFloat(row.hipSize) : undefined,
+          bustSize: row.bustSize ? parseFloat(row.bustSize) : 32,
+          shoulderSize: row.shoulderSize ? parseFloat(row.shoulderSize) : 14,
+          waistSize: row.waistSize ? parseFloat(row.waistSize) : 28,
+          sizeLength: row.sizeLength ? parseFloat(row.sizeLength) : 42,
+          hipSize: row.hipSize ? parseFloat(row.hipSize) : 0,
           attributes,
           // Shiprocket Fields
           hsn: row.hsn || '6204', // Default HSN code for ready-made garments

@@ -5,7 +5,7 @@ import Button from '../Common/Button';
 import Modal from '../Common/Modal';
 import Input from '../Common/Input';
 import { toast } from 'react-hot-toast';
-import { FiUpload, FiDownload } from 'react-icons/fi';
+import { FiUpload, FiDownload, FiSave } from 'react-icons/fi';
 import { PRODUCT_CONFIG, validateField, getFieldLabel, getDropdownOptions } from '../../config/productConfig';
 
 const ProductManagement = () => {
@@ -46,7 +46,8 @@ const ProductManagement = () => {
       }
     ],
     images: [], // General product images
-    gstRate: '18'
+    gstRate: '5', // Default GST rate set to 5%
+    hasDuppatta: false // Flag to indicate if product has duppatta
   });
   
   // Image management state
@@ -83,7 +84,16 @@ const ProductManagement = () => {
   const [newPrintTypeOption, setNewPrintTypeOption] = useState('');
   const [newSleeveLengthOption, setNewSleeveLengthOption] = useState('');
   const [newStitchTypeOption, setNewStitchTypeOption] = useState('');
+  const [newCountryOption, setNewCountryOption] = useState('');
+  const [newBrandOption, setNewBrandOption] = useState('');
+  const [newStitchTypeOtherOption, setNewStitchTypeOtherOption] = useState('');
+  const [newOrnamentationOption, setNewOrnamentationOption] = useState('');
+  const [newSleeveStylingOption ,setnewSleeveStylingOption] =useState('')
   const [forceUpdate, setForceUpdate] = useState({});
+  
+  // State for price synchronization checkbox
+  const [syncPrices, setSyncPrices] = useState(false);
+  const [masterPrice, setMasterPrice] = useState({ price: '', wrongDefectivePrice: '', mrp: '' });
   
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
@@ -653,6 +663,49 @@ const ProductManagement = () => {
     });
   };
   
+  // Save form data to localStorage as draft
+  const saveDraft = () => {
+    try {
+      // Create a draft object without file objects (which can't be stored in localStorage)
+      const draftData = {
+        ...formData,
+        // Remove file objects which can't be serialized
+        videoFile: null,
+        imageFiles: [],
+        variants: formData.variants.map(variant => ({
+          ...variant,
+          imageFiles: []
+        }))
+      };
+      
+      // Save to localStorage
+      localStorage.setItem('productDraft', JSON.stringify(draftData));
+      toast.success('Product draft saved successfully');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast.error('Failed to save draft');
+    }
+  };
+  
+  // Load draft from localStorage
+  const loadDraft = () => {
+    try {
+      const draftData = localStorage.getItem('productDraft');
+      
+      if (!draftData) {
+        toast.error('No draft found');
+        return;
+      }
+      
+      const parsedData = JSON.parse(draftData);
+      setFormData(parsedData);
+      toast.success('Draft loaded successfully');
+    } catch (error) {
+      console.error('Error loading draft:', error);
+      toast.error('Failed to load draft');
+    }
+  };
+  
   // Reset form data
   const resetForm = () => {
     // Generate a unique SKU for the default variant
@@ -673,7 +726,7 @@ const ProductManagement = () => {
           sku: generatedSku,
           price: '',
           stock: 0, // Initialize stock to 0 as per backend requirement
-          meeshoPrice: '',
+          price: '',
           wrongDefectivePrice: '',
           mrp: '',
           bustSize: '',
@@ -720,6 +773,10 @@ const ProductManagement = () => {
     setSelectedVariantForImage(0);
     setImagePreviewMode('general');
     setSelectedImageVariant(null);
+    
+    // Reset price synchronization states
+    setSyncPrices(false);
+    setMasterPrice({ price: '', wrongDefectivePrice: '', mrp: '' });
   };
   
   // Open edit modal with product data
@@ -756,7 +813,6 @@ const ProductManagement = () => {
           ...variant,
           sku: variant.sku || generatedSku, // Use existing SKU if available, otherwise generate a new one
           price: variant.price || '',
-          meeshoPrice: variant.meeshoPrice || '',
           wrongDefectivePrice: variant.wrongDefectivePrice || '',
           mrp: variant.mrp || '',
           bustSize: variant.bustSize || '',
@@ -772,7 +828,6 @@ const ProductManagement = () => {
           sku: generatedSku,
           price: '',
           stock: '',
-          meeshoPrice: '',
           wrongDefectivePrice: '',
           mrp: '',
           bustSize: '',
@@ -1159,6 +1214,39 @@ const ProductManagement = () => {
     link.click();
     document.body.removeChild(link);
   };
+
+  // Price synchronization helper functions
+  const handleSyncPricesChange = (checked) => {
+    setSyncPrices(checked);
+    if (checked && masterPrice.price) {
+      applyMasterPricesToAll();
+    }
+  };
+
+  const handleMasterPriceChange = (field, value) => {
+    const newMasterPrice = { ...masterPrice, [field]: value };
+    setMasterPrice(newMasterPrice);
+    
+    if (syncPrices) {
+      applyMasterPricesToAll(newMasterPrice);
+    }
+  };
+
+  const applyMasterPricesToAll = (prices = masterPrice) => {
+    if (!prices.price && !prices.wrongDefectivePrice && !prices.mrp) return;
+    
+    const updatedVariants = formData.variants.map(variant => ({
+      ...variant,
+      ...(prices.price && { price: prices.price }),
+      ...(prices.wrongDefectivePrice && { wrongDefectivePrice: prices.wrongDefectivePrice }),
+      ...(prices.mrp && { mrp: prices.mrp })
+    }));
+    
+    setFormData(prev => ({
+      ...prev,
+      variants: updatedVariants
+    }));
+  };
   
   // Filter products based on search term and category filter
   const getFilteredProducts = () => {
@@ -1403,7 +1491,7 @@ const ProductManagement = () => {
             }
             
             // First, ensure all required fields exist with proper values
-            const numericFields = ['meeshoPrice', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength'];
+            const numericFields = ['price', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength', 'netWeight', 'hipSize', 'wrongDefectivePrice', 'kurtaWaistSize', 'kurtaLengthSize', 'kurtaHipSize', 'bottomWaistSize', 'bottomLengthSize', 'bottomHipSize', 'duppattaLengthSize', 'weight', 'hsn'];
             
             // Set default values for all numeric fields
             numericFields.forEach(fieldName => {
@@ -1430,10 +1518,27 @@ const ProductManagement = () => {
               // Skip attributes validation since we've already handled it
               if (fieldName === 'attributes') return;
               
-              const validation = validateField(fieldName, variant[fieldName]);
-              if (!validation.isValid) {
-                newErrors[`variant_${index}_${fieldName}`] = validation.message;
-                hasVariantErrors = true;
+              // For numeric fields, allow 0 as valid value
+              if (numericFields.includes(fieldName)) {
+                if (variant[fieldName] === undefined || variant[fieldName] === null || variant[fieldName] === '') {
+                  newErrors[`variant_${index}_${fieldName}`] = `${fieldName} is required`;
+                  hasVariantErrors = true;
+                }
+              } else {
+                // For SKU field, ensure it's not empty
+                if (fieldName === 'sku') {
+                  if (!variant[fieldName] || variant[fieldName].trim() === '') {
+                    newErrors[`variant_${index}_${fieldName}`] = 'SKU is required';
+                    hasVariantErrors = true;
+                  }
+                } else {
+                  // For other non-numeric fields, use standard validation
+                  const validation = validateField(fieldName, variant[fieldName]);
+                  if (!validation.isValid) {
+                    newErrors[`variant_${index}_${fieldName}`] = validation.message;
+                    hasVariantErrors = true;
+                  }
+                }
               }
             });
             
@@ -1446,10 +1551,23 @@ const ProductManagement = () => {
                   variant[fieldName] = isNaN(numValue) ? 0 : numValue;
                 }
                 
-                const validation = validateField(fieldName, variant[fieldName]);
-                if (!validation.isValid) {
-                  newErrors[`variant_${index}_${fieldName}`] = validation.message;
-                  hasVariantErrors = true;
+                // Only validate if field has actual value (not 0 for numeric fields)
+                if (numericFields.includes(fieldName)) {
+                  // For numeric optional fields, don't validate if value is 0
+                  if (variant[fieldName] > 0) {
+                    const validation = validateField(fieldName, variant[fieldName]);
+                    if (!validation.isValid) {
+                      newErrors[`variant_${index}_${fieldName}`] = validation.message;
+                      hasVariantErrors = true;
+                    }
+                  }
+                } else {
+                  // For non-numeric optional fields, validate normally
+                  const validation = validateField(fieldName, variant[fieldName]);
+                  if (!validation.isValid) {
+                    newErrors[`variant_${index}_${fieldName}`] = validation.message;
+                    hasVariantErrors = true;
+                  }
                 }
               }
             });
@@ -1483,16 +1601,71 @@ const ProductManagement = () => {
     // Check if current step is valid (to avoid infinite renders)
     const [isCurrentStepValid, setIsCurrentStepValid] = useState(true);
     
-    // Update validation state when step or form data changes
-    useEffect(() => {
-      // Only validate after user interaction (form submission attempt or next button click)
-      // This prevents showing errors when the form first loads
-      const shouldValidate = Object.keys(errors).length > 0;
+    // Sync variants with selected sizes to prevent data loss
+  useEffect(() => {
+    if (formData.selectedSizes && formData.selectedSizes.length > 0) {
+      const currentVariants = formData.variants || [];
+      const newVariants = [];
       
-      if (!shouldValidate) {
-        setIsCurrentStepValid(true);
-        return;
+      // Ensure each selected size has a corresponding variant
+      formData.selectedSizes.forEach(size => {
+        let existingVariant = currentVariants.find(v => v.attributes && v.attributes.size === size);
+        
+        if (existingVariant) {
+          // Keep existing variant data
+          newVariants.push(existingVariant);
+        } else {
+          // Create new variant for this size
+          const title = formData.title || 'BG';
+          const generatedSku = `${title.slice(0, 2).toUpperCase()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}-${size}`;
+          
+          newVariants.push({
+            sku: generatedSku,
+            price: 0,
+            stock: 0,
+            price: 0,
+            wrongDefectivePrice: 0,
+            mrp: 0,
+            bustSize: 0,
+            shoulderSize: 0,
+            kurtaWaistSize: 0,
+            kurtaLengthSize: 0,
+            kurtaHipSize: 0,
+            bottomWaistSize: 0,
+            bottomLengthSize: 0,
+            bottomHipSize: 0,
+            duppattaLengthSize: 0,
+            hsn: '6204',
+            weight: 0.3,
+            netWeight: 0.1,
+            dimensions: {length: 30, breadth: 25, height: 2},
+            attributes: { size },
+            images: [],
+            imageFiles: []
+          });
+        }
+      });
+      
+      // Only update if variants have actually changed
+      if (JSON.stringify(currentVariants) !== JSON.stringify(newVariants)) {
+        setFormData(prev => ({
+          ...prev,
+          variants: newVariants
+        }));
       }
+    }
+  }, [formData.selectedSizes, formData.title]);
+  
+  // Update validation state when step or form data changes
+  useEffect(() => {
+    // Only validate after user interaction (form submission attempt or next button click)
+    // This prevents showing errors when the form first loads
+    const shouldValidate = Object.keys(errors).length > 0;
+    
+    if (!shouldValidate) {
+      setIsCurrentStepValid(true);
+      return;
+    }
       
       const newErrors = {};
       
@@ -1516,13 +1689,13 @@ const ProductManagement = () => {
           formData.variants.forEach((variant, index) => {
             if (variant) {
               // Define all numeric fields
-              const numericFields = ['meeshoPrice', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength', 'netWeight', 'hipSize', 'wrongDefectivePrice'];
+            const numericFields = ['price', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength', 'netWeight', 'hipSize', 'wrongDefectivePrice', 'kurtaWaistSize', 'kurtaLengthSize', 'kurtaHipSize', 'bottomWaistSize', 'bottomLengthSize', 'bottomHipSize', 'duppattaLengthSize', 'weight', 'hsn'];
               
               // Convert string values to numbers for numeric fields
               numericFields.forEach(field => {
                 if (variant[field] === undefined || variant[field] === null || variant[field] === '') {
                   // Set default values for required fields
-                  if (['meeshoPrice', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength'].includes(field)) {
+                  if (['price', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength'].includes(field)) {
                     variant[field] = field === 'netWeight' ? 0.1 : 0;
                   }
                 } else if (typeof variant[field] === 'string') {
@@ -1803,43 +1976,120 @@ const ProductManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Colors *</label>
                 <div className="relative">
                   <div className="flex flex-col space-y-2">
-                    <select
-                      name="colors"
-                      multiple
-                      value={formData.colors || []}
-                      onChange={(e) => {
-                        const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
-                        setFormData(prev => ({
-                          ...prev,
-                          colors: selectedOptions,
-                          // Also set the single color field for backward compatibility
-                          color: selectedOptions.length > 0 ? selectedOptions[0] : ''
-                        }));
-                      }}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.colors ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                      size="4"
-                    >
-                      {getDropdownOptions('colors').map(option => (
-                        <option key={option} value={option}>{option}</option>
+                    <div className="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md mb-2 min-h-[100px] bg-white">
+                      {(formData.colors || []).map((color, index) => (
+                        <div key={index} className="flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                          <span>{color}</span>
+                          <button 
+                            type="button" 
+                            className="ml-2 text-blue-600 hover:text-blue-800"
+                            onClick={() => {
+                              const updatedColors = [...(formData.colors || [])];
+                              updatedColors.splice(index, 1);
+                              setFormData(prev => ({
+                                ...prev,
+                                colors: updatedColors,
+                                color: updatedColors.length > 0 ? updatedColors[0] : ''
+                              }));
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
                       ))}
-                    </select>
+                    </div>
                     
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center">
+                      <select
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const newColor = e.target.value;
+                            const currentColors = formData.colors || [];
+                            if (!currentColors.includes(newColor)) {
+                              setFormData(prev => ({
+                                ...prev,
+                                colors: [...currentColors, newColor],
+                                color: currentColors.length === 0 ? newColor : prev.color
+                              }));
+                            }
+                            e.target.value = '';
+                          }
+                        }}
+                      >
+                        <option value="">Select a color</option>
+                        {getDropdownOptions('colors').map(option => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                      
+                      <button
+                        type="button"
+                        className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onClick={() => {
+                          document.getElementById('add-color-input').focus();
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 mt-2">
                       <input 
+                        id="add-color-input"
                         type="text" 
                         placeholder="Add new color"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newColorOption || ''}
                         onChange={(e) => setNewColorOption(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newColorOption && newColorOption.trim() !== '') {
+                              // Add to PRODUCT_CONFIG in memory
+                              const updatedColors = [...PRODUCT_CONFIG.COLORS, newColorOption.trim()];
+                              PRODUCT_CONFIG.COLORS = updatedColors;
+                              
+                              // Add to selected colors
+                              const currentColors = formData.colors || [];
+                              if (!currentColors.includes(newColorOption.trim())) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  colors: [...currentColors, newColorOption.trim()],
+                                  color: currentColors.length === 0 ? newColorOption.trim() : prev.color
+                                }));
+                              }
+                              
+                              // Clear the input
+                              setNewColorOption('');
+                              
+                              // Force re-render
+                              setForceUpdate({});
+                              
+                              toast.success(`Added new color: ${newColorOption.trim()}`);
+                            }
+                          }
+                        }}
                       />
                       <button
                         type="button"
-                        className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                         onClick={() => {
                           if (newColorOption && newColorOption.trim() !== '') {
                             // Add to PRODUCT_CONFIG in memory
                             const updatedColors = [...PRODUCT_CONFIG.COLORS, newColorOption.trim()];
                             PRODUCT_CONFIG.COLORS = updatedColors;
+                            
+                            // Add to selected colors
+                            const currentColors = formData.colors || [];
+                            if (!currentColors.includes(newColorOption.trim())) {
+                              setFormData(prev => ({
+                                ...prev,
+                                colors: [...currentColors, newColorOption.trim()],
+                                color: currentColors.length === 0 ? newColorOption.trim() : prev.color
+                              }));
+                            }
                             
                             // Clear the input
                             setNewColorOption('');
@@ -1851,13 +2101,13 @@ const ProductManagement = () => {
                           }
                         }}
                       >
-                        Add
+                        Add New
                       </button>
                     </div>
                   </div>
                 </div>
                 {errors.colors && <p className="text-xs text-red-600 mt-1">{errors.colors}</p>}
-                <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd key to select multiple colors</p>
+                <p className="text-xs text-gray-500 mt-1">Select colors or add new ones</p>
               </div>
               
               <div className={errors.comboOf ? 'error-field' : ''}>
@@ -1879,34 +2129,77 @@ const ProductManagement = () => {
               <div className={errors.fabric ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fabric *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="fabric"
-                    value={formData.fabric || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.fabric ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('fabrics').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="fabric"
+                      value={formData.fabric || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.fabric ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('fabrics').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onClick={() => {
+                        document.getElementById('add-fabric-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-fabric-input"
                       type="text" 
                       placeholder="Add new fabric"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newFabricOption || ''}
                       onChange={(e) => setNewFabricOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newFabricOption && newFabricOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedFabrics = [...PRODUCT_CONFIG.FABRICS, newFabricOption.trim()];
+                            PRODUCT_CONFIG.FABRICS = updatedFabrics;
+                            
+                            // Set as selected fabric
+                            setFormData(prev => ({
+                              ...prev,
+                              fabric: newFabricOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewFabricOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new fabric: ${newFabricOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newFabricOption && newFabricOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedFabrics = [...PRODUCT_CONFIG.FABRICS, newFabricOption.trim()];
                           PRODUCT_CONFIG.FABRICS = updatedFabrics;
+                          
+                          // Set as selected fabric
+                          setFormData(prev => ({
+                            ...prev,
+                            fabric: newFabricOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewFabricOption('');
@@ -1918,7 +2211,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -1930,34 +2223,77 @@ const ProductManagement = () => {
               <div className={errors.fitShape ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fit *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="fitShape"
-                    value={formData.fitShape || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.fitShape ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('fitShapes').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="fitShape"
+                      value={formData.fitShape || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.fitShape ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('fitShapes').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onClick={() => {
+                        document.getElementById('add-fit-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-fit-input"
                       type="text" 
                       placeholder="Add new fit"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newFitOption || ''}
                       onChange={(e) => setNewFitOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newFitOption && newFitOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedFits = [...PRODUCT_CONFIG.FIT_SHAPES, newFitOption.trim()];
+                            PRODUCT_CONFIG.FIT_SHAPES = updatedFits;
+                            
+                            // Set as selected fit
+                            setFormData(prev => ({
+                              ...prev,
+                              fitShape: newFitOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewFitOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new fit: ${newFitOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newFitOption && newFitOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedFits = [...PRODUCT_CONFIG.FIT_SHAPES, newFitOption.trim()];
                           PRODUCT_CONFIG.FIT_SHAPES = updatedFits;
+                          
+                          // Set as selected fit
+                          setFormData(prev => ({
+                            ...prev,
+                            fitShape: newFitOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewFitOption('');
@@ -1969,7 +2305,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -1979,34 +2315,77 @@ const ProductManagement = () => {
               <div className={errors.length ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Length *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="length"
-                    value={formData.length || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.length ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('lengths').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="length"
+                      value={formData.length || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.length ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('lengths').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onClick={() => {
+                        document.getElementById('add-length-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-length-input"
                       type="text" 
                       placeholder="Add new length"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newLengthOption || ''}
                       onChange={(e) => setNewLengthOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newLengthOption && newLengthOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedLengths = [...PRODUCT_CONFIG.LENGTHS, newLengthOption.trim()];
+                            PRODUCT_CONFIG.LENGTHS = updatedLengths;
+                            
+                            // Set as selected length
+                            setFormData(prev => ({
+                              ...prev,
+                              length: newLengthOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewLengthOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new length: ${newLengthOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newLengthOption && newLengthOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedLengths = [...PRODUCT_CONFIG.LENGTHS, newLengthOption.trim()];
                           PRODUCT_CONFIG.LENGTHS = updatedLengths;
+                          
+                          // Set as selected length
+                          setFormData(prev => ({
+                            ...prev,
+                            length: newLengthOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewLengthOption('');
@@ -2018,7 +2397,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -2028,34 +2407,77 @@ const ProductManagement = () => {
               <div className={errors.neck ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Neck *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="neck"
-                    value={formData.neck || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.neck ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('neckTypes').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="neck"
+                      value={formData.neck || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.neck ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('neckTypes').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onClick={() => {
+                        document.getElementById('add-neck-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-neck-input"
                       type="text" 
                       placeholder="Add new neck type"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newNeckOption || ''}
                       onChange={(e) => setNewNeckOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newNeckOption && newNeckOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedNecks = [...PRODUCT_CONFIG.NECK_TYPES, newNeckOption.trim()];
+                            PRODUCT_CONFIG.NECK_TYPES = updatedNecks;
+                            
+                            // Set as selected neck
+                            setFormData(prev => ({
+                              ...prev,
+                              neck: newNeckOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewNeckOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new neck type: ${newNeckOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newNeckOption && newNeckOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedNecks = [...PRODUCT_CONFIG.NECK_TYPES, newNeckOption.trim()];
                           PRODUCT_CONFIG.NECK_TYPES = updatedNecks;
+                          
+                          // Set as selected neck
+                          setFormData(prev => ({
+                            ...prev,
+                            neck: newNeckOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewNeckOption('');
@@ -2067,7 +2489,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -2079,34 +2501,77 @@ const ProductManagement = () => {
               <div className={errors.occasion ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Occasion *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="occasion"
-                    value={formData.occasion || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.occasion ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('occasions').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="occasion"
+                      value={formData.occasion || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.occasion ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('occasions').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-occasion-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-occasion-input"
                       type="text" 
                       placeholder="Add new occasion"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newOccasionOption || ''}
                       onChange={(e) => setNewOccasionOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newOccasionOption && newOccasionOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedOccasions = [...PRODUCT_CONFIG.OCCASIONS, newOccasionOption.trim()];
+                            PRODUCT_CONFIG.OCCASIONS = updatedOccasions;
+                            
+                            // Set as selected occasion
+                            setFormData(prev => ({
+                              ...prev,
+                              occasion: newOccasionOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewOccasionOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new occasion: ${newOccasionOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newOccasionOption && newOccasionOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedOccasions = [...PRODUCT_CONFIG.OCCASIONS, newOccasionOption.trim()];
                           PRODUCT_CONFIG.OCCASIONS = updatedOccasions;
+                          
+                          // Set as selected occasion
+                          setFormData(prev => ({
+                            ...prev,
+                            occasion: newOccasionOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewOccasionOption('');
@@ -2118,7 +2583,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -2128,34 +2593,77 @@ const ProductManagement = () => {
               <div className={errors.pattern ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pattern *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="pattern"
-                    value={formData.pattern || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.pattern ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('patterns').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="pattern"
+                      value={formData.pattern || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.pattern ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('patterns').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-pattern-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-pattern-input"
                       type="text" 
                       placeholder="Add new pattern"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newPatternOption || ''}
                       onChange={(e) => setNewPatternOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newPatternOption && newPatternOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedPatterns = [...PRODUCT_CONFIG.PATTERNS, newPatternOption.trim()];
+                            PRODUCT_CONFIG.PATTERNS = updatedPatterns;
+                            
+                            // Set as selected pattern
+                            setFormData(prev => ({
+                              ...prev,
+                              pattern: newPatternOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewPatternOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new pattern: ${newPatternOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newPatternOption && newPatternOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedPatterns = [...PRODUCT_CONFIG.PATTERNS, newPatternOption.trim()];
                           PRODUCT_CONFIG.PATTERNS = updatedPatterns;
+                          
+                          // Set as selected pattern
+                          setFormData(prev => ({
+                            ...prev,
+                            pattern: newPatternOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewPatternOption('');
@@ -2167,7 +2675,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -2177,34 +2685,77 @@ const ProductManagement = () => {
               <div className={errors.printPatternType ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Print Type *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="printPatternType"
-                    value={formData.printPatternType || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.printPatternType ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('printTypes').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="printPatternType"
+                      value={formData.printPatternType || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.printPatternType ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('printTypes').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-print-type-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-print-type-input"
                       type="text" 
                       placeholder="Add new print type"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newPrintTypeOption || ''}
                       onChange={(e) => setNewPrintTypeOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newPrintTypeOption && newPrintTypeOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedPrintTypes = [...PRODUCT_CONFIG.PRINT_TYPES, newPrintTypeOption.trim()];
+                            PRODUCT_CONFIG.PRINT_TYPES = updatedPrintTypes;
+                            
+                            // Set as selected print type
+                            setFormData(prev => ({
+                              ...prev,
+                              printPatternType: newPrintTypeOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewPrintTypeOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new print type: ${newPrintTypeOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newPrintTypeOption && newPrintTypeOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedPrintTypes = [...PRODUCT_CONFIG.PRINT_TYPES, newPrintTypeOption.trim()];
                           PRODUCT_CONFIG.PRINT_TYPES = updatedPrintTypes;
+                          
+                          // Set as selected print type
+                          setFormData(prev => ({
+                            ...prev,
+                            printPatternType: newPrintTypeOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewPrintTypeOption('');
@@ -2216,7 +2767,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -2238,34 +2789,77 @@ const ProductManagement = () => {
               <div className={errors.sleeveLength ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sleeve Length *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="sleeveLength"
-                    value={formData.sleeveLength || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.sleeveLength ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('sleeveLengths').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="sleeveLength"
+                      value={formData.sleeveLength || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.sleeveLength ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('sleeveLengths').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-sleeve-length-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-sleeve-length-input"
                       type="text" 
                       placeholder="Add new sleeve length"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newSleeveLengthOption || ''}
                       onChange={(e) => setNewSleeveLengthOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newSleeveLengthOption && newSleeveLengthOption.trim() !== '') {
+                            // Add to PRODUCT_CONFIG in memory
+                            const updatedSleeveLengths = [...PRODUCT_CONFIG.SLEEVE_LENGTHS, newSleeveLengthOption.trim()];
+                            PRODUCT_CONFIG.SLEEVE_LENGTHS = updatedSleeveLengths;
+                            
+                            // Set as selected sleeve length
+                            setFormData(prev => ({
+                              ...prev,
+                              sleeveLength: newSleeveLengthOption.trim()
+                            }));
+                            
+                            // Clear the input
+                            setNewSleeveLengthOption('');
+                            
+                            // Force re-render
+                            setForceUpdate({});
+                            
+                            toast.success(`Added new sleeve length: ${newSleeveLengthOption.trim()}`);
+                          }
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-green-500 text-white rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={() => {
                         if (newSleeveLengthOption && newSleeveLengthOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
                           const updatedSleeveLengths = [...PRODUCT_CONFIG.SLEEVE_LENGTHS, newSleeveLengthOption.trim()];
                           PRODUCT_CONFIG.SLEEVE_LENGTHS = updatedSleeveLengths;
+                          
+                          // Set as selected sleeve length
+                          setFormData(prev => ({
+                            ...prev,
+                            sleeveLength: newSleeveLengthOption.trim()
+                          }));
                           
                           // Clear the input
                           setNewSleeveLengthOption('');
@@ -2277,7 +2871,7 @@ const ProductManagement = () => {
                         }
                       }}
                     >
-                      Add
+                      Add New
                     </button>
                   </div>
                 </div>
@@ -2287,20 +2881,33 @@ const ProductManagement = () => {
               <div className={errors.stitchType ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Stitch Type *</label>
                 <div className="flex flex-col space-y-2">
-                  <select
-                    name="stitchType"
-                    value={formData.stitchType || ''}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.stitchType ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select</option>
-                    {getDropdownOptions('stitchTypes').map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center">
+                    <select
+                      name="stitchType"
+                      value={formData.stitchType || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.stitchType ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('stitchTypes').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onClick={() => {
+                        document.getElementById('add-stitch-type-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <input 
+                      id="add-stitch-type-input"
                       type="text" 
                       placeholder="Add new stitch type"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -2335,18 +2942,107 @@ const ProductManagement = () => {
               
               <div className={errors.countryOfOrigin ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Country of Origin *</label>
-                <select
-                  name="countryOfOrigin"
-                  value={formData.countryOfOrigin || ''}
-                  onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.countryOfOrigin ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                >
-                  <option value="">Select</option>
-                  {getDropdownOptions('countries').map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center">
+                    <select
+                      name="countryOfOrigin"
+                      value={formData.countryOfOrigin || ''}
+                      onChange={handleInputChange}
+                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.countryOfOrigin ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('countries').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onClick={() => {
+                        document.getElementById('add-country-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      id="add-country-input"
+                      type="text" 
+                      placeholder="Add new country"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={newCountryOption || ''}
+                      onChange={(e) => setNewCountryOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newCountryOption && newCountryOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedCountries = [...PRODUCT_CONFIG.COUNTRIES, newCountryOption.trim()];
+                          PRODUCT_CONFIG.COUNTRIES = updatedCountries;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            countryOfOrigin: newCountryOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewCountryOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new country: ${newCountryOption.trim()}`);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      onClick={() => {
+                        if (newCountryOption && newCountryOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedCountries = [...PRODUCT_CONFIG.COUNTRIES, newCountryOption.trim()];
+                          PRODUCT_CONFIG.COUNTRIES = updatedCountries;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            countryOfOrigin: newCountryOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewCountryOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new country: ${newCountryOption.trim()}`);
+                        }
+                      }}>
+                      Add New
+                    </button>
+                  </div>
+                </div>
                 {errors.countryOfOrigin && <p className="text-xs text-red-600 mt-1">{errors.countryOfOrigin}</p>}
+              </div>
+              
+              <div>
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.hasDuppatta || false}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        hasDuppatta: e.target.checked
+                      }));
+                    }}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span>Product Has Duppatta</span>
+                </label>
               </div>
             </div>
             
@@ -2410,64 +3106,356 @@ const ProductManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                <select
-                  name="brand"
-                  value={formData.brand || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Select</option>
-                  {getDropdownOptions('brands').map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center">
+                    <select
+                      name="brand"
+                      value={formData.brand || ''}
+                      onChange={handleInputChange}
+                      className="flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('brands').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-brand-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      id="add-brand-input"
+                      type="text" 
+                      placeholder="Add new brand"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={newBrandOption || ''}
+                      onChange={(e) => setNewBrandOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newBrandOption && newBrandOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedBrands = [...PRODUCT_CONFIG.BRANDS, newBrandOption.trim()];
+                          PRODUCT_CONFIG.BRANDS = updatedBrands;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            brand: newBrandOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewBrandOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new brand: ${newBrandOption.trim()}`);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      onClick={() => {
+                        if (newBrandOption && newBrandOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedBrands = [...PRODUCT_CONFIG.BRANDS, newBrandOption.trim()];
+                          PRODUCT_CONFIG.BRANDS = updatedBrands;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            brand: newBrandOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewBrandOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new brand: ${newBrandOption.trim()}`);
+                        }
+                      }}
+                    >
+                      Add New
+                    </button>
+                  </div>
+                </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ornamentation</label>
-                <select
-                  name="ornamentation"
-                  value={formData.ornamentation || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Select</option>
-                  {getDropdownOptions('ornamentations').map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center">
+                    <select
+                      name="ornamentation"
+                      value={formData.ornamentation || ''}
+                      onChange={handleInputChange}
+                      className="flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('ornamentations').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-ornamentation-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      id="add-ornamentation-input"
+                      type="text" 
+                      placeholder="Add new ornamentation"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={newOrnamentationOption || ''}
+                      onChange={(e) => setNewOrnamentationOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newOrnamentationOption && newOrnamentationOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedOrnamentations = [...PRODUCT_CONFIG.ORNAMENTATIONS, newOrnamentationOption.trim()];
+                          PRODUCT_CONFIG.ORNAMENTATIONS = updatedOrnamentations;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            ornamentation: newOrnamentationOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewOrnamentationOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new ornamentation: ${newOrnamentationOption.trim()}`);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      onClick={() => {
+                        if (newOrnamentationOption && newOrnamentationOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedOrnamentations = [...PRODUCT_CONFIG.ORNAMENTATIONS, newOrnamentationOption.trim()];
+                          PRODUCT_CONFIG.ORNAMENTATIONS = updatedOrnamentations;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            ornamentation: newOrnamentationOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewOrnamentationOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new ornamentation: ${newOrnamentationOption.trim()}`);
+                        }
+                      }}
+                    >
+                      Add New
+                    </button>
+                  </div>
+                </div>
               </div>
               
 
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sleeve Styling</label>
-                <select
-                  name="sleeveStyling"
-                  value={formData.sleeveStyling || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Select</option>
-                  {getDropdownOptions('sleeveStylings').map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center">
+                    <select
+                      name="sleeveStyling"
+                      value={formData.sleeveStyling || ''}
+                      onChange={handleInputChange}
+                      className="flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('sleeveStylings').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-sleeve-styling-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      id="add-sleeve-styling-input"
+                      type="text" 
+                      placeholder="Add new sleeve styling"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={newSleeveStylingOption || ''}
+                      onChange={(e) => setNewSleeveStylingOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newSleeveStylingOption && newSleeveStylingOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedSleeveStylings = [...PRODUCT_CONFIG.SLEEVE_STYLINGS, newSleeveStylingOption.trim()];
+                          PRODUCT_CONFIG.SLEEVE_STYLINGS = updatedSleeveStylings;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            sleeveStyling: newSleeveStylingOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewSleeveStylingOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new sleeve styling: ${newSleeveStylingOption.trim()}`);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      onClick={() => {
+                        if (newSleeveStylingOption && newSleeveStylingOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedSleeveStylings = [...PRODUCT_CONFIG.SLEEVE_STYLINGS, newSleeveStylingOption.trim()];
+                          PRODUCT_CONFIG.SLEEVE_STYLINGS = updatedSleeveStylings;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            sleeveStyling: newSleeveStylingOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewSleeveStylingOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new sleeve styling: ${newSleeveStylingOption.trim()}`);
+                        }
+                      }}
+                    >
+                      Add New
+                    </button>
+                  </div>
+                </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Stitch Type</label>
-                <select
-                  name="stitchType"
-                  value={formData.stitchType || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Select</option>
-                  {getDropdownOptions('stitchTypes').map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center">
+                    <select
+                      name="stitchType"
+                      value={formData.stitchType || ''}
+                      onChange={handleInputChange}
+                      className="flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Select</option>
+                      {getDropdownOptions('stitchTypes').map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => {
+                        document.getElementById('add-stitch-type-other-input').focus();
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      id="add-stitch-type-other-input"
+                      type="text" 
+                      placeholder="Add new stitch type"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={newStitchTypeOtherOption || ''}
+                      onChange={(e) => setNewStitchTypeOtherOption(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newStitchTypeOtherOption && newStitchTypeOtherOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedStitchTypes = [...PRODUCT_CONFIG.STITCHING_TYPES, newStitchTypeOtherOption.trim()];
+                          PRODUCT_CONFIG.STITCHING_TYPES = updatedStitchTypes;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            stitchType: newStitchTypeOtherOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewStitchTypeOtherOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new stitch type: ${newStitchTypeOtherOption.trim()}`);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      onClick={() => {
+                        if (newStitchTypeOtherOption && newStitchTypeOtherOption.trim() !== '') {
+                          // Add to PRODUCT_CONFIG in memory
+                          const updatedStitchTypes = [...PRODUCT_CONFIG.STITCHING_TYPES, newStitchTypeOtherOption.trim()];
+                          PRODUCT_CONFIG.STITCHING_TYPES = updatedStitchTypes;
+                          
+                          // Set formData to use the new value
+                          setFormData(prev => ({
+                            ...prev,
+                            stitchType: newStitchTypeOtherOption.trim()
+                          }));
+                          
+                          // Clear the input
+                          setNewStitchTypeOtherOption('');
+                          
+                          // Force re-render
+                          setForceUpdate({});
+                          
+                          toast.success(`Added new stitch type: ${newStitchTypeOtherOption.trim()}`);
+                        }
+                      }}
+                    >
+                      Add New
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -2597,7 +3585,7 @@ const ProductManagement = () => {
             )}
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3 mb-4">
-              {['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL', '5XL'].map(size => (
+              {['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL', '5XL', '6XL', '7XL'].map(size => (
                 <label key={size} className={`relative flex items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
                   formData.selectedSizes?.includes(size) 
                     ? 'border-blue-500 bg-blue-50 shadow-sm' 
@@ -2609,18 +3597,66 @@ const ProductManagement = () => {
                     onChange={(e) => {
                       const selectedSizes = formData.selectedSizes || [];
                       if (e.target.checked) {
-                        setFormData(prev => ({
-                          ...prev,
-                          selectedSizes: [...selectedSizes, size]
-                        }));
+                        // Check if size is already selected to prevent duplicates
+                        if (!selectedSizes.includes(size)) {
+                          const newSelectedSizes = [...selectedSizes, size];
+                          
+                          // Create variants for newly selected sizes
+                          const newVariants = [...formData.variants];
+                          
+                          // Add variant for this size if it doesn't exist
+                          const existingVariant = newVariants.find(v => v.attributes && v.attributes.size === size);
+                          if (!existingVariant) {
+                            const title = formData.title || 'BG';
+                            const generatedSku = `${title.slice(0, 2).toUpperCase()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}-${size}`;
+                            
+                            newVariants.push({
+                              sku: generatedSku,
+                              price: 0,
+                              stock: 0,
+                              wrongDefectivePrice: 0,
+                              mrp: 0,
+                              bustSize: 32,
+                              shoulderSize: 14,
+                              waistSize: 28,
+                              sizeLength: 42,
+                              hipSize: 0,
+                              kurtaWaistSize: 28,
+                              kurtaLengthSize: 0,
+                              kurtaHipSize: 0,
+                              bottomWaistSize: 28,
+                              bottomLengthSize: 0,
+                              bottomHipSize: 0,
+                              duppattaLengthSize: 0,
+                              hsn: '6204',
+                              weight: 0.3,
+                              netWeight: 0.1,
+                              dimensions: {length: 30, breadth: 25, height: 2},
+                              attributes: { size },
+                              images: [],
+                              imageFiles: []
+                            });
+                          }
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            selectedSizes: newSelectedSizes,
+                            variants: newVariants
+                          }));
+                        }
                       } else {
+                        // Remove size and its corresponding variant
+                        const newSelectedSizes = selectedSizes.filter(s => s !== size);
+                        const newVariants = formData.variants.filter(v => v.attributes?.size !== size);
+                        
                         setFormData(prev => ({
                           ...prev,
-                          selectedSizes: selectedSizes.filter(s => s !== size)
+                          selectedSizes: newSelectedSizes,
+                          variants: newVariants
                         }));
-                      }
-                    }}
-                    className="sr-only"
+                       }
+                     }}
+                     className="sr-only"
                   />
                   <div className="flex flex-col items-center">
                     <span className={`text-sm font-bold transition-colors ${
@@ -2662,47 +3698,107 @@ const ProductManagement = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Size</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Selling Price *</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">Return Price</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">MRP *</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Inventory *</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Product SKU (optional)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Bust * (inches)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Shoulder * (inches)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Waist * (inches)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Length * (inches)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Hip (inches)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">HSN Code</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Weight (g)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Dimensions (LxWxH cm)</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Actions</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[100px]">Size</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">
+                        <div className="flex flex-col space-y-2">
+                          <span>Selling Price *</span>
+                          {formData.selectedSizes && formData.selectedSizes.length > 1 && (
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="syncPrices"
+                                checked={syncPrices}
+                                onChange={(e) => handleSyncPricesChange(e.target.checked)}
+                                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <label htmlFor="syncPrices" className="text-xs text-gray-600">
+                                Sync all prices
+                              </label>
+                            </div>
+                          )}
+                          {syncPrices && (
+                            <input
+                              type="number"
+                              placeholder="Master Price"
+                              value={masterPrice.price || ''}
+                              onChange={(e) => handleMasterPriceChange('price', e.target.value)}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          )}
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">
+                        <div className="flex flex-col space-y-2">
+                          <span>Return Price</span>
+                          {syncPrices && (
+                            <input
+                              type="number"
+                              placeholder="Master Return Price"
+                              value={masterPrice.wrongDefectivePrice || ''}
+                              onChange={(e) => handleMasterPriceChange('wrongDefectivePrice', e.target.value)}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          )}
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[120px]">
+                        <div className="flex flex-col space-y-2">
+                          <span>MRP *</span>
+                          {syncPrices && (
+                            <input
+                              type="number"
+                              placeholder="Master MRP"
+                              value={masterPrice.mrp || ''}
+                              onChange={(e) => handleMasterPriceChange('mrp', e.target.value)}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          )}
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[120px]">Inventory *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Product SKU *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Bust Size *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Shoulder Size *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Kurta Waist Size *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Kurta Length Size *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Kurta Hip Size</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Bottom Waist Size *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Bottom Length Size *</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Bottom Hip Size</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Duppatta Length Size</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">HSN Code</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[150px]">Weight (g)</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[180px]">Dimensions (LxWxH cm)</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[100px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {formData.selectedSizes.map((size, index) => {
                       // Generate a unique SKU for this size if needed
-                      const timestamp = Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
                       // Ensure we have a valid title to use for SKU generation
-                      const title = formData.title || 'PROD';
-                      const generatedSku = `${title.slice(0, 3).toUpperCase()}-${size}-${timestamp}`;
+                      const title = formData.title || 'BG';
+                      const generatedSku = `${title.slice(0, 2).toUpperCase()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}-${size}`;
                       
                       const variant = formData.variants.find(v => v.attributes && v.attributes.size === size) || 
                                     { 
                                       sku: generatedSku, // Always use a generated SKU, never empty
                                       price: 0, 
                                       stock: 0, 
-                                      meeshoPrice: 0.01,
+                      
                                       wrongDefectivePrice: 0,
-                                      mrp: 0.01,
-                                      bustSize: 0.01,
-                                      shoulderSize: 0.01,
-                                      waistSize: 0.01,
-                                      sizeLength: 0.01,
-                                      hipSize: 0,
+                                      mrp: 0,
+                                      bustSize: 0,
+                                      shoulderSize: 0,
+                                      kurtaWaistSize: 0,
+                                      kurtaLengthSize: 0,
+                                      kurtaHipSize: 0,
+                                      bottomWaistSize: 0,
+                                      bottomLengthSize: 0,
+                                      bottomHipSize: 0,
+                                      duppattaLengthSize: 0,
                                       hsn: '6204',
                                       weight: 0.3,
-                                      dimensions: {length: 30, breadth: 25, height: 2},
+                                      dimensions: {length: 31, breadth: 29, height: 2},
                                       attributes: { size },
                                       images: [],
                                       imageFiles: []
@@ -2726,21 +3822,23 @@ const ProductManagement = () => {
                           // Generate a unique SKU if it's empty and we're not currently editing the SKU field
                           if (field !== 'sku' && (!currentVariant.sku || currentVariant.sku === '')) {
                             // Generate a unique SKU based on product title and size
-                            const timestamp = Date.now().toString().slice(-6);
-                            currentVariant.sku = `${formData.title.slice(0, 3).toUpperCase()}-${size}-${timestamp}`;
+                            const title = formData.title || 'BG';
+                            currentVariant.sku = `${title.slice(0, 2).toUpperCase()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}-${size}`;
                           }
                           
                           // Convert empty string values to appropriate types for number fields
                           let processedValue = value;
-                          if (field === 'meeshoPrice' || field === 'mrp' || field === 'stock' || 
-                              field === 'bustSize' || field === 'shoulderSize' || field === 'waistSize' || 
-                              field === 'sizeLength' || field === 'hipSize' || field === 'netWeight') {
-                            // If value is empty string and field is required, set to 0
+                          if (field === 'price' || field === 'mrp' || field === 'stock' || 
+                              field === 'bustSize' || field === 'shoulderSize' || field === 'kurtaWaistSize' || 
+                              field === 'kurtaLengthSize' || field === 'kurtaHipSize' || field === 'bottomWaistSize' || 
+                              field === 'bottomLengthSize' || field === 'bottomHipSize' || field === 'duppattaLengthSize' || 
+                              field === 'netWeight') {
+                            // If value is empty string, keep it empty for better UX
                             if (value === '') {
-                              processedValue = field === 'netWeight' ? 0.1 : 0;
+                              processedValue = '';
                             } else if (typeof value === 'string') {
                               // Convert string to number
-                              processedValue = parseFloat(value) || (field === 'netWeight' ? 0.1 : 0);
+                              processedValue = parseFloat(value) || '';
                             }
                           }
                           
@@ -2751,40 +3849,45 @@ const ProductManagement = () => {
                         } else {
                           // Convert empty string values to appropriate types for number fields
                           let processedValue = value;
-                          if (field === 'meeshoPrice' || field === 'mrp' || field === 'stock' || 
-                              field === 'bustSize' || field === 'shoulderSize' || field === 'waistSize' || 
-                              field === 'sizeLength' || field === 'hipSize' || field === 'netWeight') {
-                            // If value is empty string and field is required, set to 0
+                          if (field === 'price' || field === 'mrp' || field === 'stock' || 
+                              field === 'bustSize' || field === 'shoulderSize' || field === 'kurtaWaistSize' || 
+                              field === 'kurtaLengthSize' || field === 'kurtaHipSize' || field === 'bottomWaistSize' || 
+                              field === 'bottomLengthSize' || field === 'bottomHipSize' || field === 'duppattaLengthSize' || 
+                              field === 'netWeight') {
+                            // If value is empty string, keep it empty for better UX
                             if (value === '') {
-                              processedValue = field === 'netWeight' ? 0.1 : 0;
+                              processedValue = '';
                             } else if (typeof value === 'string') {
                               // Convert string to number
-                              processedValue = parseFloat(value) || (field === 'netWeight' ? 0.1 : 0);
+                              processedValue = parseFloat(value) || '';
                             }
                           }
                           
                           // Generate a unique SKU for the new variant
-                          const timestamp = Date.now().toString().slice(-6);
                           // Ensure we have a valid title to use for SKU generation
-                          const title = formData.title || 'PROD';
-                          const generatedSku = `${title.slice(0, 3).toUpperCase()}-${size}-${timestamp}`;
+                          const title = formData.title || 'BG';
+                          const generatedSku = `${title.slice(0, 2).toUpperCase()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}-${size}`;
                           
                           const newVariant = { 
                             sku: generatedSku, // Always use a generated SKU for new variants
                             price: 0, 
                             stock: 0, 
-                            meeshoPrice: 0.01,
+          
                             wrongDefectivePrice: 0,
-                            mrp: 0.01,
-                            bustSize: 0.01,
-                            shoulderSize: 0.01,
-                            waistSize: 0.01,
-                            sizeLength: 0.01,
-                            hipSize: 0,
+                            mrp: 0,
+                            bustSize: 0,
+                            shoulderSize: 0,
+                            kurtaWaistSize: 0,
+                            kurtaLengthSize: 0,
+                            kurtaHipSize: 0,
+                            bottomWaistSize: 0,
+                            bottomLengthSize: 0,
+                            bottomHipSize: 0,
+                            duppattaLengthSize: 0,
                             hsn: '6204',
                             weight: 0.3,
                             netWeight: 0.1,
-                            dimensions: {length: 30, breadth: 25, height: 2},
+                            dimensions: {length: 31, breadth: 29, height: 2},
                             attributes: { size },
                             images: [],
                             imageFiles: [],
@@ -2797,205 +3900,221 @@ const ProductManagement = () => {
                       
                       return (
                         <tr key={size} className="hover:bg-gray-50">
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                               {size}
                             </span>
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <div className="relative">
                               <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                <span className="text-gray-500 text-xs">₹</span>
+                                <span className="text-gray-500 text-sm">₹</span>
                               </div>
                               <input
-                                type="number"
-                                value={variant.meeshoPrice || ''}
-                                onChange={(e) => updateVariant('meeshoPrice', e.target.value)}
+                                type="text"
+                                value={variant.price !== undefined && variant.price !== null ? variant.price : ''}
+                                onChange={(e) => updateVariant('price', e.target.value)}
                                 placeholder="0.00"
-                                className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                                min="0"
-                                step="0.01"
+                                className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />
                             </div>
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <div className="relative">
                               <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                <span className="text-gray-500 text-xs">₹</span>
+                                <span className="text-gray-500 text-sm">₹</span>
                               </div>
                               <input
-                                type="number"
-                                value={variant.wrongDefectivePrice || ''}
+                                type="text"
+                                value={variant.wrongDefectivePrice !== undefined && variant.wrongDefectivePrice !== null ? variant.wrongDefectivePrice : ''}
                                 onChange={(e) => updateVariant('wrongDefectivePrice', e.target.value)}
                                 placeholder="0.00"
-                                className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                                min="0"
-                                step="0.01"
+                                className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />
                             </div>
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <div className="relative">
                               <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                <span className="text-gray-500 text-xs">₹</span>
+                                <span className="text-gray-500 text-sm">₹</span>
                               </div>
                               <input
-                                type="number"
-                                value={variant.mrp || ''}
+                                type="text"
+                                value={variant.mrp !== undefined && variant.mrp !== null ? variant.mrp : ''}
                                 onChange={(e) => updateVariant('mrp', e.target.value)}
                                 placeholder="0.00"
-                                className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                                min="0"
-                                step="0.01"
+                                className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />
                             </div>
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
-                              type="number"
-                              value={variant.stock || ''}
+                              type="text"
+                              value={variant.stock !== undefined && variant.stock !== null ? variant.stock : ''}
                               onChange={(e) => updateVariant('stock', e.target.value)}
                               placeholder="Qty"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                              min="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
                               type="text"
                               value={variant.sku || ''}
                               onChange={(e) => updateVariant('sku', e.target.value)}
-                              placeholder={`${size}-SKU`}
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
+                              placeholder={`BG001-${size}`}
+                              className="w-full min-w-[200px] border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                              required
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
-                              type="number"
-                              value={variant.bustSize || ''}
+                              type="text"
+                              value={variant.bustSize !== undefined && variant.bustSize !== null ? variant.bustSize : ''}
                               onChange={(e) => updateVariant('bustSize', e.target.value)}
-                              placeholder="0.0"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                              min="0"
-                              step="0.1"
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
-                              type="number"
-                              value={variant.shoulderSize || ''}
+                              type="text"
+                              value={variant.shoulderSize !== undefined && variant.shoulderSize !== null ? variant.shoulderSize : ''}
                               onChange={(e) => updateVariant('shoulderSize', e.target.value)}
-                              placeholder="0.0"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                              min="0"
-                              step="0.1"
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
-                              type="number"
-                              value={variant.waistSize || ''}
-                              onChange={(e) => updateVariant('waistSize', e.target.value)}
-                              placeholder="0.0"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                              min="0"
-                              step="0.1"
+                              type="text"
+                              value={variant.kurtaWaistSize !== undefined && variant.kurtaWaistSize !== null ? variant.kurtaWaistSize : ''}
+                              onChange={(e) => updateVariant('kurtaWaistSize', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
-                              type="number"
-                              value={variant.sizeLength || ''}
-                              onChange={(e) => updateVariant('sizeLength', e.target.value)}
-                              placeholder="0.0"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                              min="0"
-                              step="0.1"
+                              type="text"
+                              value={variant.kurtaLengthSize !== undefined && variant.kurtaLengthSize !== null ? variant.kurtaLengthSize : ''}
+                              onChange={(e) => updateVariant('kurtaLengthSize', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
-                              type="number"
-                              value={variant.hipSize || ''}
-                              onChange={(e) => updateVariant('hipSize', e.target.value)}
-                              placeholder="0.0"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                              min="0"
-                              step="0.1"
+                              type="text"
+                              value={variant.kurtaHipSize !== undefined && variant.kurtaHipSize !== null ? variant.kurtaHipSize : ''}
+                              onChange={(e) => updateVariant('kurtaHipSize', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="text"
+                              value={variant.bottomWaistSize !== undefined && variant.bottomWaistSize !== null ? variant.bottomWaistSize : ''}
+                              onChange={(e) => updateVariant('bottomWaistSize', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="text"
+                              value={variant.bottomLengthSize !== undefined && variant.bottomLengthSize !== null ? variant.bottomLengthSize : ''}
+                              onChange={(e) => updateVariant('bottomLengthSize', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="text"
+                              value={variant.bottomHipSize !== undefined && variant.bottomHipSize !== null ? variant.bottomHipSize : ''}
+                              onChange={(e) => updateVariant('bottomHipSize', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {formData.hasDuppatta ? (
+                              <input
+                                type="text"
+                                value={variant.duppattaLengthSize !== undefined && variant.duppattaLengthSize !== null ? variant.duppattaLengthSize : ''}
+                                onChange={(e) => updateVariant('duppattaLengthSize', e.target.value)}
+                                placeholder="0"
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            ) : (
+                              <span className="text-gray-400 text-sm">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
                               type="text"
                               value={variant.hsn || ''}
                               onChange={(e) => updateVariant('hsn', e.target.value)}
                               placeholder="6204"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <input
-                              type="number"
+                              type="text"
                               value={variant.weight || ''}
                               onChange={(e) => updateVariant('weight', e.target.value)}
                               placeholder="0.3"
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                              min="0"
-                              step="0.1"
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            <div className="flex space-x-1">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex space-x-2">
                               <input
-                                type="number"
-                                value={variant.dimensions?.length || ''}
+                                type="text"
+                                value={variant.dimensions?.length || '31'}
                                 onChange={(e) => {
                                   const value = e.target.value;
                                   updateVariant('dimensions', {
                                     ...variant.dimensions,
-                                    length: value ? parseFloat(value) : 30
+                                    length: value || '31'
                                   });
                                 }}
-                                placeholder="30"
-                                className="w-8 border border-gray-300 rounded-md px-1 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                                min="0"
-                                step="1"
+                                placeholder="31"
+                                className="w-10 border border-gray-300 rounded-md px-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />
-                              <span className="text-xs text-gray-500">x</span>
+                              <span className="text-sm text-gray-500">x</span>
                               <input
-                                type="number"
-                                value={variant.dimensions?.breadth || ''}
+                                type="text"
+                                value={variant.dimensions?.breadth || '29'}
                                 onChange={(e) => {
                                   const value = e.target.value;
                                   updateVariant('dimensions', {
                                     ...variant.dimensions,
-                                    breadth: value ? parseFloat(value) : 25
+                                    breadth: value || '29'
                                   });
                                 }}
-                                placeholder="25"
-                                className="w-8 border border-gray-300 rounded-md px-1 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                                min="0"
-                                step="1"
+                                placeholder="29"
+                                className="w-10 border border-gray-300 rounded-md px-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />
-                              <span className="text-xs text-gray-500">x</span>
+                              <span className="text-sm text-gray-500">x</span>
                               <input
-                                type="number"
-                                value={variant.dimensions?.height || ''}
+                                type="text"
+                                value={variant.dimensions?.height || '2'}
                                 onChange={(e) => {
                                   const value = e.target.value;
                                   updateVariant('dimensions', {
                                     ...variant.dimensions,
-                                    height: value ? parseFloat(value) : 2
+                                    height: value || '2'
                                   });
                                 }}
                                 placeholder="2"
-                                className="w-8 border border-gray-300 rounded-md px-1 py-1 text-xs focus:ring-blue-500 focus:border-blue-500"
-                                min="0"
-                                step="1"
+                                className="w-10 border border-gray-300 rounded-md px-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />
                             </div>
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => {
@@ -3574,7 +4693,7 @@ const ProductManagement = () => {
       <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3">
           {/* Left side - Previous button (hidden on first step) */}
-          <div className="flex-1 flex justify-start">
+          <div className="flex-1 flex justify-start space-x-2">
             {currentStep > 1 && (
               <Button
                 type="button"
@@ -3595,6 +4714,31 @@ const ProductManagement = () => {
                 </div>
               </Button>
             )}
+            
+            {/* Draft buttons */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={saveDraft}
+              className="w-full sm:w-auto px-4 py-2 border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors"
+            >
+              <div className="flex items-center">
+                <FiSave className="h-4 w-4 mr-2" />
+                Save as Draft
+              </div>
+            </Button>
+            
+            <Button
+              type="button"
+              variant="outline"
+              onClick={loadDraft}
+              className="w-full sm:w-auto px-4 py-2 border-green-300 text-green-700 hover:bg-green-50 transition-colors"
+            >
+              <div className="flex items-center">
+                <FiDownload className="h-4 w-4 mr-2" />
+                Load Draft
+              </div>
+            </Button>
           </div>
           
           {/* Center - Cancel button */}
@@ -3804,6 +4948,7 @@ const ProductManagement = () => {
         }}
         title={`${currentProduct ? 'Edit' : 'Add New'} Product - ${stepTitles[currentStep - 1]}`}
         size="xxl"
+        closeOnOverlayClick={false}
       >
         {renderProductForm()}
       </Modal>
@@ -3821,6 +4966,7 @@ const ProductManagement = () => {
           }, 50); // Small delay to ensure state updates before modal closes
         }}
         title={`Edit Product - ${stepTitles[currentStep - 1]}`}
+        closeOnOverlayClick={false}
         size="xxl"
       >
         {renderProductForm()}
@@ -3835,6 +4981,7 @@ const ProductManagement = () => {
         }}
         title="Confirm Delete"
         size="md"
+        closeOnOverlayClick={false}
       >
         <div className="p-6">
           <div className="flex items-center justify-center mb-6 text-red-500">
@@ -3908,6 +5055,7 @@ const ProductManagement = () => {
         }}
         title={currentProduct?.title || 'Product Details'}
         size="xl"
+        closeOnOverlayClick={false}
       >
         {currentProduct && (
           <div className="p-6">

@@ -36,6 +36,15 @@ const variantSchema = new mongoose.Schema({
   waistSize: { type: Number, required: true, min: 0 },
   sizeLength: { type: Number, required: true, min: 0 },
   hipSize: { type: Number, min: 0 },
+  
+  // Additional size measurements for different garment parts
+  kurtaWaistSize: { type: Number, min: 0 },
+  kurtaLengthSize: { type: Number, min: 0 },
+  kurtaHipSize: { type: Number, min: 0 },
+  bottomWaistSize: { type: Number, min: 0 },
+  bottomLengthSize: { type: Number, min: 0 },
+  bottomHipSize: { type: Number, min: 0 },
+  duppattaLengthSize: { type: Number, min: 0 },
 
   // Extra attributes
   attributes: {
@@ -57,8 +66,8 @@ const variantSchema = new mongoose.Schema({
     default: 0.3
   },
   dimensions: {
-    length: { type: Number, required: true, default: 30 },
-    breadth: { type: Number, required: true, default: 25 },
+    length: { type: Number, required: true, default: 31 },
+    breadth: { type: Number, required: true, default: 29 },
     height: { type: Number, required: true, default: 2 }
   }
 });

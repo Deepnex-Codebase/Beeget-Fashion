@@ -4,7 +4,7 @@ export const PRODUCT_CONFIG = {
   // Required variant fields configuration
   VARIANT_FIELDS: {
     REQUIRED: [
-      'meeshoPrice',
+      'price',
       'mrp', 
       'stock',
       'bustSize',
@@ -16,13 +16,20 @@ export const PRODUCT_CONFIG = {
     OPTIONAL: [
       'wrongDefectivePrice',
       'hipSize',
-      'sku'
+      'sku',
+      'kurtaWaistSize',
+      'kurtaLengthSize',
+      'kurtaHipSize',
+      'bottomWaistSize',
+      'bottomLengthSize',
+      'bottomHipSize',
+      'duppattaLengthSize'
     ]
   },
 
   // Field validation rules
   VALIDATION_RULES: {
-    meeshoPrice: {
+    price: {
       type: 'number',
       min: 0.01,
       required: true,
@@ -70,16 +77,52 @@ export const PRODUCT_CONFIG = {
       required: false,
       message: 'Valid return price is required'
     },
-    hipSize: {
-      type: 'number',
-      min: 0.01,
-      required: false,
-      message: 'Valid hip size is required'
-    },
     attributes: {
       type: 'object',
       required: true,
       message: 'Variant attributes are required'
+    },
+    kurtaWaistSize: {
+      type: 'number',
+      min: 0,
+      required: false,
+      message: 'Valid kurta waist size is required'
+    },
+    kurtaLengthSize: {
+      type: 'number',
+      min: 0,
+      required: false,
+      message: 'Valid kurta length size is required'
+    },
+    kurtaHipSize: {
+      type: 'number',
+      min: 0,
+      required: false,
+      message: 'Valid kurta hip size is required'
+    },
+    bottomWaistSize: {
+      type: 'number',
+      min: 0,
+      required: false,
+      message: 'Valid bottom waist size is required'
+    },
+    bottomLengthSize: {
+      type: 'number',
+      min: 0,
+      required: false,
+      message: 'Valid bottom length size is required'
+    },
+    bottomHipSize: {
+      type: 'number',
+      min: 0,
+      required: false,
+      message: 'Valid bottom hip size is required'
+    },
+    duppattaLengthSize: {
+      type: 'number',
+      min: 0,
+      required: false,
+      message: 'Valid duppatta length size is required'
     }
   },
 

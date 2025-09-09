@@ -128,7 +128,7 @@ export const PRODUCT_CONFIG = {
   // Required variant fields configuration
   VARIANT_FIELDS: {
     REQUIRED: [
-      'meeshoPrice',
+      'price',
       'mrp', 
       'stock',
       'bustSize',
@@ -168,7 +168,7 @@ export const PRODUCT_CONFIG = {
       message: 'GST rate is required'
     },
     // Variant level fields
-    meeshoPrice: {
+    price: {
       type: 'number',
       min: 0.01,
       required: true,
@@ -232,7 +232,7 @@ export const PRODUCT_CONFIG = {
 
   // Field labels for display
   FIELD_LABELS: {
-    meeshoPrice: 'Selling Price',
+    price: 'Selling Price',
     wrongDefectivePrice: 'Return Price',
     mrp: 'MRP',
     stock: 'Inventory',
