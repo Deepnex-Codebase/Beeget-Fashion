@@ -171,7 +171,7 @@ const GuestOrders = () => {
                     </div>
                     <div className="flex justify-between font-medium mt-2 pt-2 border-t border-gray-100">
                       <span>Total:</span>
-                      <span>{formatCurrency(order.total || 0)}</span>
+                      <span>{formatCurrency(parseFloat(order.subtotal - (order.discount || 0) + (order.totalGST || 0)))}</span>
                     </div>
                   </div>
                 </div>

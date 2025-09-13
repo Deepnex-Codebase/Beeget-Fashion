@@ -457,7 +457,8 @@ const Checkout = () => {
   
 
   
-  const total = getCartTotal() // This includes subtotal, discount, shipping and tax
+  // Calculate total with shipping if not already included in getCartTotal()
+  const total = getCartTotal() + (subtotal > 1000 ? 0 : shippingCost)
   
   // Initialize Cashfree payment
   const initializeCashfreePayment = (orderToken, orderId) => {
@@ -573,9 +574,11 @@ const Checkout = () => {
       // Create order payload
       const orderPayload = {
         items: cart.map(item => ({
-          productId: item.id || item._id,
-          variantSku: item.variantSku || (item.variant && item.variant.sku) || `${item.id || item._id}-${item.size || 'default'}-${item.color || 'default'}`,
-          qty: item.quantity
+          productId: item.productId || item.id || item._id,
+          variantSku: item.variantSku || (item.variant && item.variant.sku) || `${item.productId || item.id || item._id}-${item.size || 'default'}-${item.color || 'default'}`,
+          qty: item.quantity,
+          price: item.sellingPrice || item.price || 0, // Send selling price to server
+          gstRate: item.gstRate || 5 // Send GST rate to server (default 5%)
         })),
         shipping: {
           address: shippingAddress,
@@ -1273,8 +1276,7 @@ const Checkout = () => {
                       </p>
                       <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                     </div>
-                    <p className="text-sm font-medium text-gray-900">₹{parseInt(item.mrp * item.quantity)}</p>
-                  </div>
+                      </div>
                 ))}
               </div>
               
@@ -1357,7 +1359,7 @@ const Checkout = () => {
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span>₹{parseInt(getCartTotal())}</span>
+                    <span>₹{parseInt(total)}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Price inclusive of 5% GST</p>
                   {getCartSubtotal() < 1000 && (

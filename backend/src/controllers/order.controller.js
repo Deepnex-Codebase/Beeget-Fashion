@@ -142,12 +142,18 @@ export const createOrder = async (req, res, next) => {
         throw new AppError(`Insufficient stock for variant ${variantSku}`, 400);
       }
 
-      // Calculate item price and GST (using MRP if available)
+      // Calculate item price and GST (using client-provided values if available, otherwise from variant)
       const mrp = variant.mrp || variant.price;
-      const sellingPrice = variant.price || variant.mrp;
-      const gstAmount = (sellingPrice * product.gstRate) / 100;
-      const totalPrice = sellingPrice * qty;
+      // Use client-provided price if available, otherwise use variant price
+      const sellingPrice = item.price || variant.price || variant.mrp;
+      // Use client-provided GST rate if available, otherwise use product GST rate
+      const gstRate = item.gstRate || product.gstRate;
+      const gstAmount = (sellingPrice * gstRate) / 100;
       const totalGSTForItem = gstAmount * qty;
+      // Calculate item price without GST
+      const itemSubtotal = sellingPrice * qty;
+      // Calculate total price including GST
+      const totalPrice = itemSubtotal + totalGSTForItem;
 
       // Add to processed items
       processedItems.push({
@@ -157,13 +163,13 @@ export const createOrder = async (req, res, next) => {
         mrp: mrp,
         selling_price: sellingPrice, // Using snake_case for Shiprocket compatibility
         sellingPrice: sellingPrice, // Keep for backward compatibility
-        gstRate: product.gstRate,
+        gstRate: gstRate, // Use the calculated GST rate (from client or product)
         gstAmount: gstAmount,
         totalPrice,
       });
 
-      // Update subtotal and GST
-      subtotal += totalPrice;
+      // Update subtotal (without GST) and GST separately
+      subtotal += itemSubtotal;
       totalGST += totalGSTForItem;
     }
 
@@ -210,8 +216,8 @@ export const createOrder = async (req, res, next) => {
       };
     }
 
-    // Calculate total
-    const total = subtotal - discount;
+    // Calculate total (including GST)
+    const total = subtotal - discount + totalGST;
 
     // Generate unique order ID
     const order_id = await generateOrderId();
@@ -2292,6 +2298,34 @@ export const cancelOrder = async (req, res, next) => {
       // This would be implemented based on the payment gateway integration
       logger.info(`Refund would be initiated for order ${order._id} with transaction ID ${order.payment.transactionId}`);
     }
+    
+    // Cancel order in ShipRocket if it was integrated
+       if (order.shipping && order.shipping.shipmentId) {
+         try {
+           // Call ShipRocket API to cancel shipment
+           const cancelResponse = await shippingService.cancelShipment(order.shipping.shipmentId);
+           
+           if (cancelResponse.success) {
+             logger.info(`Order ${order._id} successfully cancelled in ShipRocket: ${JSON.stringify(cancelResponse.data)}`);
+             
+             // Update order with cancellation details from ShipRocket
+             if (!order.shipping.cancellation) {
+               order.shipping.cancellation = {};
+             }
+             
+             order.shipping.cancellation.timestamp = new Date();
+             order.shipping.cancellation.reason = reason || "Order cancelled by user";
+             order.shipping.cancellation.shiprocketResponse = cancelResponse.data;
+             
+             await order.save();
+           } else {
+             logger.error(`Failed to cancel order ${order._id} in ShipRocket: ${cancelResponse.error}`);
+           }
+         } catch (shipRocketError) {
+           logger.error(`Error in ShipRocket cancellation for order ${order._id}:`, shipRocketError);
+           // Continue processing even if ShipRocket cancellation fails
+         }
+       }
 
     // Return updated order
     res.status(200).json({

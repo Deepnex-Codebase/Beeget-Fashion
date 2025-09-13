@@ -483,7 +483,7 @@ const OrderDetails = () => {
                       <span className="text-gray-800">Total</span>
                       <span className="text-gray-900">
                         {formatCurrency(
-                          orderDetails.total || orderDetails.totalAmount
+                          parseFloat(orderDetails.subtotal - (orderDetails.discount || orderDetails.coupon?.discount || 0) + (orderDetails.tax || orderDetails.totalGST || 0))
                         )}
                       </span>
                     </div>

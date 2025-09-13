@@ -35,7 +35,7 @@ export const CartProvider = ({ children }) => {
               // Create cart item with all necessary properties
               return {
                 id: item._id || '',
-                productId: product._id || '',
+                productId: product._id || '', // Ensure productId is always set correctly
                 name: product.title || '',
                 title: product.title || '',
                 price: product.sellingPrice || 0,
@@ -100,7 +100,7 @@ export const CartProvider = ({ children }) => {
       
       // Check if item already exists in cart
       const existingItemIndex = cart.findIndex(item => 
-        item.productId === product._id && 
+        (item.productId === product._id || item.productId === product.id) && 
         item.size === size && 
         item.color === color
       )
@@ -122,15 +122,18 @@ export const CartProvider = ({ children }) => {
         // Add new item
         const newItem = {
           ...product,
+          productId: product._id || product.id, // Ensure productId is always set
           quantity,
           size,
-          color
+          color,
+          sellingPrice: product.sellingPrice || product.price, // Ensure sellingPrice is set
+          gstRate: product.gstRate || 5 // Ensure GST rate is set (default 5%)
         }
         
         if (isAuthenticated) {
           // Add to backend
           const response = await api.post('/cart', {
-            productId: product.id,
+            productId: product._id || product.id,
             quantity,
             size,
             color,
@@ -290,8 +293,9 @@ export const CartProvider = ({ children }) => {
   // Calculate cart subtotal
   const getCartSubtotal = () => {
     return cart.reduce((total, item) => {
-      // Use selling price (price) for calculations, not MRP
-      return total + (item.price * item.quantity)
+      // Use selling price for calculations, not MRP
+      const price = item.sellingPrice || item.price || 0;
+      return total + (price * item.quantity)
     }, 0)
   }
   
@@ -321,6 +325,29 @@ export const CartProvider = ({ children }) => {
     return cart.reduce((count, item) => count + item.quantity, 0)
   }
   
+  // Process checkout
+  const checkout = async (orderData) => {
+    try {
+      setLoading(true)
+      
+      // Create order API endpoint
+      const response = await api.post('/orders', orderData)
+      
+      if (response.data.success) {
+        // Clear cart after successful order
+        await clearCart()
+        return response.data
+      } else {
+        throw new Error(response.data.message || 'Checkout failed')
+      }
+    } catch (err) {
+      console.error('Error during checkout:', err)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+  
   return (
     <CartContext.Provider
       value={{
@@ -339,7 +366,8 @@ export const CartProvider = ({ children }) => {
         getCartSubtotal,
         getGstAmount,
         getCartTotal,
-        getCartItemCount
+        getCartItemCount,
+        checkout
       }}
     >
       {children}

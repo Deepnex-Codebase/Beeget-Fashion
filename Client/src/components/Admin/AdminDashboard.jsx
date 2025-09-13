@@ -4556,7 +4556,7 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <h3 className="text-xs font-medium text-java-600 mb-1">Total Amount (Inc. Tax)</h3>
-                  <p className="text-sm font-semibold text-gray-800">{formatCurrency((orderDetails.totalAmount || 0) + (orderDetails.totalGST || 0))}</p>
+                  <p className="text-sm font-semibold text-gray-800">{formatCurrency(parseFloat(orderDetails.subtotal - (orderDetails.discount || 0) + (orderDetails.totalGST || 0)))}</p>
                 </div>
                 <div>
                   <h3 className="text-xs font-medium text-java-600 mb-1">Order Status</h3>

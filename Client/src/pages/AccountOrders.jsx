@@ -135,23 +135,7 @@ const AccountOrders = () => {
     }
   });
   
-  // Delete order mutation
-  const deleteOrder = useMutation({
-    mutationFn: async (orderId) => {
-      const response = await axios.delete(`/orders/${orderId}`);
-      return response.data;
-    },
-    onSuccess: () => {
-      // Invalidate and refetch orders query
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      setSelectedOrder(null);
-      setShowOrderModal(false);
-      toast.success('Order deleted successfully');
-    },
-    onError: () => {
-      toast.error('Failed to delete order');
-    }
-  });
+  // Delete order mutation is removed as we now use cancelOrder mutation instead
 
   // Get status badge class
   const getStatusBadgeClass = (status) => {
@@ -241,10 +225,12 @@ const AccountOrders = () => {
     setShowCancelReasonModal(false);
   };
   
-  // Handle delete order
+  // Handle cancel order (previously delete order)
   const handleDeleteOrder = (orderId) => {
-    if (window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
-      deleteOrder.mutate(orderId);
+    if (window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+      // Use cancelOrder mutation instead of deleteOrder
+      setOrderToCancel(orderId);
+      setShowCancelReasonModal(true);
     }
   };
 
@@ -402,9 +388,19 @@ const AccountOrders = () => {
     }
   }, [cart, paidOrders]);
   
-  // Check if order can be deleted (orders with PENDING payment status can be deleted)
+  // Check if order can be deleted/cancelled (orders with PENDING payment status can be deleted)
+  // Now using the same logic as canCancelOrder to ensure consistency
   const canDeleteOrder = (order) => {
     const paymentStatus = (order.payment?.status || order.paymentStatus || '').toUpperCase();
+    const orderStatus = (order.statusHistory && order.statusHistory.length > 0 
+      ? order.statusHistory[order.statusHistory.length - 1].status 
+      : order.orderStatus || '').toUpperCase();
+    
+    // Cannot cancel if order is already cancelled
+    if (orderStatus === 'CANCELLED') {
+      return false;
+    }
+    
     return paymentStatus === 'PENDING';
   };
   
@@ -717,8 +713,8 @@ const AccountOrders = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">{parseInt(item.qty || item.quantity || 0, 10)}</td>
-                      <td className="px-4 py-4 text-center">{formatCurrency(parseFloat(item.price || item.priceAtPurchase || 0))}</td>
-                      <td className="px-4 py-4 text-right">{formatCurrency(parseFloat((item.price || item.priceAtPurchase || 0)) * parseInt((item.qty || item.quantity || 0), 10))}</td>
+                      <td className="px-4 py-4 text-center">{formatCurrency(parseFloat(item.sellingPrice || item.price || item.priceAtPurchase || 0))}</td>
+                      <td className="px-4 py-4 text-right">{formatCurrency(parseFloat((item.sellingPrice || item.price || item.priceAtPurchase || 0)) * parseInt((item.qty || item.quantity || 0), 10))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -741,7 +737,7 @@ const AccountOrders = () => {
                   )}
                   <tr className="border-t-2 border-gray-300">
                       <td colSpan="3" className="px-4 py-3 text-right font-medium">Total:</td>
-                    <td className="px-4 py-3 text-right font-medium">{formatCurrency((orders.find(o => o._id === selectedOrder)?.total || orders.find(o => o._id === selectedOrder)?.totalAmount || 0) + (orders.find(o => o._id === selectedOrder)?.totalGST || 0))}</td>
+                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(parseFloat(orders.find(o => o._id === selectedOrder)?.subtotal - (orders.find(o => o._id === selectedOrder)?.discount || 0) + (orders.find(o => o._id === selectedOrder)?.totalGST || 0)))}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -884,7 +880,7 @@ const AccountOrders = () => {
                       <div className="text-xs text-gray-500 mt-1">{order.payment?.method || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      {formatCurrency((order.total || order.totalAmount || 0) + (order.totalGST || 0))}
+                      {formatCurrency(parseFloat(order.subtotal - (order.discount || 0) + (order.totalGST || 0)))}
                       {order.items && (
                         <div className="text-xs text-gray-500 mt-1">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</div>
                       )}
@@ -951,10 +947,10 @@ const AccountOrders = () => {
                           <Button 
                             variant="danger" 
                             size="xs" 
-                            onClick={() => handleDeleteOrder(order._id)}
+                            onClick={() => handleCancelOrder(order._id)}
                             className="inline-flex items-center"
                           >
-                            Delete Order
+                            Cancel Order
                           </Button>
                         )}
                       </div>
@@ -1198,7 +1194,7 @@ const AccountOrders = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Total Amount</h3>
-                  <p className="font-medium">{formatCurrency((orderDetails.total || orderDetails.totalAmount || 0) + (orderDetails.totalGST || 0))}</p>
+                  <p className="font-medium">{formatCurrency(parseFloat(orderDetails.subtotal - (orderDetails.discount || 0) + (orderDetails.totalGST || 0)))}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Order Status</h3>
@@ -1331,15 +1327,15 @@ const AccountOrders = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">{item.qty || item.quantity}</td>
-                      <td className="px-4 py-4 text-center">{formatCurrency(item.price || item.priceAtPurchase)}</td>
-                      <td className="px-4 py-4 text-right">{formatCurrency((item.price || item.priceAtPurchase) * (item.qty || item.quantity))}</td>
+                      <td className="px-4 py-4 text-center">{formatCurrency(item.sellingPrice || item.price || item.priceAtPurchase)}</td>
+                      <td className="px-4 py-4 text-right">{formatCurrency((item.sellingPrice || item.price || item.priceAtPurchase) * (item.qty || item.quantity))}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan="3" className="px-4 py-3 text-right text-sm font-medium">Subtotal:</td>
-                    <td className="px-4 py-3 text-right text-sm">{formatCurrency(parseFloat(orderDetails.subtotal || (orderDetails.total - (orderDetails.totalGST || 0)) || 0))}</td>
+                    <td className="px-4 py-3 text-right text-sm">{formatCurrency(parseFloat(orderDetails.subtotal || 0))}</td>
                   </tr>
                   {(orderDetails.totalGST > 0 || (orderDetails.items && orderDetails.items.some(item => item.gstAmount > 0))) && (
                     <tr>
@@ -1355,7 +1351,7 @@ const AccountOrders = () => {
                   )}
                   <tr className="border-t-2 border-gray-300">
                     <td colSpan="3" className="px-4 py-3 text-right font-medium">Total:</td>
-                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(parseFloat(orderDetails.total || orderDetails.totalAmount || (orderDetails.items ? orderDetails.items.reduce((sum, item) => sum + (parseFloat(item.price || item.priceAtPurchase || 0) * parseInt(item.qty || item.quantity || 0, 10)), 0) : 0)))}</td>
+                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(parseFloat(orderDetails.subtotal - (orderDetails.discount || 0) + (orderDetails.totalGST || 0)))}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -1434,7 +1430,7 @@ const AccountOrders = () => {
                     setShowOrderModal(false);
                   }}
                 >
-                  Delete Order
+                  Cancel Order 
                 </Button>
               )}
               

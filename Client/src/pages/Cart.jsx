@@ -58,12 +58,12 @@ const Cart = () => {
     }
   }
 
-  // Calculate shipping cost (free shipping over ₹499)
+  // Calculate shipping cost (free shipping over ₹1000)
   const subtotal = getCartSubtotal()
-  const shippingCost = 0
+  const shippingCost = subtotal > 1000 ? 0 : 100 // Free shipping over ₹1000
   
-  // Calculate total with shipping
-  const total = getCartTotal() + shippingCost
+  // Calculate total with shipping if not already included in getCartTotal()
+  const total = getCartTotal() + (subtotal > 1000 ? 0 : shippingCost)
   
   // Empty cart view
   if (loading) {

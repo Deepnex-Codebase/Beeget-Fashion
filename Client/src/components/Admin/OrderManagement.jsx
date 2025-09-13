@@ -557,7 +557,7 @@ const OrderManagement = () => {
                       </div>
                       <div className="flex justify-between text-sm font-medium pt-2 border-t border-gray-200">
                         <span>Total</span>
-                        <span>{formatCurrency(orderDetails.totalAmount)}</span>
+                        <span>{formatCurrency(parseFloat(orderDetails.subtotal - (orderDetails.discountAmount || 0) + (orderDetails.taxAmount || 0)))}</span>
                       </div>
                     </div>
                   </div>

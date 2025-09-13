@@ -477,34 +477,44 @@ class ShippingService {
   }
 
   /**
-   * Cancel shipment
+   * Cancel a shipment or order in ShipRocket
+   * @param {string} idToCancel - The shipment ID or order ID to cancel
+   * @param {boolean} isOrderId - Whether the ID is an order ID (true) or shipment ID (false)
+   * @returns {Promise<object>} - The response from ShipRocket
    */
-  async cancelShipment(shipmentId) {
+  async cancelShipment(idToCancel, isOrderId = false) {
     try {
       const token = await this.getToken();
 
-      if (!shipmentId) {
-        throw new Error('Shipment ID is required');
+      if (!idToCancel) {
+        throw new Error('ID to cancel is required');
       }
 
-      const payload = { shipment_id: shipmentId };
+      // Prepare payload based on ID type
+      const payload = isOrderId 
+        ? { order_ids: [idToCancel] } 
+        : { ids: [idToCancel] };
+        
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       };
 
+      // Determine the endpoint based on ID type
+      const endpoint = isOrderId ? 'orders/cancel' : 'shipments/cancel';
+
       // Log the request
-      ShipRocketLogger.logRequest('orders/cancel/shipment/request', payload);
+      ShipRocketLogger.logRequest(endpoint, payload);
 
       const response = await axios.post(
-        `${this.baseUrl}/orders/cancel/shipment/request`,
+        `${this.baseUrl}/${endpoint}`,
         payload,
         { headers }
       );
 
       // Log the success response
-      ShipRocketLogger.logSuccess('orders/cancel/shipment/request', response.data, shipmentId);
-      logger.info(`Cancellation requested for shipment: ${shipmentId}`);
+      ShipRocketLogger.logSuccess(endpoint, response.data, idToCancel);
+      logger.info(`Cancellation requested for ${isOrderId ? 'order' : 'shipment'}: ${idToCancel}`);
       
       return {
         success: true,
@@ -512,8 +522,9 @@ class ShippingService {
       };
     } catch (error) {
       // Log the error
-      ShipRocketLogger.logError('orders/cancel/shipment/request', error, shipmentId);
-      logger.error(`Error cancelling shipment ${shipmentId}:`, error);
+      const endpoint = isOrderId ? 'orders/cancel' : 'shipments/cancel';
+      ShipRocketLogger.logError(endpoint, error, idToCancel);
+      logger.error(`Error cancelling ${isOrderId ? 'order' : 'shipment'} ${idToCancel}:`, error);
       
       return {
         success: false,
