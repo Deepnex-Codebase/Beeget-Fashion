@@ -3,7 +3,7 @@ import { AuthContext } from './AuthContext'
 import api from '../utils/api'
 import gstConfig from '../config/gstConfig'
 
-const CartContext = createContext()
+export const CartContext = createContext()
 
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([])

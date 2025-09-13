@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { XMarkIcon, ShoppingBagIcon, PlusIcon, MinusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from '../Common/Button'
-import CartContext from '../../contexts/CartContext'
+import { CartContext } from '../../contexts/CartContext'
 
 const CartOffcanvas = ({ isOpen, onClose }) => {
   const { cart, updateQuantity, removeFromCart, getCartTotal, getCartSubtotal } = useContext(CartContext)

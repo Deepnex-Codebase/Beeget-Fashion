@@ -60,7 +60,7 @@ const Cart = () => {
 
   // Calculate shipping cost (free shipping over ₹499)
   const subtotal = getCartSubtotal()
-  const shippingCost = subtotal > 499 ? 0 : 50
+  const shippingCost = 0
   
   // Calculate total with shipping
   const total = getCartTotal() + shippingCost

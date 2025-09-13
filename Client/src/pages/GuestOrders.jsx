@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import CartContext from '../contexts/CartContext';
+import { CartContext } from '../contexts/CartContext';
 import useAuth from '../hooks/useAuth';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import Button from '../components/Common/Button';
