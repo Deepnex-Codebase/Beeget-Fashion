@@ -1211,30 +1211,7 @@ const Home = () => {
                         )}
 
                         {/* Price section with improved styling */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-baseline gap-1 xs:gap-1.5">
-                            <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">
-                              ₹
-                              {product.mrp && product.mrp !== null
-                                ? parseInt(product.mrp)
-                                : product.variants && product.variants.length > 0 && product.variants[0].mrp
-                                ? parseInt(product.variants[0].mrp)
-                                : "0"
-                                }
-                            </p>
-                            {product.originalPrice &&
-                              product.originalPrice > product.mrp && (
-                                <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">
-                                  ₹
-                                  {product.originalPrice &&
-                                  product.originalPrice !== null
-                                    ? parseInt(product.originalPrice)
-                                    : "0"}
-                                </p>
-                              )}
-                          </div>
-                        </div>
-
+         
                         {/* Available Sizes */}
                         {product.sizes && product.sizes.length > 0 && (
                           <div className="mt-1">
@@ -1272,11 +1249,10 @@ const Home = () => {
                           </div>
                         )}
 
-                        {/* Add to Cart Button */}
-                        <button
+                        {/* View Product Button */}
+                        <Link
+                          to={`/product/${product.slug}`}
                           className="w-full mt-3 py-1.5 xs:py-2 px-2 xs:px-3 bg-java-500 text-white text-xs xs:text-sm font-medium rounded-full shadow-sm hover:bg-java-600 flex items-center justify-center gap-1 xs:gap-1.5 transition-colors"
-                          aria-label="Add to cart"
-                          onClick={() => handleAddToCart(product)}
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -1289,11 +1265,17 @@ const Home = () => {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                             />
                           </svg>
-                          Add to Cart
-                        </button>
+                          View Product
+                        </Link>
                       </div>
                     </motion.div>
                   );
@@ -1839,28 +1821,6 @@ const Home = () => {
                           </span>
                         </div>
 
-                        {/* Price section with improved styling */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-baseline gap-1 xs:gap-1.5">
-                            <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">
-                              ₹{getMRPForSize(product, selectedSizes[product.id])
-                                ? parseInt(getMRPForSize(product, selectedSizes[product.id]))
-                                : "2000"}
-                            </p>
-                            {product.originalPrice && (
-                              <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">
-                                ₹{product.originalPrice
-                                  ? parseInt(product.originalPrice)
-                                  : "0"}
-                              </p>
-                            )}
-                          </div>
-                          {discountPercentage > 0 && (
-                            <span className="text-[9px] xs:text-[10px] sm:text-xs bg-green-50 text-green-600 font-bold px-1 xs:px-1.5 py-0.5 rounded-full border border-green-100">
-                              {discountPercentage}% OFF
-                            </span>
-                          )}
-                        </div>
 
                         {/* Available Sizes or Premium Quality */}
                         {product.sizes ? (
@@ -1895,11 +1855,10 @@ const Home = () => {
                           </div>
                         )}
 
-                        {/* Add to Cart Button */}
-                        <button
+                        {/* View Product Button */}
+                        <Link
+                          to={`/product/${product.slug}`}
                           className="w-full mt-3 py-1.5 xs:py-2 px-2 xs:px-3 bg-java-500 text-white text-xs xs:text-sm font-medium rounded-full shadow-sm hover:bg-java-600 flex items-center justify-center gap-1 xs:gap-1.5 transition-colors"
-                          aria-label="Add to cart"
-                          onClick={() => handleAddToCart(product)}
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -1912,11 +1871,17 @@ const Home = () => {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                             />
                           </svg>
-                          Add to Cart
-                        </button>
+                          View Product
+                        </Link>
                       </div>
                     </motion.div>
                   );
