@@ -61,4 +61,10 @@ api.setAuthToken = function(tokens) {
   }
 };
 
+// Pincode API endpoints
+api.pincodes = {
+  // Check pincode availability using ShipRocket integration
+  checkPincode: (pincode) => api.get(`/pincodes/check/${pincode}`),
+};
+
 export default api;

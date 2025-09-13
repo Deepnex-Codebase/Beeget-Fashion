@@ -7,6 +7,7 @@ import useWishlist from '../hooks/useWishlist'
 import Button from '../components/Common/Button'
 import api from '../utils/api'
 import Image from '../components/Common/Image'
+import { toast } from 'react-toastify'
 
 const ProductDetail = () => {
   const { slug } = useParams()
@@ -25,6 +26,10 @@ const ProductDetail = () => {
   const [userRating, setUserRating] = useState(0)
   const [userReview, setUserReview] = useState('')
   const [forceUpdate, setForceUpdate] = useState({})
+  const [pincode, setPincode] = useState('')
+  const [isPincodeAvailable, setIsPincodeAvailable] = useState(null)
+  const [isPincodeLoading, setIsPincodeLoading] = useState(false)
+  const [deliveryMessage, setDeliveryMessage] = useState('')
   
     // Extract unique sizes and colors from variants
   const getUniqueVariantAttributes = () => {
@@ -150,6 +155,41 @@ const ProductDetail = () => {
     }
   }
   
+  // Check pincode availability
+  const checkPincode = () => {
+    if (pincode.length !== 6 || isPincodeLoading) return;
+    
+    setIsPincodeLoading(true);
+    setDeliveryMessage('');
+    
+    // Call backend API to check pincode availability using ShipRocket
+    import('../utils/api').then(({ default: api }) => {
+      api.pincodes.checkPincode(pincode)
+        .then(response => {
+          const { isAvailable, deliveryDays, minDeliveryDays, maxDeliveryDays } = response.data;
+          setIsPincodeAvailable(isAvailable);
+          
+          // Set delivery message based on availability
+          if (isAvailable) {
+            if (minDeliveryDays && maxDeliveryDays && minDeliveryDays !== maxDeliveryDays) {
+              setDeliveryMessage(`Expected delivery in ${minDeliveryDays}-${maxDeliveryDays} days with free shipping.`);
+            } else {
+              setDeliveryMessage(`Expected delivery in ${deliveryDays} days with free shipping.`);
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error checking pincode:', error);
+          setIsPincodeAvailable(false);
+          // Handle API error gracefully
+          toast.error('Failed to check pincode availability. Please try again.');
+        })
+        .finally(() => {
+          setIsPincodeLoading(false);
+        });
+    });
+  }
+  
   // Close size chart when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -163,6 +203,13 @@ const ProductDetail = () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showSizeChart])
+  
+  // Check pincode on initial load
+  useEffect(() => {
+    if (pincode && pincode.length === 6) {
+      checkPincode();
+    }
+  }, []) // Empty dependency array means this runs once on component mount
   
   // State for review images
   const [reviewImages, setReviewImages] = useState([])
@@ -635,11 +682,27 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     if (!selectedSize) {
       // Please select a size before adding to bag
+      toast.warning("Please select a size before adding to bag", {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       return
     }
     
     if (!selectedColor) {
       // Please choose a color before adding to bag
+      toast.warning("Please choose a color before adding to bag", {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       return
     }
     
@@ -649,6 +712,14 @@ const ProductDetail = () => {
     // Check if selected variant is in stock
     if (!selectedVariant || selectedVariant.stock <= 0) {
       // This product variant is out of stock
+      toast.error("This product variant is out of stock", {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       return
     }
     
@@ -659,9 +730,7 @@ const ProductDetail = () => {
     const productToAdd = {
       id: product._id,
       name: product.title,
-      price: selectedVariant.mrp 
-        ? parseFloat(selectedVariant.mrp) 
-        : selectedVariant.price 
+      price: selectedVariant.price 
         ? parseFloat(selectedVariant.price) 
         : 0,
       mrp: selectedVariant.mrp 
@@ -669,7 +738,7 @@ const ProductDetail = () => {
         : selectedVariant.price 
         ? parseFloat(selectedVariant.price) 
         : 0,
-      originalPrice: selectedVariant.price ? parseFloat(selectedVariant.price) : 0,
+      originalPrice: selectedVariant.selli ? parseFloat(selectedVariant.price) : 0,
       image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/image_default.png',
       variantId: selectedVariant._id,
       sku: selectedVariant.sku,
@@ -1038,37 +1107,35 @@ const ProductDetail = () => {
                         {getSelectedVariant() && getSelectedVariant().mrp && getSelectedVariant().price && 
                          parseFloat(getSelectedVariant().mrp) > parseFloat(getSelectedVariant().price) ? (
                           <div className="flex flex-wrap items-center">
-                            <span className="text-xl sm:text-2xl font-semibold text-gray-900 mr-2">
-                              ₹{parseInt(parseFloat(getSelectedVariant().mrp) * quantity)}
+                            <span className="text-xl sm:text-2xl font-semibold text-java-600 mr-2">
+                              ₹{parseInt(parseFloat(getSelectedVariant().price) * quantity)}
                             </span>
-                           
+                            <span className="text-sm text-gray-500 line-through mr-2">
+                              MRP: ₹{parseInt(parseFloat(getSelectedVariant().mrp) * quantity)}
+                            </span>
                             <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
                               {Math.round(((parseFloat(getSelectedVariant().mrp) - parseFloat(getSelectedVariant().price)) / parseFloat(getSelectedVariant().mrp)) * 100)}% OFF
                             </span>
                           </div>
                         ) : (
-                          <span className="text-xl sm:text-2xl font-semibold text-gray-900">
-                            ₹{getSelectedVariant() && getSelectedVariant().mrp 
-                              ? parseInt(parseFloat(getSelectedVariant().mrp) * quantity) 
-                              : getSelectedVariant() && getSelectedVariant().price 
-                              ? parseInt(parseFloat(getSelectedVariant().price) * quantity)
-                              : '0'}
-                          </span>
+                          <div className="flex flex-wrap items-center">
+                            <span className="text-xl sm:text-2xl font-semibold text-java-600 mr-2">
+                              ₹{getSelectedVariant() && getSelectedVariant().sellingPrice 
+                                ? parseInt(parseFloat(getSelectedVariant().sellingPrice) * quantity)
+                                : '0'}
+                            </span>
+                            {getSelectedVariant() && getSelectedVariant().mrp && (
+                              <span className="text-sm text-gray-500 line-through mr-2">
+                                MRP: ₹{parseInt(parseFloat(getSelectedVariant().mrp) * quantity)}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </>
                   ) : (
                     <span className="text-xl sm:text-2xl font-semibold text-gray-900">₹0</span>
                   )}
-                </div>
-
-                {/* Unit Price */}
-                <div className="text-xs text-gray-600 mb-1">
-                  Unit Price: ₹{getSelectedVariant() && getSelectedVariant().mrp 
-                    ? parseInt(parseFloat(getSelectedVariant().mrp)) 
-                    : getSelectedVariant() && getSelectedVariant().price 
-                    ? parseInt(parseFloat(getSelectedVariant().price))
-                    : '0'}
                 </div>
                 
                 {/* Inclusive of all taxes */}
@@ -1597,31 +1664,88 @@ const ProductDetail = () => {
                     <div className="w-full min-w-0 overflow-hidden">
                       <label htmlFor="pincode" className="block text-sm sm:text-base font-medium text-java-700 mb-2 sm:mb-3 truncate">Pincode Checker</label>
                       <div className="flex flex-col sm:flex-row items-center md:flex-wrap md:space-y-2">
-                        <div className="w-full mb-2 sm:mb-0 sm:mr-3 border-2 border-java-300 rounded-lg overflow-hidden bg-white focus-within:ring-2 focus-within:ring-java-400 focus-within:border-java-400 transition-all duration-200 shadow-sm hover:shadow-md md:min-w-0 md:w-full md:mb-2">
+                        <div className="w-full mb-2 sm:mb-0 sm:mr-3 border-2 border-java-300 rounded-lg overflow-hidden bg-white focus-within:ring-2 focus-within:ring-java-400 focus-within:border-java-400 transition-all duration-200 shadow-sm hover:shadow-md md:min-w-0 md:w-full md:mb-2 relative">
                           <input 
                             id="pincode"
                             type="text" 
                             placeholder="Enter pincode" 
-                            className="text-sm sm:text-base py-2.5 sm:py-3 px-3 sm:px-4 w-full border-none bg-transparent focus:outline-none focus:ring-0 text-java-800 placeholder-java-400 font-medium"
+                            className="text-sm sm:text-base py-2.5 sm:py-3 px-3 sm:px-4 w-full border-none bg-transparent focus:outline-none focus:ring-0 text-java-800 placeholder-java-400 font-medium pr-10"
                             maxLength="6"
                             pattern="[0-9]*"
                             inputMode="numeric"
                             aria-label="Enter delivery pincode"
+                            value={pincode}
+                            onChange={(e) => setPincode(e.target.value.replace(/[^0-9]/g, ''))}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && pincode.length === 6 && !isPincodeLoading) {
+                                e.preventDefault();
+                                checkPincode();
+                              }
+                            }}
                           />
+                          {pincode && (
+                            <button 
+                              onClick={() => setPincode('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-java-500 hover:text-java-700 transition-colors duration-200"
+                              aria-label="Clear pincode"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
-                        <button className="w-full sm:w-auto bg-java-500 hover:bg-java-600 text-white text-sm sm:text-base font-medium px-4 sm:px-5 py-2.5 sm:py-3 transition-colors duration-200 shadow-sm flex items-center justify-center sm:justify-start whitespace-nowrap rounded-lg sm:rounded-md flex-shrink-0 md:mt-0">
-                          <span className="truncate">Check</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-1 sm:ml-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                        <button 
+                          onClick={checkPincode}
+                          disabled={isPincodeLoading || pincode.length !== 6}
+                          className={`w-full sm:w-auto ${isPincodeLoading ? 'bg-java-400 cursor-not-allowed' : 'bg-java-500 hover:bg-java-600'} text-white text-sm sm:text-base font-medium px-4 sm:px-5 py-2.5 sm:py-3 transition-colors duration-200 shadow-sm flex items-center justify-center sm:justify-start whitespace-nowrap rounded-lg sm:rounded-md flex-shrink-0 md:mt-0`}
+                        >
+                          <span className="truncate">
+                            {isPincodeLoading ? 'Checking...' : 'Check'}
+                          </span>
+                          {!isPincodeLoading && (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-1 sm:ml-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          )}
+                          {isPincodeLoading && (
+                            <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5 ml-1 sm:ml-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          )}
                         </button>
                       </div>
-                      <div className="flex items-center mt-2 sm:mt-3 text-java-700 overflow-hidden">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-java-500 mr-1 sm:mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p className="text-xs sm:text-sm truncate">Enter PIN code to check delivery time & Pay on Delivery Availability</p>
-                      </div>
+                      {!isPincodeAvailable && !isPincodeLoading && !deliveryMessage && (
+                        <div className="flex items-center mt-2 sm:mt-3 text-java-700 overflow-hidden">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-java-500 mr-1 sm:mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs sm:text-sm truncate">Enter PIN code to check delivery time & Pay on Delivery Availability</p>
+                        </div>
+                      )}
+                      
+                      {isPincodeAvailable === true && (
+                        <div className="flex items-center mt-2 sm:mt-3 text-green-700 overflow-hidden">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-1 sm:mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs sm:text-sm">
+                            <span className="font-medium">Delivery available</span> to {pincode}! {deliveryMessage}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {isPincodeAvailable === false && (
+                        <div className="flex items-center mt-2 sm:mt-3 text-red-700 overflow-hidden">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-1 sm:mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs sm:text-sm">
+                            <span className="font-medium">Sorry!</span> We don't deliver to {pincode} yet. Please try another pincode or contact customer support for assistance.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

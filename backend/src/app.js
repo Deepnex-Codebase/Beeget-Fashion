@@ -29,6 +29,7 @@ import siteContentRoutes from './routes/site-content.routes.js';
 import guestVerificationRoutes from './routes/guest-verification.routes.js';
 import shippingRoutes from './routes/shipping.routes.js';
 import shiprocketRoutes from './routes/shiprocket.routes.js';
+import pincodeRoutes from './routes/pincode.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -120,7 +121,8 @@ const apiRoutes = [
   { path: '/api/site-content', router: siteContentRoutes },
   { path: '/api/guest-verification', router: guestVerificationRoutes },
   { path: '/api/shipping', router: shippingRoutes },
-  { path: '/api/shiprocket', router: shiprocketRoutes }
+  { path: '/api/shiprocket', router: shiprocketRoutes },
+  { path: '/api/pincodes', router: pincodeRoutes }
 ];
 
 // Register all API routes

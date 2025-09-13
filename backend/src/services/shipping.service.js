@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { logger } from '../utils/logger.js';
 import ShipRocketLogger from '../utils/shiprocketLogger.js';
+import dotenv from 'dotenv';
 
 /**
  * ShipRocket Shipping Integration Service
@@ -17,6 +18,86 @@ class ShippingService {
     this.baseUrl = 'https://apiv2.shiprocket.in/v1/external';
     this.token = null;
     this.tokenExpiry = null;
+  }
+  
+  /**
+   * Check if a pincode is serviceable by ShipRocket
+   * @param {string} pincode - The pincode to check
+   * @returns {Promise<Object>} - The response from ShipRocket
+   */
+  async checkPincodeServiceability(pincode) {
+    try {
+      const token = await this.getToken();
+      const pickupPostcode = process.env.SHIPROCKET_PICKUP_POSTCODE || '110001';
+      
+      // Prepare params as required by ShipRocket API
+      const params = {
+        pickup_postcode: pickupPostcode,
+        delivery_postcode: pincode,
+        cod: 1,
+        weight: 0.5,
+        length: 10,
+        breadth: 10,
+        height: 10
+      };
+      
+      ShipRocketLogger.logRequest('courier/serviceability', params);
+      
+      const response = await axios.get(
+        `${this.baseUrl}/courier/serviceability`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          params: params
+        }
+      );
+      
+      ShipRocketLogger.logSuccess('courier/serviceability', response.data);
+      
+      // Check if the pincode is serviceable
+      const isServiceable = response.data && response.data.data && response.data.data.available_courier_companies && 
+                           response.data.data.available_courier_companies.length > 0;
+      
+      // Calculate estimated delivery days
+      let minDeliveryDays = 0;
+      let maxDeliveryDays = 0;
+      
+      if (isServiceable && response.data.data.available_courier_companies.length > 0) {
+        // Find the courier with the shortest estimated delivery time
+        const couriers = response.data.data.available_courier_companies;
+        
+        // Get the min and max delivery days from all available couriers
+        couriers.forEach(courier => {
+          const etd = courier.estimated_delivery_days || 0;
+          if (minDeliveryDays === 0 || etd < minDeliveryDays) {
+            minDeliveryDays = etd;
+          }
+          if (etd > maxDeliveryDays) {
+            maxDeliveryDays = etd;
+          }
+        });
+      }
+      
+      return {
+        success: true,
+        isAvailable: isServiceable,
+        deliveryDays: minDeliveryDays || 3, // Default to 3 days if no estimate available
+        minDeliveryDays,
+        maxDeliveryDays,
+        data: response.data
+      };
+    } catch (error) {
+      ShipRocketLogger.logError(`courier/serviceability?pickup_postcode=394210&delivery_postcode=${pincode}`, error);
+      logger.error(`ShipRocket pincode check failed for ${pincode}:`, error);
+      
+      return {
+        success: false,
+        isAvailable: false,
+        error: error.response?.data || error.message
+      };
+    }
   }
   /**
    * Get authentication token

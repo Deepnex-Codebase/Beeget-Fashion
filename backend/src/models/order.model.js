@@ -21,7 +21,7 @@ const OrderSchema = new mongoose.Schema(
     channel_id: {
       type: String,
       required: false,
-      default: process.env.SHIPROCKET_CHANNEL_ID || null
+      default: process.env.SHIPROCKET_CHANNEL_ID || ''
     },
 
     userId: {
