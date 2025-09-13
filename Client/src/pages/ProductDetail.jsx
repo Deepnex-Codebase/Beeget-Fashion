@@ -730,7 +730,9 @@ const ProductDetail = () => {
     const productToAdd = {
       id: product._id,
       name: product.title,
-      price: selectedVariant.price 
+      price: selectedVariant.sellingPrice 
+        ? parseFloat(selectedVariant.sellingPrice) 
+        : selectedVariant.price 
         ? parseFloat(selectedVariant.price) 
         : 0,
       mrp: selectedVariant.mrp 
@@ -738,7 +740,7 @@ const ProductDetail = () => {
         : selectedVariant.price 
         ? parseFloat(selectedVariant.price) 
         : 0,
-      originalPrice: selectedVariant.selli ? parseFloat(selectedVariant.price) : 0,
+      originalPrice: selectedVariant.mrp ? parseFloat(selectedVariant.mrp) : 0,
       image: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].trim().replace(/`/g, '') : '/image_default.png',
       variantId: selectedVariant._id,
       sku: selectedVariant.sku,

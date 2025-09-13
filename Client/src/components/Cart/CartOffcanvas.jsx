@@ -157,7 +157,6 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                       {/* Price */}
                       <div className="text-right">
                         <p className="font-medium">₹{(() => {
-                          console.log(item)
                           // Use selling price instead of MRP
                           const price = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
                           // Ensure quantity is a valid number and at least 1

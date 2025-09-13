@@ -162,9 +162,9 @@ const Cart = () => {
                   <div className="col-span-2 text-center">
                     <span className="sm:hidden inline-block font-medium mr-2">Price:</span>
                     <div>
-                      <span className="font-medium">₹{parseInt(typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price) || 0) || 0}</span>
-                      {item.mrp && item.price && parseFloat(item.mrp) > parseFloat(item.price) && (
-                        <span className="text-xs text-gray-500 line-through ml-2">₹{parseInt(parseFloat(item.price) || 0) || 0}</span>
+                      <span className="font-medium">₹{parseInt(parseFloat(item.price) || 0) || 0}</span>
+                      {item.mrp && parseFloat(item.mrp) > parseFloat(item.price) && (
+                        <span className="text-xs text-gray-500 line-through ml-2">₹{parseInt(parseFloat(item.mrp) || 0) || 0}</span>
                       )}
                     </div>
                   </div>
@@ -205,7 +205,7 @@ const Cart = () => {
                   {/* Total */}
                   <div className="col-span-2 text-center font-medium">
                     <span className="sm:hidden inline-block font-medium mr-2">Total:</span>
-                    ₹{parseInt((typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price) || 0) * (typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0)) || 0}
+                    ₹{parseInt((parseFloat(item.price) || 0) * (typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0)) || 0}
                   </div>
                 </div>
               ))}
