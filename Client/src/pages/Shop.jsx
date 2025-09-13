@@ -29,6 +29,11 @@ const Shop = () => {
     limit: parseInt(searchParams.get('limit') || '9', 10)
   })
   
+  // State for selected sizes and colors for each product
+  const [selectedAttributes, setSelectedAttributes] = useState({})
+  // State for validation errors
+  const [validationErrors, setValidationErrors] = useState({})
+  
   // Debounced search state
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
   const [isSearching, setIsSearching] = useState(false)
@@ -154,11 +159,8 @@ const Shop = () => {
               [...new Set(product.variants.map(v => 
                 v.attributes && v.attributes.size ? v.attributes.size : null
               ).filter(Boolean))] : [],
-            // Extract unique colors from variants
-            colors: product.variants ? 
-              [...new Set(product.variants.map(v => 
-                v.attributes && v.attributes.color ? v.attributes.color : null
-              ).filter(Boolean))] : [],
+            // Use the colors array from the product
+            colors: product.colors || [],
             inStock: product.variants && product.variants.some(v => v.stock > 0),
             // Initialize rating data
             rating: 0,
@@ -235,39 +237,82 @@ const Shop = () => {
     //   return
     // }
     
-    // Get default size and color from product variants if available
-    let defaultSize = null;
-    let defaultColor = null;
+    const productId = product.id || product._id;
+    const productAttributes = selectedAttributes[productId] || {};
+    
+    // Check if size is selected
+    if (!productAttributes.size && product.sizes && product.sizes.length > 0) {
+      // Set validation error for size
+      setValidationErrors(prev => ({
+        ...prev,
+        [productId]: { ...prev[productId], size: 'Please select a size' }
+      }));
+      return;
+    }
+    
+    // Check if color is selected (only if product has colors)
+    const availableColors = product.colors || [];
+      
+    if (!productAttributes.color && availableColors && availableColors.length > 0) {
+      // Set validation error for color
+      setValidationErrors(prev => ({
+        ...prev,
+        [productId]: { ...prev[productId], color: 'Please select a color' }
+      }));
+      return;
+    }
+    
+    // Clear validation errors for this product
+    setValidationErrors(prev => ({
+      ...prev,
+      [productId]: {}
+    }));
+    
+    // Find the selected variant based on size and color
+    let selectedVariant = null;
     let variantSku = null;
     
-    // Check if product has variants with size and color attributes
+    // colors always come from product.colors
+    const colors = product.colors || [];
+    
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-      // Find first variant that has stock
-      const inStockVariant = product.variants.find(v => v.stock > 0);
+      selectedVariant = product.variants.find(v => {
+        // size must match if selected
+        const sizeMatch = !productAttributes.size || (v.attributes && v.attributes.size === productAttributes.size);
+        
+        // color check must always come from product.colors
+        let colorMatch = true;
+        if (productAttributes.color) {
+          colorMatch = colors.includes(productAttributes.color);
+        }
+        
+        // ensure stock > 0
+        const inStock = typeof v.stock === 'number' ? v.stock > 0 : !!v.isInStock;
+        
+        return sizeMatch && colorMatch && inStock;
+      });
       
-      if (inStockVariant && inStockVariant.attributes) {
-        defaultSize = inStockVariant.attributes.size || null;
-        defaultColor = inStockVariant.attributes.color || null;
-        variantSku = inStockVariant.sku || null;
+      // fallback: if no exact match, at least match by size
+      if (!selectedVariant && productAttributes.size) {
+        selectedVariant = product.variants.find(v => v.attributes && v.attributes.size === productAttributes.size && (v.stock > 0 || v.isInStock));
+      }
+      
+      if (selectedVariant) {
+        variantSku = selectedVariant.sku || null;
       }
     }
     
-    // If no size found from variants but product has sizes array, use first size
-    if (!defaultSize && product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0) {
-      defaultSize = product.sizes[0];
-    }
-    
-    // Add to cart with size and color information
+    // Add to cart with selected size and color information
     addToCart({
-      id: product._id,  // Changed from productId to id
+      id: productId,
       name: product.title,
       price: product.price,
       image: product.images && product.images.length > 0 ? product.images[0] : '',
       quantity: 1,
-      size: defaultSize,
-      color: defaultColor,
+      size: productAttributes.size,
+      color: productAttributes.color,
       variantSku: variantSku
-    }, 1, defaultSize, defaultColor)
+    }, 1, productAttributes.size, productAttributes.color)
     
     // Product added to cart notification removed
     // toast.success(`${product.title} added to cart!`)
@@ -622,6 +667,12 @@ const Shop = () => {
                   const availableSizes = product.category === 'accessories' ? [] : 
                     (product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0) ? 
                     product.sizes : [];
+                    
+                  // Get available colors from product data
+                  const availableColors = product.variants ? 
+                    [...new Set(product.variants.map(v => 
+                      v.attributes && v.attributes.color ? v.attributes.color : null
+                    ).filter(Boolean))] : [];
                   
                   return (
                     <div key={productId} className="group relative rounded-lg xs:rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md overflow-hidden">
@@ -749,13 +800,18 @@ const Shop = () => {
                                     const sizeVariant = product.variants && Array.isArray(product.variants) && 
                                       product.variants.find(v => v.attributes && v.attributes.size === size);
                                     
+                                    // Check if this size is selected
+                                    const productId = product.id || product._id;
+                                    const isSelected = selectedAttributes[productId]?.size === size;
+                                    
                                     return (
                                       <span 
                                         key={size} 
-                                        className="inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:bg-java-50 hover:border-java-200 transition-all cursor-pointer"
+                                        className={`inline-block px-1.5 xs:px-2 py-0.5 text-[10px] xs:text-xs border rounded-full transition-all cursor-pointer ${isSelected ? 'bg-java-500 text-white border-java-600' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-java-50 hover:border-java-200'}`}
                                         onClick={() => {
                                           // Create a copy of the product
                                           const updatedProduct = {...product};
+                                          const productId = product.id || product._id;
                                           
                                           // Update MRP and price based on selected size variant
                                           if (sizeVariant) {
@@ -772,10 +828,24 @@ const Shop = () => {
                                           
                                           // Update the products array with the modified product
                                           const updatedProducts = [...products];
-                                          const productIndex = products.findIndex(p => p._id === product._id);
+                                          const productIndex = products.findIndex(p => (p.id || p._id) === productId);
                                           if (productIndex !== -1) {
                                             updatedProducts[productIndex] = updatedProduct;
                                             setProducts(updatedProducts);
+                                          }
+                                          
+                                          // Update selected size in state
+                                          setSelectedAttributes(prev => ({
+                                            ...prev,
+                                            [productId]: { ...prev[productId], size }
+                                          }));
+                                          
+                                          // Clear size validation error if it exists
+                                          if (validationErrors[productId]?.size) {
+                                            setValidationErrors(prev => ({
+                                              ...prev,
+                                              [productId]: { ...prev[productId], size: null }
+                                            }));
                                           }
                                         }}
                                       >
@@ -784,54 +854,97 @@ const Shop = () => {
                                     );
                                   })}
                                 </div>
+                                {validationErrors[product.id || product._id]?.size && (
+                                  <p className="text-[10px] text-red-500 mt-1">{validationErrors[product.id || product._id].size}</p>
+                                )}
                               </div>
                             )}
                             
-                            {/* Available Colors */}
-                            {product.colors && product.colors.length > 0 && (
+                            {/* Available Colors - Only show after size is selected */}
+                            {product.colors && product.colors.length > 0 && selectedAttributes[product.id || product._id]?.size && (
                               <div className="mt-2">
                                 <p className="text-[10px] xs:text-xs font-medium text-java-600 mb-0.5 xs:mb-1">AVAILABLE COLORS:</p>
                                 <div className="flex flex-wrap gap-1 xs:gap-1.5">
                                   {product.colors.map(color => {
+                                    const productId = product.id || product._id;
+                                    const selectedSize = selectedAttributes[productId]?.size;
+                                    
                                     // Find variant with this color to get its MRP
-                                    const colorVariant = product.variants && Array.isArray(product.variants) && 
-                                      product.variants.find(v => v.attributes && v.attributes.color === color);
+                                    // Use product.colors for color validation
+                                    const variantWithColor = product.variants && Array.isArray(product.variants) && 
+                                      product.variants.find(v => v.attributes && v.attributes.size === selectedSize);
+                                    
+                                    // Check if this color is available for the selected size
+                                    // If there are variants, filter to only show colors that match the selected size
+                                    let isColorAvailableForSize = true;
+                                    if (product.variants && Array.isArray(product.variants) && selectedSize) {
+                                      isColorAvailableForSize = product.variants.some(
+                                        v => v.attributes && 
+                                             v.attributes.size === selectedSize && 
+                                             product.colors.includes(color) && 
+                                             v.stock > 0
+                                      );
+                                    }
+                                    
+                                    // Skip rendering this color if it's not available for the selected size
+                                    if (!isColorAvailableForSize) return null;
+                                    
+                                    // Check if this color is selected
+                                    const isSelected = selectedAttributes[productId]?.color === color;
                                     
                                     return (
                                       <span 
                                         key={color} 
-                                        className="inline-block w-5 h-5 xs:w-6 xs:h-6 rounded-full border border-gray-200 hover:border-java-200 transition-all cursor-pointer"
+                                        className={`inline-block w-5 h-5 xs:w-6 xs:h-6 rounded-full transition-all cursor-pointer ${isSelected ? 'ring-2 ring-java-500 ring-offset-1' : 'border border-gray-200 hover:border-java-200'}`}
                                         style={{ backgroundColor: color.toLowerCase() }}
                                         title={color}
                                         onClick={() => {
                                           // Create a copy of the product
                                           const updatedProduct = {...product};
+                                          const productId = product.id || product._id;
                                           
-                                          // Update MRP and price based on selected color variant
-                                          if (colorVariant) {
-                                            if (colorVariant.mrp) {
-                                              updatedProduct.mrp = colorVariant.mrp;
+                                          // Update MRP and price based on selected variant with matching size
+                                          if (variantWithColor) {
+                                            if (variantWithColor.mrp) {
+                                              updatedProduct.mrp = variantWithColor.mrp;
                                             }
-                                            if (colorVariant.sellingPrice) {
-                                              updatedProduct.sellingPrice = colorVariant.sellingPrice;
-                                              updatedProduct.price = colorVariant.sellingPrice;
-                                            } else if (colorVariant.price) {
-                                              updatedProduct.price = colorVariant.price;
+                                            if (variantWithColor.sellingPrice) {
+                                              updatedProduct.sellingPrice = variantWithColor.sellingPrice;
+                                              updatedProduct.price = variantWithColor.sellingPrice;
+                                            } else if (variantWithColor.price) {
+                                              updatedProduct.price = variantWithColor.price;
                                             }
                                           }
                                           
                                           // Update the products array with the modified product
                                           const updatedProducts = [...products];
-                                          const productIndex = products.findIndex(p => p._id === product._id);
+                                          const productIndex = products.findIndex(p => (p.id || p._id) === productId);
                                           if (productIndex !== -1) {
                                             updatedProducts[productIndex] = updatedProduct;
                                             setProducts(updatedProducts);
+                                          }
+                                          
+                                          // Update selected color in state
+                                          setSelectedAttributes(prev => ({
+                                            ...prev,
+                                            [productId]: { ...prev[productId], color }
+                                          }));
+                                          
+                                          // Clear color validation error if it exists
+                                          if (validationErrors[productId]?.color) {
+                                            setValidationErrors(prev => ({
+                                              ...prev,
+                                              [productId]: { ...prev[productId], color: null }
+                                            }));
                                           }
                                         }}
                                       ></span>
                                     );
                                   })}
                                 </div>
+                                {validationErrors[product.id || product._id]?.color && (
+                                  <p className="text-[10px] text-red-500 mt-1">{validationErrors[product.id || product._id].color}</p>
+                                )}
                               </div>
                             )}
                           </div>
