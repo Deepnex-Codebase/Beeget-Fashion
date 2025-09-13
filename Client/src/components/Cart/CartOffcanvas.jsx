@@ -38,10 +38,10 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
     const subtotal = getCartSubtotal()
     
     // Calculate GST amount (5% of pre-tax value)
-    const gstAmount = (subtotal * 5) / 105
+    const gstAmount = (subtotal * 5) / 100
     
     // Calculate shipping cost (free over ₹1000)
-    const shippingCost = subtotal > 1000 ? 0 : 100
+    const shippingCost = 0
     
     // Calculate total with shipping
     const total = getCartTotal()
@@ -157,6 +157,7 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                       {/* Price */}
                       <div className="text-right">
                         <p className="font-medium">₹{(() => {
+                          console.log(item)
                           // Use selling price instead of MRP
                           const price = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
                           // Ensure quantity is a valid number and at least 1
@@ -186,14 +187,14 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                 <div className="flex justify-between mb-2">
                   <span className="text-java-800 text-xs">Shipping:</span>
                   <span className="font-medium text-java-800 text-xs">
-                    {cartValues.shippingCost > 0 ? `₹${cartValues.shippingCost}` : 'Free'}
+                    {cartValues.shippingCost >= 0 ? 'Free' : 'Free'}
                   </span>
                 </div>
                 <div className="flex justify-between mb-2 pt-2 border-t border-java-100">
                   <span className="text-java-800 font-medium">Total:</span>
                   <span className="font-medium text-java-800">₹{Math.round(cartValues.total) || 0}</span>
                 </div>
-                <p className="text-xs text-gray-500 mb-4">Price inclusive of 5% GST. Free shipping on orders over ₹1000.</p>
+                <p className="text-xs text-gray-500 mb-4">Price inclusive of 5% GST.</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Link to="/cart" onClick={onClose}>
                     <Button variant="secondary" fullWidth className="border-java-500 text-java-700 hover:bg-java-50">View Cart</Button>

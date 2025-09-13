@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react'
 import { AuthContext } from './AuthContext'
 import api from '../utils/api'
+import gstConfig from '../config/gstConfig'
 
 const CartContext = createContext()
 
@@ -37,8 +38,8 @@ export const CartProvider = ({ children }) => {
                 productId: product._id || '',
                 name: product.title || '',
                 title: product.title || '',
-                price: product.price || 0,
-                mrp: product.mrp || product.price || 0, // Use MRP or fallback to price
+                price: product.sellingPrice || 0,
+                mrp: product.mrp || product.sellingPrice || 0, // Use MRP or fallback to price
                 image: product.images && product.images.length > 0 ? product.images[0] : '',
                 quantity: item.quantity || 1,
                 size: item.size || null,
@@ -99,7 +100,7 @@ export const CartProvider = ({ children }) => {
       
       // Check if item already exists in cart
       const existingItemIndex = cart.findIndex(item => 
-        item.id === product.id && 
+        item.productId === product._id && 
         item.size === size && 
         item.color === color
       )
@@ -176,7 +177,7 @@ export const CartProvider = ({ children }) => {
       
       if (isAuthenticated) {
         // Update in backend
-        await api.put(`/cart/item/${itemId}`, { quantity })
+        await api.patch(`/cart/${itemId}`, { quantity })
       }
       
       setCart(updatedCart)
@@ -197,7 +198,7 @@ export const CartProvider = ({ children }) => {
       
       if (isAuthenticated) {
         // Remove from backend
-        await api.delete(`/cart/item/${itemId}`)
+        await api.delete(`/cart/${itemId}`)
       }
       
       setCart(updatedCart)
@@ -294,13 +295,25 @@ export const CartProvider = ({ children }) => {
     }, 0)
   }
   
-  // Calculate cart total with discounts
+  // Calculate GST amount (using gstConfig)
+  const getGstAmount = () => {
+    const subtotal = getCartSubtotal()
+    const discount = couponDiscount || 0
+    const discountedAmount = Math.max(0, subtotal - discount)
+    
+    // Calculate GST using the configured rate (default 5%)
+    return discountedAmount * gstConfig.TOTAL_GST_RATE
+  }
+  
+  // Calculate cart total with discounts and GST
   const getCartTotal = () => {
     const subtotal = getCartSubtotal()
     const discount = couponDiscount || 0
+    const discountedAmount = Math.max(0, subtotal - discount)
+    const gstAmount = getGstAmount()
     
-    // Apply discount
-    return Math.max(0, subtotal - discount)
+    // Apply discount and add GST
+    return discountedAmount + gstAmount
   }
   
   // Get total number of items in cart
@@ -324,6 +337,7 @@ export const CartProvider = ({ children }) => {
         applyCoupon,
         removeCoupon,
         getCartSubtotal,
+        getGstAmount,
         getCartTotal,
         getCartItemCount
       }}

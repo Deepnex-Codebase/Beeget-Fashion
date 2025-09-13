@@ -124,8 +124,8 @@ const Cart = () => {
               </div>
               
               {/* Cart Items List */}
-              {cart.map((item) => (
-                <div key={`${item.id}-${item.size}-${item.color}`} className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 border-b border-gray-200 items-center">
+              {cart.map((item, index) => (
+                <div key={`${item.id}-${item.size}-${item.color}-${index}`} className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 border-b border-gray-200 items-center">
                   {/* Product Info */}
                   <div className="col-span-6 flex items-center space-x-4">
                     <Link to={`/product/${item.slug}`}>

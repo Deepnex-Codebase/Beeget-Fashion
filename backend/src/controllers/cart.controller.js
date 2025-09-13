@@ -30,8 +30,8 @@ const addItemToCart = async (cart, productId, quantity, size, color, req) => {
     const productDetails = {
       title: product.title,
       price: product.variants && product.variants.length > 0 ? 
-        (isNaN(parseFloat(product.variants[0].price)) ? 0 : parseFloat(product.variants[0].price)) : 
-        (isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price)),
+        (isNaN(parseFloat(product.variants[0].sellingPrice)) ? 0 : parseFloat(product.variants[0].sellingPrice)) : 
+        (isNaN(parseFloat(product.sellingPrice)) ? 0 : parseFloat(product.sellingPrice)),
       mrp: product.variants && product.variants.length > 0 ? 
         (isNaN(parseFloat(product.variants[0].mrp)) ? 
           (isNaN(parseFloat(product.variants[0].price)) ? 0 : parseFloat(product.variants[0].price)) : 
