@@ -1349,12 +1349,17 @@ const Checkout = () => {
                 
 
                 
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600">GST (5%)</span>
+                  <span className="font-medium">Included</span>
+                </div>
+                
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
                     <span>₹{parseInt(getCartTotal())}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Price inclusive of all taxes</p>
+                  <p className="text-xs text-gray-500 mt-1">Price inclusive of 5% GST</p>
                   {getCartSubtotal() < 1000 && (
                     <p className="text-xs text-gray-500 mt-1">Add ₹{parseInt(1000 - getCartSubtotal())} more to get free shipping</p>
                   )}

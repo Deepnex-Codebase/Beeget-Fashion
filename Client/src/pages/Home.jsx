@@ -1843,15 +1843,13 @@ const Home = () => {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-baseline gap-1 xs:gap-1.5">
                             <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">
-                              ₹
-                              {getMRPForSize(product, selectedSizes[product.id])
+                              ₹{getMRPForSize(product, selectedSizes[product.id])
                                 ? parseInt(getMRPForSize(product, selectedSizes[product.id]))
-                                : "0"}
+                                : "2000"}
                             </p>
                             {product.originalPrice && (
                               <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">
-                                ₹
-                                {product.originalPrice
+                                ₹{product.originalPrice
                                   ? parseInt(product.originalPrice)
                                   : "0"}
                               </p>

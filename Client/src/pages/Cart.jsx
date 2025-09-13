@@ -311,6 +311,11 @@ const Cart = () => {
                 )}
                 
                 <div className="flex justify-between">
+                  <span className="text-gray-600">GST (5%)</span>
+                  <span className="font-medium">Included</span>
+                </div>
+                
+                <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
                   <span className="font-medium">
                     {shippingCost === 0 ? 'Free' : `₹${isNaN(shippingCost) ? 0 : parseInt(shippingCost)}`}
@@ -322,7 +327,7 @@ const Cart = () => {
                     <span>Total</span>
                     <span>₹{isNaN(total) ? 0 : parseInt(total)}</span>
                   </div>
-                  <p className="text-gray-500 text-xs mt-1">Including GST</p>
+                  <p className="text-gray-500 text-xs mt-1">Price inclusive of 5% GST</p>
                 </div>
               </div>
               

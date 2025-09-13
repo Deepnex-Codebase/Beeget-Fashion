@@ -1,5 +1,5 @@
 import express from 'express';
-import { verifyToken, isAdmin } from '../middlewares/auth.middleware.js';
+import { verifyToken, isAdmin, isAdminOrSubAdmin } from '../middlewares/auth.middleware.js';
 import {
   getUsers,
   getUserById,
@@ -17,8 +17,8 @@ import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
-// All routes require authentication and admin privileges
-router.use(verifyToken, isAdmin);
+// All routes require authentication and admin/subadmin privileges
+router.use(verifyToken, isAdminOrSubAdmin);
 
 // User management routes
 router.get('/', getUsers);

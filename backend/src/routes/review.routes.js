@@ -25,8 +25,8 @@ router.put('/:id', reviewUpload.array('images', 5), updateReview);
 router.delete('/:id', deleteReview);
 router.get('/user', getUserReviews);
 
-// Admin routes - require admin role
-router.get('/admin/all', authorize(['admin', 'super-admin']), adminGetAllReviews);
-router.post('/admin/create', authorize(['admin', 'super-admin']), reviewUpload.array('images', 5), adminCreateReview);
+// Admin routes - require admin or subadmin role
+router.get('/admin/all', authorize(['admin', 'subadmin', 'super-admin']), adminGetAllReviews);
+router.post('/admin/create', authorize(['admin', 'subadmin', 'super-admin']), reviewUpload.array('images', 5), adminCreateReview);
 
 export default router;

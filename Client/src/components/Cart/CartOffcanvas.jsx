@@ -1,4 +1,4 @@
-import { useEffect, useContext } from 'react'
+import { useEffect, useContext, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { XMarkIcon, ShoppingBagIcon, PlusIcon, MinusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -6,7 +6,7 @@ import Button from '../Common/Button'
 import CartContext from '../../contexts/CartContext'
 
 const CartOffcanvas = ({ isOpen, onClose }) => {
-  const { cart, updateQuantity, removeFromCart, getCartTotal } = useContext(CartContext)
+  const { cart, updateQuantity, removeFromCart, getCartTotal, getCartSubtotal } = useContext(CartContext)
   
   // Close cart when pressing escape key
   useEffect(() => {
@@ -33,8 +33,26 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
     }
   }, [isOpen])
   
-  // Calculate cart total
-  const cartTotal = getCartTotal()
+  // Calculate cart values using memoization to prevent unnecessary recalculations
+  const cartValues = useMemo(() => {
+    const subtotal = getCartSubtotal()
+    
+    // Calculate GST amount (5% of pre-tax value)
+    const gstAmount = (subtotal * 5) / 105
+    
+    // Calculate shipping cost (free over ₹1000)
+    const shippingCost = subtotal > 1000 ? 0 : 100
+    
+    // Calculate total with shipping
+    const total = getCartTotal()
+    
+    return {
+      subtotal: subtotal,
+      gstAmount: gstAmount,
+      shippingCost: shippingCost,
+      total: total
+    }
+  }, [cart, getCartSubtotal, getCartTotal])
   
   return (
     <AnimatePresence>
@@ -109,23 +127,25 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center border rounded">
                             <button 
-                              onClick={() => updateQuantity(item.id, item.quantity - 1, item.size, item.color)}
+                              onClick={() => updateQuantity(item.id || item._id, Math.max(1, item.quantity - 1), item.size, item.color)}
                               className="px-2 py-1 text-gray-500 hover:text-gray-700"
                               aria-label="Decrease quantity"
+                              disabled={item.quantity <= 1}
                             >
                               <MinusIcon className="h-3 w-3" />
                             </button>
-                            <span className="px-2 text-sm">{item.quantity}</span>
+                            <span className="px-2 text-sm">{item.quantity || 1}</span>
                             <button 
-                              onClick={() => updateQuantity(item.id, item.quantity + 1, item.size, item.color)}
+                              onClick={() => updateQuantity(item.id || item._id, Math.min(99, (item.quantity || 1) + 1), item.size, item.color)}
                               className="px-2 py-1 text-gray-500 hover:text-gray-700"
                               aria-label="Increase quantity"
+                              disabled={item.quantity >= 99}
                             >
                               <PlusIcon className="h-3 w-3" />
                             </button>
                           </div>
                           <button 
-                            onClick={() => removeFromCart(item.id, item.size, item.color)}
+                            onClick={() => removeFromCart(item.id || item._id, item.size, item.color)}
                             className="text-gray-400 hover:text-red-500 transition-colors"
                             aria-label="Remove item"
                           >
@@ -137,12 +157,13 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                       {/* Price */}
                       <div className="text-right">
                         <p className="font-medium">₹{(() => {
-                          // Ensure mrp is a valid number
-                          const mrp = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price || 0);
-                          // Ensure quantity is a valid number
-                          const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0;
+                          // Use selling price instead of MRP
+                          const price = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
+                          // Ensure quantity is a valid number and at least 1
+                          const quantity = typeof item.quantity === 'number' ? Math.max(1, item.quantity) : Math.max(1, parseInt(item.quantity || 1));
                           // Calculate and return the total price
-                          return parseInt(mrp * quantity) || 0;
+                          const itemTotal = price * quantity;
+                          return isNaN(itemTotal) ? 0 : Math.round(itemTotal);
                         })()}</p>
                       </div>
                     </li>
@@ -154,11 +175,25 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
             {/* Footer */}
             {cart.length > 0 && (
               <div className="border-t border-java-100 p-4 bg-java-50">
-                <div className="flex justify-between mb-4">
+                <div className="flex justify-between mb-2">
                   <span className="text-java-800">Subtotal:</span>
-                  <span className="font-medium text-java-800">₹{isNaN(parseInt(cartTotal)) ? 0 : parseInt(cartTotal)}</span>
+                  <span className="font-medium text-java-800">₹{Math.round(cartValues.subtotal) || 0}</span>
                 </div>
-                <p className="text-xs text-gray-500 mb-4">Shipping and taxes calculated at checkout</p>
+                <div className="flex justify-between mb-2">
+                  <span className="text-java-800 text-xs">GST (5%):</span>
+                  <span className="font-medium text-java-800 text-xs">₹{Math.round(cartValues.gstAmount) || 0}</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-java-800 text-xs">Shipping:</span>
+                  <span className="font-medium text-java-800 text-xs">
+                    {cartValues.shippingCost > 0 ? `₹${cartValues.shippingCost}` : 'Free'}
+                  </span>
+                </div>
+                <div className="flex justify-between mb-2 pt-2 border-t border-java-100">
+                  <span className="text-java-800 font-medium">Total:</span>
+                  <span className="font-medium text-java-800">₹{Math.round(cartValues.total) || 0}</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-4">Price inclusive of 5% GST. Free shipping on orders over ₹1000.</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Link to="/cart" onClick={onClose}>
                     <Button variant="secondary" fullWidth className="border-java-500 text-java-700 hover:bg-java-50">View Cart</Button>

@@ -1,5 +1,5 @@
 import express from 'express';
-import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
+import { verifyToken, isAdmin, isSubAdmin, isAdminOrSubAdmin } from '../middlewares/auth.middleware.js';
 import {
   createCategory,
   getCategories,
@@ -22,7 +22,7 @@ router.get('/:id', getCategoryById);
 router.post(
   '/',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   productUpload.single('image'),
   createCategory
 );
@@ -31,7 +31,7 @@ router.post(
 router.put(
   '/:id',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   productUpload.single('image'),
   updateCategory
 );
@@ -40,7 +40,7 @@ router.put(
 router.delete(
   '/:id',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   deleteCategory
 );
 

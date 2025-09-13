@@ -1,64 +1,38 @@
 import { motion } from 'framer-motion'
-import { useContext } from 'react'
-import { SiteContentContext } from '../contexts/SiteContentContext'
-import { renderAboutPageBlocks } from '../utils/blockRenderers'
 import aboutImage from '../assets/10.jpg'
 
 const About = () => {
-  const { aboutPageData, loadingAbout } = useContext(SiteContentContext)
+  // Static content
+  const heroTitle = 'About Beeget Fashion'
+  const heroDescription = "Beeget Fashion was founded in 2025 by Bhupendra Mishra, with a passion to blend the richness of ethnic tradition with the charm of modern fashion."
   
-  // Use data from context or fallback to static content if loading
-  const heroTitle = loadingAbout ? 'About Beeget Fashion' : aboutPageData?.heroSection?.title
-  const heroDescription = loadingAbout ? "We're on a mission to make sustainable, high-quality fashion accessible to everyone." : aboutPageData?.heroSection?.description
+  const storyTitle = 'About Us'
+  const storyContent = [
+    'Beeget Fashion was founded in 2025 by Bhupendra Mishra, with a passion to blend the richness of ethnic tradition with the charm of modern fashion. The name "Beeget" is derived from the word "beget", which means to bring into existence — just like how we aim to bring timeless style and confidence into every woman\'s life through our clothing.',
+    'At Beeget Fashion, we design outfits that celebrate Indian culture with a modern twist. From elegant ethnic wear to contemporary fusion styles, every piece is crafted to empower women to feel stylish, graceful, and confident — without compromising on comfort or affordability.',
+    'We believe that fashion is not just about clothes, it\'s about identity, self-expression, and confidence. That\'s why Beeget Fashion is committed to offering high-quality, trendsetting designs at competitive prices, ensuring that every woman feels beautiful inside and out.'
+  ]
   
-  // Get header image from blocks if available
-  const headerImage = loadingAbout ? '' : (aboutPageData?.blocks && aboutPageData.blocks.length > 0 && 
-    aboutPageData.blocks.find(block => block.blockType === 'page_header')?.background_image?.url) ? 
-    aboutPageData.blocks.find(block => block.blockType === 'page_header').background_image.url : ''
+  const visionTitle = 'Our Vision'
+  const visionContent = [
+    'To become a trusted and loved fashion destination for women across India by offering stylish, high-quality, and affordable clothing that inspires confidence and reflects individuality.',
+    'We envision a world where every woman — regardless of age, size, or budget — has access to fashion that makes her feel empowered, elegant, and expressive.'
+  ]
   
-  const storyTitle = loadingAbout ? 'Our Story' : aboutPageData?.storySection?.title
-  const storyContent = loadingAbout ? [
-    'Founded in 2023, Beeget Fashion began with a simple idea: create clothing that looks good, feels good, and does good. Our founder, inspired by years in the fashion industry, saw an opportunity to build a brand that prioritizes both style and sustainability.',
-    'What started as a small collection has grown into a comprehensive range of modern essentials for everyone. Through it all, our commitment to ethical production and timeless design has remained unwavering.',
-    'Today, we\'re proud to offer fashion that doesn\'t compromise on quality, ethics, or style. Every piece in our collection is designed to last, both in durability and design.'
-  ] : aboutPageData?.storySection?.paragraphs || []
-  
-  // Get story image from blocks with proper fallback logic
-  const storyImage = loadingAbout ? '' : 
-    // First try to get from storySection.image
-    aboutPageData?.storySection?.image || 
-    // Then try to get from our_story block's image.url
-    (aboutPageData?.blocks && aboutPageData.blocks.find(block => block.blockType === 'our_story')?.image?.url) || 
-    // Then try to get from our_story block's side_image.url
-    (aboutPageData?.blocks && aboutPageData.blocks.find(block => block.blockType === 'our_story')?.side_image?.url) || 
-    // Default to empty string if none found
-    ''
-  
-  // Vision and Mission sections
-  const visionTitle = loadingAbout ? 'Our Vision' : aboutPageData?.visionSection?.title
-  const visionContent = loadingAbout ? [
-    'To revolutionize the fashion industry by creating sustainable, high-quality clothing that empowers individuals to express themselves while making a positive impact on the planet.',
-    'We envision a world where fashion is not just about looking good, but also about doing good – for people and the environment.'
-  ] : aboutPageData?.visionSection?.paragraphs || []
-  
-  const missionTitle = loadingAbout ? 'Our Mission' : aboutPageData?.missionSection?.title
-  const missionContent = loadingAbout ? [
-    'To design and deliver fashion that combines style, quality, and sustainability at accessible prices.',
-    'To operate with transparency and integrity throughout our supply chain.',
-    'To inspire and enable our customers to make conscious fashion choices without compromising on style or comfort.'
-  ] : aboutPageData?.missionSection?.paragraphs || []
+  const missionTitle = 'Our Mission'
+  const missionContent = [
+    'To deliver the best blend of ethnic and modern fashion with superior quality at affordable prices.',
+    'To ensure that every purchase brings satisfaction to our customers — through thoughtful designs, reliable quality, and excellent service.',
+    'To build long-term brand loyalty by consistently exceeding expectations in fabric, fitting, and fashion innovation.',
+    'To support Indian artisans and fashion talent by showcasing craftsmanship with a modern outlook.',
+    'To become a go-to fashion brand for women who want value, style, and confidence — all in one.'
+  ]
   
   return (
     <div className="about-page">
       <div className="container-custom py-12">
-        {/* Render dynamic blocks if available */}
-        {!loadingAbout && aboutPageData?.blocks && aboutPageData.blocks.length > 0 ? (
-          <div className="dynamic-blocks">
-            {renderAboutPageBlocks(aboutPageData.blocks, false)}
-          </div>
-        ) : (
-          /* Static fallback content - shown only when loading or no blocks available */
-          <>
+        {/* Static Content */}
+        <>
             {/* Hero Section */}
             <motion.div 
               className="text-center mb-16 relative"
@@ -66,15 +40,15 @@ const About = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              {headerImage && (
-                <div className="absolute inset-0 overflow-hidden z-0">
-                  <img src={headerImage} alt="About Beeget Fashion" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black bg-opacity-60"></div>
+              <div className="absolute inset-0 overflow-hidden z-0">
+                <div className="w-full h-full bg-gradient-to-br from-java-600 to-java-800 flex items-center justify-center">
+                  <div className="text-white text-6xl font-bold opacity-20">BEEGET</div>
                 </div>
-              )}
-              <div className={`py-16 relative z-20 ${headerImage ? 'text-white' : ''}`}>
+                <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+              </div>
+              <div className="py-16 relative z-20 text-white">
                 <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6">{heroTitle}</h1>
-                <p className={`text-lg max-w-3xl mx-auto ${headerImage ? 'text-gray-200' : 'text-gray-600'}`}>
+                <p className="text-lg max-w-3xl mx-auto text-gray-200">
                   {heroDescription}
                 </p>
               </div>
@@ -97,11 +71,7 @@ const About = () => {
                   ))}
                 </div>
                 <div className="bg-gray-200 h-96 rounded-lg flex items-center justify-center">
-                  {storyImage ? (
-                    <img src={storyImage} alt="Our Story" className="w-full h-full object-cover rounded-lg" />
-                  ) : (
-                    <img src="/10.jpg" alt="About Beeget" className="w-full h-full object-cover rounded-lg" />
-                  )}
+                  <img src="/10.jpg" alt="About Beeget" className="w-full h-full object-cover rounded-lg" />
                 </div>
               </div>
             </motion.section>
@@ -181,7 +151,6 @@ const About = () => {
               </div>
             </motion.section>
           </>
-        )}
       </div>
     </div>
   )

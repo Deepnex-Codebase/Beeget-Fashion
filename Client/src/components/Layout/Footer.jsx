@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
 import { useContext } from 'react'
 import { SiteContentContext } from '../../contexts/SiteContentContext'
-import { FaMapMarkerAlt, FaPhone, FaWhatsapp, FaEnvelope } from 'react-icons/fa'
+import { FaMapMarkerAlt, FaPhone, FaWhatsapp, FaEnvelope, FaCreditCard, FaShieldAlt, FaTruck } from 'react-icons/fa'
+import logoImage from '../../assets/WhatsApp_Image_2025-06-18_at_4.21.26_PM-removebg-preview.png'
 
 const Footer = () => {
   const currentYear = new Date().getFullYear()
   const { footerData, loadingFooter: loading } = useContext(SiteContentContext)
   
   return (
-    <footer className="bg-java-800 text-white pt-16 pb-8 shadow-lg">
+    <footer className="bg-slate-800 text-white pt-16 pb-20 md:pb-8 shadow-lg">
       <div className="container-custom px-4 sm:px-6 lg:px-8">
         {/* Dynamic content based on footerData */}
         {!loading && footerData && (
@@ -17,7 +18,13 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           {/* Company Info */}
           <div>
-            <h3 className="text-2xl font-logo mb-5 text-java-400">{footerData?.brand_info?.name || 'Beeget Fashion'}</h3>
+            <div className="flex items-center space-x-2 mb-5">
+              <img 
+                src={logoImage} 
+                alt="Beeget Fashion Logo" 
+                className="h-10 w-auto"
+              />
+               </div>
             <p className="text-gray-300 mb-5 leading-relaxed">
               {footerData?.brand_info?.description || 'Modern women\'s clothing and accessories. Premium fabrics, sustainable practices, and timeless designs—elegant, versatile, and made for you.'}
             </p>
@@ -82,28 +89,28 @@ const Footer = () => {
           
           {/* Quick Links */}
           <div>
-            <h4 className="text-xl font-semibold mb-5 text-java-400">{loading ? 'Quick Links' : footerData?.quickLinksTitle}</h4>
+            <h4 className="text-xl font-semibold mb-5 text-java-400">{loading ? 'Shop' : footerData?.quickLinksTitle}</h4>
             <ul className="space-y-3">
               {loading ? (
                 <>
                   <li>
-                    <Link to="/shop" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
-                      Shop All
+                    <Link to="/" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
+                      Home
                     </Link>
                   </li>
                   <li>
-                    <Link to="/shop?category=women" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
-                      Women
+                    <Link to="/shop" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
+                      All Products
                     </Link>
                   </li>
                   <li>
                     <Link to="/shop?category=men" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
-                      Men
+                      Men's Fashion
                     </Link>
                   </li>
                   <li>
-                    <Link to="/shop?category=accessories" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
-                      Accessories
+                    <Link to="/shop?category=women" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
+                      Women's Fashion
                     </Link>
                   </li>
                   <li>
@@ -124,17 +131,12 @@ const Footer = () => {
             </ul>
           </div>
           
-          {/* Information */}
+          {/* Customer Service */}
           <div>
-            <h4 className="text-xl font-semibold mb-5 text-java-400">{loading ? 'Information' : footerData?.informationTitle}</h4>
+            <h4 className="text-xl font-semibold mb-5 text-java-400">{loading ? 'Customer Service' : footerData?.informationTitle}</h4>
             <ul className="space-y-2">
               {loading ? (
                 <>
-                  <li>
-                    <Link to="/about" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
-                      About Us
-                    </Link>
-                  </li>
                   <li>
                     <Link to="/contact" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
                       Contact Us
@@ -142,17 +144,22 @@ const Footer = () => {
                   </li>
                   <li>
                     <Link to="/shipping" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
-                      Shipping & Returns
+                      Shipping Info
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/returns" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
+                      Returns & Exchanges
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/size-guide" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
+                      Size Guide
                     </Link>
                   </li>
                   <li>
                     <Link to="/faq" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
                       FAQ
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/privacy-policy" className="text-gray-300 hover:text-java-400 transition-colors duration-300">
-                      Privacy Policy
                     </Link>
                   </li>
                 </>
@@ -171,63 +178,111 @@ const Footer = () => {
           {/* Newsletter */}
           <div>
             <h4 className="text-xl font-semibold mb-5 text-java-400">
-              {loading ? 'Newsletter' : (footerData?.newsletter?.headline || footerData?.newsletterHeadline || 'Newsletter')}
+              {loading ? 'Stay Updated' : (footerData?.newsletter?.headline || footerData?.newsletterHeadline || 'Stay Updated')}
             </h4>
             <p className="text-gray-300 mb-4">
-              {loading ? 'Subscribe to our newsletter for updates on new arrivals, sales, and more.' : 
+              {loading ? 'Subscribe to get updates on new arrivals, exclusive offers, and fashion tips.' : 
                 (footerData?.newsletter?.description || footerData?.newsletterSubtext || 
-                'Subscribe to our newsletter for updates on new arrivals, sales, and more.')}
+                'Subscribe to get updates on new arrivals, exclusive offers, and fashion tips.')}
             </p>
-            <form className="flex">
+            <form className="flex flex-col sm:flex-row gap-3">
               <input 
                 type="email" 
-                placeholder={footerData?.newsletter?.placeholder_text || "Your email"} 
-                className="px-4 py-3 w-full rounded-l-md focus:outline-none focus:ring-2 focus:ring-java-400 text-java-800 shadow-sm" 
+                placeholder={footerData?.newsletter?.placeholder_text || "Enter your email address"} 
+                className="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-java-500 focus:border-transparent" 
                 required 
               />
               <button 
                 type="submit" 
-                className="bg-java-400 hover:bg-java-500 text-white px-5 py-3 rounded-r-md transition-colors duration-300 font-medium shadow-sm"
+                className="px-6 py-3 bg-java-500 text-white rounded-lg hover:bg-java-600 transition-colors duration-200 font-medium"
               >
-                {footerData?.newsletter?.button_text || "Join"}
+                {footerData?.newsletter?.button_text || "Subscribe"}
               </button>
             </form>
           </div>
         </div>
         
-        {/* Contact Information */}
+        {/* Features Section */}
         <div className="pt-10 mt-10 border-t border-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="flex items-center space-x-3">
+              <FaTruck className="text-java-500 text-2xl" />
+              <div>
+                <p className="font-medium text-white">Free Shipping</p>
+                <p className="text-sm text-gray-300">On orders over ₹500</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <FaShieldAlt className="text-java-500 text-2xl" />
+              <div>
+                <p className="font-medium text-white">Secure Payment</p>
+                <p className="text-sm text-gray-300">100% secure transactions</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <FaCreditCard className="text-java-500 text-2xl" />
+              <div>
+                <p className="font-medium text-white">Easy Returns</p>
+                <p className="text-sm text-gray-300">30-day return policy</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Contact Information */}
+        <div className="pt-8 mt-8 border-t border-gray-700">
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
              <div className="col-span-1">
                <h4 className="text-xl font-semibold mb-5 text-java-400">Contact Us</h4>
                <div className="space-y-4">
-                 <p className="flex items-start mb-3 text-gray-300 group hover:bg-java-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
-                   <FaMapMarkerAlt className="mr-3 text-java-400 group-hover:text-java-300 transition-colors mt-1 flex-shrink-0" /> 
+                 <p className="flex items-start mb-3 text-gray-300 group hover:bg-slate-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
+                   <FaMapMarkerAlt className="mr-3 text-java-500 group-hover:text-java-400 transition-colors mt-1 flex-shrink-0" /> 
                    <span className="group-hover:text-java-300 transition-colors">First and Second Floor Plot 258 Ambika Nagar Bamroli Surat</span>
                  </p>
-                 <p className="flex items-center mb-3 text-gray-300 group hover:bg-java-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
-                   <FaPhone className="mr-3 text-java-400 group-hover:text-java-300 transition-colors flex-shrink-0" /> 
+                 <p className="flex items-center mb-3 text-gray-300 group hover:bg-slate-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
+                   <FaPhone className="mr-3 text-java-500 group-hover:text-java-400 transition-colors flex-shrink-0" /> 
                    <a href="tel:+919714730985" className="group-hover:text-java-300 transition-colors">+91 9714730985</a>
                  </p>
-                 <p className="flex items-center mb-3 text-gray-300 group hover:bg-java-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
-                   <FaWhatsapp className="mr-3 text-java-400 group-hover:text-java-300 transition-colors flex-shrink-0" /> 
+                 <p className="flex items-center mb-3 text-gray-300 group hover:bg-slate-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
+                   <FaWhatsapp className="mr-3 text-java-500 group-hover:text-java-400 transition-colors flex-shrink-0" /> 
                    <a href="https://wa.me/919714730985" target="_blank" rel="noopener noreferrer" className="group-hover:text-java-300 transition-colors">+91 9714730985</a>
                  </p>
-                 <p className="flex items-center mb-3 text-gray-300 group hover:bg-java-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
-                   <FaEnvelope className="mr-3 text-java-400 group-hover:text-java-300 transition-colors flex-shrink-0" /> 
+                 <p className="flex items-center mb-3 text-gray-300 group hover:bg-slate-900 hover:bg-opacity-30 p-3 rounded-lg transition-all duration-300">
+                   <FaEnvelope className="mr-3 text-java-500 group-hover:text-java-400 transition-colors flex-shrink-0" /> 
                    <a href="mailto:customersupport@beegetfashion.com" className="group-hover:text-java-300 transition-colors">customersupport@beegetfashion.com</a>
                  </p>
                </div>
              </div>
              <div className="col-span-1">
-               <h4 className="text-xl font-semibold mb-5 text-java-400">Our Location</h4>
-               <div className="bg-java-900 bg-opacity-30 p-4 rounded-lg h-48 flex items-center justify-center">
-                 <p className="text-center text-gray-300">Map will be integrated here</p>
+               <h4 className="text-xl font-semibold mb-5 text-java-400">Business Hours</h4>
+               <div className="space-y-3">
+                 <div className="flex justify-between items-center p-3 bg-slate-900 bg-opacity-30 rounded-lg">
+                   <span className="text-gray-300">Monday - Friday</span>
+                   <span className="text-java-400 font-medium">9:00 AM - 8:00 PM</span>
+                 </div>
+                 <div className="flex justify-between items-center p-3 bg-slate-900 bg-opacity-30 rounded-lg">
+                   <span className="text-gray-300">Saturday</span>
+                   <span className="text-java-400 font-medium">10:00 AM - 6:00 PM</span>
+                 </div>
+                 <div className="flex justify-between items-center p-3 bg-slate-900 bg-opacity-30 rounded-lg">
+                   <span className="text-gray-300">Sunday</span>
+                   <span className="text-java-400 font-medium">Closed</span>
+                 </div>
                </div>
              </div>
            </div>
-          <div className="text-center pt-6 border-t border-gray-700 text-gray-400 mt-4">
-            <p className="py-2">&copy; {currentYear} <span className="text-java-400 font-logo">Beeget Fashion</span>. All rights reserved.</p>
+          <div className="flex flex-col md:flex-row justify-between items-center pt-6 border-t border-gray-700 text-gray-400 mt-4 space-y-4 md:space-y-0">
+            <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
+              <p>&copy; {currentYear} <span className="text-java-400 font-logo">Beeget Fashion</span>. All rights reserved.</p>
+              <div className="flex space-x-4 text-sm">
+                <Link to="/privacy" className="text-gray-400 hover:text-java-400 transition-colors">
+                  Privacy Policy
+                </Link>
+                <Link to="/terms" className="text-gray-400 hover:text-java-400 transition-colors">
+                  Terms of Service
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
         </>

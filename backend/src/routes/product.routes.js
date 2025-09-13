@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
+import { verifyToken, isAdmin, isSubAdmin, isAdminOrSubAdmin } from '../middlewares/auth.middleware.js';
 import { hasDepartmentPermission } from '../middlewares/role.middleware.js';
 import {
   createProduct,
@@ -26,17 +26,17 @@ router.get('/:id', getProductById);
 router.use(verifyToken);
 
 // Admin/SubAdmin only routes
-router.post('/', isAdmin, productMediaUpload.fields([
+router.post('/', isAdminOrSubAdmin, productMediaUpload.fields([
   { name: 'images', maxCount: 10 },
   { name: 'video', maxCount: 1 }
 ]), createProduct);
-router.post('/bulk-upload', isAdmin, tempUpload.single('file'), bulkUploadProducts);
-router.post('/bulk-upload-images', isAdmin, productUpload.array('images', 50), bulkUploadImages);
-router.put('/:id', isAdmin, productMediaUpload.fields([
+router.post('/bulk-upload', isAdminOrSubAdmin, tempUpload.single('file'), bulkUploadProducts);
+router.post('/bulk-upload-images', isAdminOrSubAdmin, productUpload.array('images', 50), bulkUploadImages);
+router.put('/:id', isAdminOrSubAdmin, productMediaUpload.fields([
   { name: 'images', maxCount: 10 },
   { name: 'video', maxCount: 1 }
 ]), updateProduct);
-router.delete('/:id', isAdmin, deleteProduct);
-router.patch('/:id/stock', isSubAdmin, hasDepartmentPermission('products', 'manage_products'), updateProductStock);
+router.delete('/:id', isAdminOrSubAdmin, deleteProduct);
+router.patch('/:id/stock', isAdminOrSubAdmin, hasDepartmentPermission('products', 'manage_products'), updateProductStock);
 
 export default router;

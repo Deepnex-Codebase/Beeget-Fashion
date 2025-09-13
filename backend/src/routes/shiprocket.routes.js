@@ -1,5 +1,5 @@
 import express from 'express';
-import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
+import { verifyToken, isAdmin, isSubAdmin, isAdminOrSubAdmin } from '../middlewares/auth.middleware.js';
 import { logger } from '../utils/logger.js';
 import shippingService from '../services/shipping.service.js';
 import { AppError } from '../middlewares/error.middleware.js';
@@ -11,7 +11,7 @@ const router = express.Router();
  * GET /api/shiprocket/orders/status
  * Requires admin or subadmin authentication
  */
-router.get('/orders/status', verifyToken, isAdmin, async (req, res, next) => {
+router.get('/orders/status', verifyToken, isAdminOrSubAdmin, async (req, res, next) => {
   try {
     // Get all orders from ShipRocket
     const result = await shippingService.getAllOrders();

@@ -1,5 +1,5 @@
 import express from 'express';
-import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
+import { verifyToken, isAdmin, isSubAdmin, isAdminOrSubAdmin } from '../middlewares/auth.middleware.js';
 import {
   createPromotion,
   getPromotions,
@@ -18,12 +18,12 @@ router.post('/verify-coupon', verifyCoupon);
 // Protected routes - require authentication
 router.use(verifyToken);
 
-// Admin only routes
-router.post('/', isAdmin, createPromotion);
-router.get('/', isSubAdmin, getPromotions);
-router.get('/:id', isSubAdmin, getPromotionById);
-router.put('/:id', isAdmin, updatePromotion);
-router.delete('/:id', isAdmin, deletePromotion);
-router.post('/generate-coupons', isAdmin, generateCoupons);
+// Admin/SubAdmin routes
+router.post('/', isAdminOrSubAdmin, createPromotion);
+router.get('/', isAdminOrSubAdmin, getPromotions);
+router.get('/:id', isAdminOrSubAdmin, getPromotionById);
+router.put('/:id', isAdminOrSubAdmin, updatePromotion);
+router.delete('/:id', isAdminOrSubAdmin, deletePromotion);
+router.post('/generate-coupons', isAdminOrSubAdmin, generateCoupons);
 
 export default router;

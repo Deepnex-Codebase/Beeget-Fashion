@@ -31,8 +31,12 @@ export const createNotification = async (req, res, next) => {
 
     // Check if promotion exists if promotionId is provided
     let promotion;
-    if (promotionId) {
-      promotion = await Promotion.findById(promotionId);
+    let validPromotionId = null;
+    
+    // Handle promotionId - convert empty string to null
+    if (promotionId && promotionId.trim() !== '') {
+      validPromotionId = promotionId;
+      promotion = await Promotion.findById(validPromotionId);
       if (!promotion) {
         throw new AppError('Promotion not found', 404);
       }
@@ -43,17 +47,24 @@ export const createNotification = async (req, res, next) => {
       }
     }
 
-    // Create notification
-    const notification = new Notification({
+    // Create notification data object
+    const notificationData = {
       title,
       message,
       type: type || 'update',
       link,
       image,
-      promotionId,
       createdBy: req.user ? req.user._id : null,
       active: true
-    });
+    };
+    
+    // Only add promotionId if it's valid
+    if (validPromotionId) {
+      notificationData.promotionId = validPromotionId;
+    }
+
+    // Create notification
+    const notification = new Notification(notificationData);
 
     await notification.save();
 

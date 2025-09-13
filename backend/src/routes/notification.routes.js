@@ -13,11 +13,11 @@ import { authorize } from '../middlewares/role.middleware.js';
 
 const router = express.Router();
 
-// Admin routes (require admin role)
-router.post('/', verifyToken, authorize('admin'), createNotification);
-router.get('/', verifyToken, authorize('admin'), getNotifications);
-router.get('/:id', verifyToken, authorize('admin'), getNotificationById);
-router.delete('/:id', verifyToken, authorize('admin'), deleteNotification);
+// Admin routes (require admin or subadmin role)
+router.post('/', verifyToken, authorize(['admin', 'subadmin']), createNotification);
+router.get('/', verifyToken, authorize(['admin', 'subadmin']), getNotifications);
+router.get('/:id', verifyToken, authorize(['admin', 'subadmin']), getNotificationById);
+router.delete('/:id', verifyToken, authorize(['admin', 'subadmin']), deleteNotification);
 
 // User routes
 router.get('/user/notifications', verifyToken, getUserNotifications);

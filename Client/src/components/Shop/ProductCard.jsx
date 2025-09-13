@@ -26,9 +26,9 @@ const ProductCard = ({ product }) => {
   
   // Get MRP and selling price
   const mrp = selectedVariant && selectedVariant.mrp ? selectedVariant.mrp : 
-    (product.mrp ? product.mrp : (product.price ? product.price * 1.2 : 0))
-  const sellingPrice = selectedVariant && selectedVariant.price ? selectedVariant.price : 
-    (product.price ? product.price : 0)
+    (product.mrp ? product.mrp : (selectedVariant && selectedVariant.sellingPrice ? selectedVariant.sellingPrice * 1.2 : 0))
+  const sellingPrice = selectedVariant && selectedVariant.sellingPrice ? selectedVariant.sellingPrice : 
+    (selectedVariant && selectedVariant.price ? selectedVariant.price : (product.price ? product.price : 0))
   
   // Get variant attributes for display
   const variantAttributes = selectedVariant && selectedVariant.attributes ? selectedVariant.attributes : {}
@@ -195,7 +195,7 @@ const ProductCard = ({ product }) => {
                 ₹{sellingPrice ? parseInt(parseFloat(sellingPrice)) : ''}
                 {mrp && mrp > sellingPrice && (
                   <span className="ml-2 text-sm text-gray-500 line-through">
-                    {mrp ? parseInt(parseFloat(mrp)) : ''}
+                    ₹{mrp ? parseInt(parseFloat(mrp)) : ''}
                   </span>
                 )}
                 {!mrp && sellingPrice && (

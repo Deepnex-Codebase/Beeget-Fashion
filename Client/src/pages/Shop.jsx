@@ -140,9 +140,9 @@ const Shop = () => {
             title: product.title,
             description: product.description,
             category: product.category?.name || 'Uncategorized',
-            price: product.variants && product.variants.length > 0 ? product.variants[0].price : 0,
+            price: product.variants && product.variants.length > 0 ? (product.variants[0].sellingPrice || product.variants[0].price) : 0,
             mrp: product.variants && product.variants.length > 0 ? 
-              (product.variants[0].mrp || product.variants[0].price) : 0,
+              product.variants[0].mrp : 0,
             originalPrice: product.variants && product.variants.length > 0 ? 
               (product.variants[0].compareAtPrice || product.variants[0].price) : 0,
             images: product.images || [],
@@ -625,7 +625,15 @@ const Shop = () => {
                   
                   return (
                     <div key={productId} className="group relative rounded-lg xs:rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md overflow-hidden">
-                      {/* Discount Tag - Removed */}
+                      {/* New Arrivals Tag */}
+                      {filters.sort === 'newest' && (
+                        <div className="absolute left-0 top-3 z-10">
+                          <div className="bg-java-500 text-white text-xs font-medium px-2 py-1 rounded-r-full shadow-sm flex items-center">
+                            <FireIconSolid className="h-3 w-3 mr-1" />
+                            New Arrival
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Wishlist Button */}
                       <button
@@ -706,16 +714,21 @@ const Shop = () => {
                         {/* Price section with improved styling */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-baseline gap-1 xs:gap-1.5">
-                            <p className="text-sm xs:text-base md:text-lg font-bold text-red-500">
-                              ₹{product.price ? parseInt(product.price) : (product.mrp ? parseInt(product.mrp) : '0')}
+                            <p className="text-sm xs:text-base md:text-lg font-bold text-java-700">
+                              ₹{product.price ? parseInt(product.price) : 0}
                             </p>
-                            {product.mrp && product.price && product.mrp > product.price && (
-                              <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-400 line-through">
+                            {product.mrp && product.mrp > (product.price || 0) && (
+                              <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 line-through">
                                 ₹{parseInt(product.mrp)}
                               </p>
                             )}
                           </div>
-                          {/* Discount percentage removed */}
+                          {/* Discount percentage */}
+                          {product.mrp && product.price && product.mrp > product.price && (
+                            <span className="text-[9px] xs:text-xs bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-medium">
+                              {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+                            </span>
+                          )}
                         </div>
                         
                         {/* Available Sizes or Premium Quality */}
@@ -749,7 +762,10 @@ const Shop = () => {
                                             if (sizeVariant.mrp) {
                                               updatedProduct.mrp = sizeVariant.mrp;
                                             }
-                                            if (sizeVariant.price) {
+                                            if (sizeVariant.sellingPrice) {
+                                              updatedProduct.sellingPrice = sizeVariant.sellingPrice;
+                                              updatedProduct.price = sizeVariant.sellingPrice;
+                                            } else if (sizeVariant.price) {
                                               updatedProduct.price = sizeVariant.price;
                                             }
                                           }
@@ -796,7 +812,10 @@ const Shop = () => {
                                             if (colorVariant.mrp) {
                                               updatedProduct.mrp = colorVariant.mrp;
                                             }
-                                            if (colorVariant.price) {
+                                            if (colorVariant.sellingPrice) {
+                                              updatedProduct.sellingPrice = colorVariant.sellingPrice;
+                                              updatedProduct.price = colorVariant.sellingPrice;
+                                            } else if (colorVariant.price) {
                                               updatedProduct.price = colorVariant.price;
                                             }
                                           }

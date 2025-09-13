@@ -1,5 +1,5 @@
 import express from 'express';
-import { verifyToken, isAdmin, isSubAdmin } from '../middlewares/auth.middleware.js';
+import { verifyToken, isAdmin, isSubAdmin, isAdminOrSubAdmin } from '../middlewares/auth.middleware.js';
 import {
   createCollection,
   getCollections,
@@ -24,7 +24,7 @@ router.get('/:id', getCollectionById);
 router.post(
   '/',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   productUpload.single('image'),
   createCollection
 );
@@ -33,7 +33,7 @@ router.post(
 router.put(
   '/:id',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   productUpload.single('image'),
   updateCollection
 );
@@ -42,7 +42,7 @@ router.put(
 router.delete(
   '/:id',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   deleteCollection
 );
 
@@ -50,7 +50,7 @@ router.delete(
 router.post(
   '/:id/products',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   addProductsToCollection
 );
 
@@ -58,7 +58,7 @@ router.post(
 router.delete(
   '/:id/products',
   verifyToken,
-  isAdmin,
+  isAdminOrSubAdmin,
   removeProductsFromCollection
 );
 

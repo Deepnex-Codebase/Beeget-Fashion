@@ -1,25 +1,6 @@
-import { createContext, useState, useEffect } from 'react'
-import axios from '../utils/api'
-
-// Helper function to transform backend cart items to frontend format
-const transformCartItems = (items, variantSku = null) => {
-  return items.map(item => ({
-    id: item.productId._id,
-    _id: item._id, // Store the cart item ID for future operations
-    name: item.productDetails?.title || item.productId.title,
-    title: item.productDetails?.title || item.productId.title,
-    price: item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0),
-    mrp: item.productDetails?.mrp || item.productDetails?.price || (item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].mrp || item.productId.variants[0].price) : (item.productId.mrp || item.productId.price || 0)),
-    slug: item.productDetails?.slug || item.productId.slug,
-    image: item.productDetails?.image || (item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null),
-    quantity: item.quantity,
-    size: item.size || null,
-    color: item.color || null,
-    gstRate: item.productDetails?.gstRate || item.productId.gstRate || 5, // Add GST rate from product with default 5%
-    variantSku: item.variantSku || variantSku, // Ensure variantSku is set
-    addedAt: new Date().toISOString()
-  }))
-}
+import { createContext, useState, useEffect, useContext } from 'react'
+import { AuthContext } from './AuthContext'
+import api from '../utils/api'
 
 const CartContext = createContext()
 
@@ -27,433 +8,202 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [couponCode, setCouponCode] = useState('')
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponError, setCouponError] = useState(null)
-  const [isInitialized, setIsInitialized] = useState(false)
+  const { isAuthenticated, user } = useContext(AuthContext)
   
-  // Check if user is authenticated
+  // Initialize cart from localStorage or backend
   useEffect(() => {
-    const tokens = localStorage.getItem('tokens')
-    setIsAuthenticated(!!tokens)
-  }, [])
-  
-  // First, try to load cart from localStorage on initial render
-  useEffect(() => {
-    const storedCart = localStorage.getItem('cart')
-    if (storedCart) {
-      try {
-        const parsedCart = JSON.parse(storedCart)
-        setCart(parsedCart)
-      } catch (error) {
-        // Clear invalid data
-        localStorage.removeItem('cart')
-        setCart([])
-      }
-    } else {
-      // No cart data found in localStorage
-    }
-    setIsInitialized(true)
-  }, []) // Run only once on component mount
-  
-  // Then, fetch cart from backend if user is authenticated or has a guest session
-  useEffect(() => {
-    const fetchCartFromBackend = async () => {
-      // Skip backend fetch if we already have cart data in localStorage
-      const storedCart = localStorage.getItem('cart')
-      if (storedCart && JSON.parse(storedCart).length > 0) {
-        return
-      }
+    const fetchCart = async () => {
+      setLoading(true)
+      setError(null)
       
       try {
-        setLoading(true)
-        
         if (isAuthenticated) {
-          // Fetch cart for authenticated user
-          const response = await axios.get('/cart')
+          // Fetch cart from backend for authenticated users
+          const response = await api.get('/cart')
           if (response.data.success) {
-            // Transform backend cart format to frontend format
-            const backendCart = transformCartItems(response.data.data.items)
-            // Only update cart if backend has items, otherwise keep localStorage cart
-            if (backendCart.length > 0) {
-              setCart(backendCart)
-              localStorage.setItem('cart', JSON.stringify(backendCart))
-            } else {
-              // Backend cart is empty, keeping localStorage cart
+            // Transform backend format to frontend format if needed
+            const backendCart = response.data.data.items.map(item => {
+              if (!item || !item.productId) return null; // Skip null items
+              
+              // Get product details
+              const product = item.productId
+              
+              // Create cart item with all necessary properties
+              return {
+                id: item._id || '',
+                productId: product._id || '',
+                name: product.title || '',
+                title: product.title || '',
+                price: product.price || 0,
+                mrp: product.mrp || product.price || 0, // Use MRP or fallback to price
+                image: product.images && product.images.length > 0 ? product.images[0] : '',
+                quantity: item.quantity || 1,
+                size: item.size || null,
+                color: item.color || null,
+                slug: product.slug || '',
+                variantSku: item.variantSku || null
+              }
+            }).filter(item => item !== null) // Remove any null items
+            
+            setCart(backendCart)
+            
+            // Set coupon information if available
+            if (response.data.data.coupon) {
+              setCouponCode(response.data.data.coupon.code || '')
+              setCouponDiscount(response.data.data.couponDiscount || 0)
             }
           }
         } else {
-          // Check if we have a guest session ID
-          const guestSessionId = localStorage.getItem('guestSessionId')
-          
-          if (guestSessionId) {
-            // Fetch cart for guest user
-            const response = await axios.get(`/cart/guest/${guestSessionId}`)
-            if (response.data.success) {
-            // Transform backend cart format to frontend format
-            const backendCart = transformCartItems(response.data.data.items)
-              // Only update cart if backend has items, otherwise keep localStorage cart
-              if (backendCart.length > 0) {
-                setCart(backendCart)
-                localStorage.setItem('cart', JSON.stringify(backendCart))
-              } else {
-                // Backend guest cart is empty, keeping localStorage cart
-              }
+          // Initialize from localStorage for non-authenticated users
+          const storedCart = localStorage.getItem('cart')
+          if (storedCart) {
+            try {
+              setCart(JSON.parse(storedCart))
+            } catch (err) {
+              console.error('Error parsing cart from localStorage:', err)
+              setCart([])
+              localStorage.removeItem('cart')
             }
-          } else {
-            // Create a new guest session ID
-            const newGuestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15)
-            localStorage.setItem('guestSessionId', newGuestSessionId)
           }
         }
       } catch (err) {
-        // Keep localStorage cart on backend error
+        console.error('Error fetching cart:', err)
+        setError('Failed to load cart. Please try again.')
       } finally {
         setLoading(false)
       }
     }
     
-    fetchCartFromBackend()
-  }, [isAuthenticated]) // Only run when authentication status changes
+    fetchCart()
+  }, [isAuthenticated])
   
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage whenever it changes (for non-authenticated users)
   useEffect(() => {
-    // Only save to localStorage after initialization and when cart actually changes
-    if (isInitialized) {
+    if (!isAuthenticated && cart.length > 0) {
       localStorage.setItem('cart', JSON.stringify(cart))
     }
-  }, [cart, isInitialized])
+  }, [cart, isAuthenticated])
   
-  // Add to cart
+  // Add item to cart
   const addToCart = async (product, quantity = 1, size = null, color = null) => {
+    if (!product || !product.id) {
+      setError('Invalid product')
+      return
+    }
+    
     try {
       setLoading(true)
-      setError(null)
       
-      // Ensure quantity is a valid number
-      const parsedQuantity = parseInt(quantity, 10)
-      if (isNaN(parsedQuantity) || parsedQuantity < 1) {
-        quantity = 1 // Set to default valid quantity
-      } else {
-        quantity = parsedQuantity
-      }
-      
-      // Check if the product is already in the cart with the same size and color
+      // Check if item already exists in cart
       const existingItemIndex = cart.findIndex(item => 
-        (item.id === product.id || item._id === product._id) && 
-        (size ? item.size === size : true) && 
-        (color ? item.color === color : true)
+        item.id === product.id && 
+        item.size === size && 
+        item.color === color
       )
       
       if (existingItemIndex !== -1) {
-        // If product exists, update quantity instead of adding new item
-        const newQuantity = cart[existingItemIndex].quantity + quantity
-        return updateQuantity(product.id || product._id, newQuantity, size, color)
-      }
-      
-      // Ensure variantSku is not undefined or null
-      let variantSku = product.sku || (product.variant && product.variant.sku);
-      
-      // If still no variantSku, generate a fallback
-      if (!variantSku) {
-        // Generate a fallback SKU using product ID and size/color if available
-        variantSku = `${product.id || product._id}-${size || 'default'}-${color || 'default'}`;
-      }
-      
-      // Prepare the product object with additional properties
-      const productToAdd = {
-        ...product,
-        quantity,
-        size,
-        color,
-        variantSku: variantSku,
-        gstRate: product.gstRate || 0, // Add GST rate from product
-        mrp: product.mrp || product.price, // Ensure MRP is included
-        addedAt: new Date().toISOString()
-      }
-      
-      if (isAuthenticated) {
-        // For authenticated users, add to backend
-        const response = await axios.post('/cart', {
-          productId: product.id || product._id,
+        // Update quantity if item exists
+        const updatedCart = [...cart]
+        updatedCart[existingItemIndex].quantity += quantity
+        
+        if (isAuthenticated) {
+          // Update in backend
+          await api.put(`/cart/item/${updatedCart[existingItemIndex].id}`, {
+            quantity: updatedCart[existingItemIndex].quantity
+          })
+        }
+        
+        setCart(updatedCart)
+      } else {
+        // Add new item
+        const newItem = {
+          ...product,
           quantity,
           size,
-          color,
-          variantSku: variantSku // Add variantSku to backend request
-        })
-        
-        if (response.data.success) {
-          // Transform backend cart format to frontend format
-          const backendCart = transformCartItems(response.data.data.items, variantSku)
-          
-          // Update state and localStorage in one place
-          setCart(backendCart)
-          localStorage.setItem('cart', JSON.stringify(backendCart))
+          color
         }
-      } else {
-        // For guest users, check if we have a guest session ID
-        const guestSessionId = localStorage.getItem('guestSessionId')
         
-        if (!guestSessionId) {
-          // Create a new guest session ID if not exists
-          const newGuestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15)
-          localStorage.setItem('guestSessionId', newGuestSessionId)
-          
-          // Add to guest cart in backend
-          const response = await axios.post(`/cart/guest/${newGuestSessionId}`, {
-            productId: product.id || product._id,
+        if (isAuthenticated) {
+          // Add to backend
+          const response = await api.post('/cart', {
+            productId: product.id,
             quantity,
             size,
             color,
-            variantSku: variantSku // Add variantSku to backend request
+            variantSku: product.variantSku || null
           })
           
           if (response.data.success) {
-            // Transform backend cart format to frontend format
-            const backendCart = transformCartItems(response.data.data.items, variantSku)
+            // Use the returned item from backend which includes the item ID
+            const backendItem = response.data.data.items.find(item => 
+              item.productId._id === product.id && 
+              item.size === size && 
+              item.color === color
+            )
             
-            // Update state and localStorage in one place
-            setCart(backendCart)
-            localStorage.setItem('cart', JSON.stringify(backendCart))
-          }
-        } else {
-          // Add to existing guest cart in backend
-          const response = await axios.post(`/cart/guest/${guestSessionId}`, {
-            productId: product.id || product._id,
-            quantity,
-            size,
-            color,
-            variantSku: variantSku // Add variantSku to backend request
-          })
-          
-          if (response.data.success) {
-            // Transform backend cart format to frontend format
-            const backendCart = transformCartItems(response.data.data.items, variantSku)
-            
-            // Update state and localStorage in one place
-            setCart(backendCart)
-            localStorage.setItem('cart', JSON.stringify(backendCart))
+            if (backendItem) {
+              newItem.id = backendItem._id
+            }
           }
         }
+        
+        setCart([...cart, newItem])
       }
-      
-      // Dispatch custom event to open cart sidebar
-      const event = new CustomEvent('openCartSidebar')
-      window.dispatchEvent(event)
-      
-    } catch (error) {
-      setError(error.message || 'Failed to add to cart')
-      // Failed to add to cart
+    } catch (err) {
+      console.error('Error adding to cart:', err)
+      setError('Failed to add item to cart')
     } finally {
       setLoading(false)
     }
   }
   
-  // Remove from cart
-  const removeFromCart = async (itemId, size = null, color = null) => {
+  // Update item quantity
+  const updateQuantity = async (itemId, quantity) => {
     try {
       setLoading(true)
-      setError(null)
+      
+      if (quantity <= 0) {
+        // Remove item if quantity is 0 or negative
+        return removeFromCart(itemId)
+      }
+      
+      const updatedCart = cart.map(item => 
+        item.id === itemId ? { ...item, quantity } : item
+      )
       
       if (isAuthenticated) {
-        // For authenticated users, remove from backend
-        // First find the cart item that matches the criteria
-        const cartItem = cart.find(item => 
-          (item.id === itemId || item._id === itemId) && 
-          (size ? item.size === size : true) && 
-          (color ? item.color === color : true)
-        )
-        
-        if (cartItem) {
-          // For backend, we need the cart item ID, not the product ID
-          const response = await axios.delete(`/cart/${cartItem._id}`)
-          
-          if (response.data.success) {
-            // Transform backend cart format to frontend format
-            const backendCart = transformCartItems(response.data.data.items)
-            
-            // Update state and localStorage in one place
-            setCart(backendCart)
-            localStorage.setItem('cart', JSON.stringify(backendCart))
-            
-           
-          }
-        } else {
-          throw new Error('Cart item not found')
-        }
-      } else {
-        // For guest users, check if we have a guest session ID
-        const guestSessionId = localStorage.getItem('guestSessionId')
-        
-        if (guestSessionId) {
-          // First find the cart item that matches the criteria
-          const cartItem = cart.find(item => 
-            (item.id === itemId || item._id === itemId) && 
-            (size ? item.size === size : true) && 
-            (color ? item.color === color : true)
-          )
-          
-          if (cartItem) {
-            // For backend, we need the cart item ID, not the product ID
-            const response = await axios.delete(`/cart/guest/${guestSessionId}/${cartItem._id}`)
-            
-            if (response.data.success) {
-              // Transform backend cart format to frontend format
-              const backendCart = transformCartItems(response.data.data.items)
-              
-              // Update state and localStorage in one place
-              setCart(backendCart)
-              localStorage.setItem('cart', JSON.stringify(backendCart))
-              
-            
-            }
-          } else {
-            throw new Error('Cart item not found')
-          }
-        } else {
-          // Fallback to localStorage if no guest session ID
-          // Fix the filter logic to correctly remove items
-          const filteredCart = cart.filter(item => 
-            !((item.id === itemId || item._id === itemId) && 
-              (!size || item.size === size) && 
-              (!color || item.color === color))
-          )
-          
-          // Update state and localStorage in one place
-          setCart(filteredCart)
-          localStorage.setItem('cart', JSON.stringify(filteredCart))
-          
-        
-        }
+        // Update in backend
+        await api.put(`/cart/item/${itemId}`, { quantity })
       }
-    } catch (error) {
-      // console.error('Error removing from cart:', error)
-      setError(error.message || 'Failed to remove item from cart')
-      // Failed to remove item from cart
+      
+      setCart(updatedCart)
+    } catch (err) {
+      console.error('Error updating quantity:', err)
+      setError('Failed to update quantity')
     } finally {
       setLoading(false)
     }
   }
   
-  // Update quantity
-  const updateQuantity = async (itemId, quantity, size = null, color = null) => {
+  // Remove item from cart
+  const removeFromCart = async (itemId) => {
     try {
       setLoading(true)
-      setError(null)
       
-      // Ensure quantity is a valid number
-      const parsedQuantity = parseInt(quantity, 10)
-      
-      // If quantity is invalid, set to 1
-      if (isNaN(parsedQuantity) || parsedQuantity < 1) {
-        // If quantity is 0 or less, remove the item
-        if (parsedQuantity <= 0) {
-          return removeFromCart(itemId, size, color)
-        }
-        // Otherwise set to minimum valid quantity
-        quantity = 1
-      } else {
-        // Use the parsed quantity
-        quantity = parsedQuantity
-      }
+      const updatedCart = cart.filter(item => item.id !== itemId)
       
       if (isAuthenticated) {
-        // For authenticated users, update on backend
-        // First find the cart item that matches the criteria
-        const cartItem = cart.find(item => 
-          (item.id === itemId || item._id === itemId) && 
-          (size ? item.size === size : true) && 
-          (color ? item.color === color : true)
-        )
-        
-        if (cartItem) {
-          // For backend, we need the cart item ID, not the product ID
-          // cartItem._id should be the cart item ID from the backend
-          const response = await axios.patch(`/cart/${cartItem._id}`, { quantity })
-          
-          if (response.data.success) {
-            // Transform backend cart format to frontend format
-            const backendCart = response.data.data.items.map(item => ({
-              id: item.productId._id,
-              _id: item._id, // Store the cart item ID for future operations
-              name: item.productId.title,
-              title: item.productId.title,
-              price: item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].price) : 0,
-              mrp: item.productId.variants && item.productId.variants.length > 0 ? parseFloat(item.productId.variants[0].mrp || item.productId.variants[0].price) : (item.productId.mrp || item.productId.price || 0),
-              image: item.productId.images && item.productId.images.length > 0 ? item.productId.images[0] : null,
-              quantity: item.quantity,
-              size: item.size || null,
-              color: item.color || null,
-              gstRate: item.gstRate || 0, // Add GST rate from product
-              addedAt: new Date().toISOString()
-            }))
-            
-            // Update state and localStorage in one place
-            setCart(backendCart)
-            localStorage.setItem('cart', JSON.stringify(backendCart))
-            
-          
-          }
-        } else {
-          throw new Error('Cart item not found')
-        }
-      } else {
-        // For guest users, check if we have a guest session ID
-        const guestSessionId = localStorage.getItem('guestSessionId')
-        
-        if (guestSessionId) {
-          // First find the cart item that matches the criteria
-          const cartItem = cart.find(item => 
-            (item.id === itemId || item._id === itemId) && 
-            (size ? item.size === size : true) && 
-            (color ? item.color === color : true)
-          )
-          
-          if (cartItem) {
-            // For backend, we need the cart item ID, not the product ID
-            const response = await axios.patch(`/cart/guest/${guestSessionId}/${cartItem._id}`, { quantity })
-            
-            if (response.data.success) {
-              // Transform backend cart format to frontend format
-              const backendCart = transformCartItems(response.data.data.items)
-              
-              // Update state and localStorage in one place
-              setCart(backendCart)
-              localStorage.setItem('cart', JSON.stringify(backendCart))
-              
-              // Cart updated successfully
-            }
-          } else {
-            throw new Error('Cart item not found')
-          }
-        } else {
-          // Fallback to localStorage if no guest session ID
-          const updatedCart = cart.map(item => {
-            if ((item.id === itemId || item._id === itemId) && 
-                (size ? item.size === size : true) && 
-                (color ? item.color === color : true)) {
-              // Make sure we preserve the mrp value when updating quantity
-              return { 
-                ...item, 
-                quantity,
-                mrp: item.mrp || item.price || 0 // Ensure mrp is preserved
-              }
-            }
-            return item
-          })
-          
-          // Update state and localStorage in one place
-          setCart(updatedCart)
-          localStorage.setItem('cart', JSON.stringify(updatedCart))
-          
-          
-        }
+        // Remove from backend
+        await api.delete(`/cart/item/${itemId}`)
       }
-    } catch (error) {
-      // console.error('Error updating cart:', error)
-      setError(error.message || 'Failed to update cart')
-      // Failed to update cart
+      
+      setCart(updatedCart)
+    } catch (err) {
+      console.error('Error removing from cart:', err)
+      setError('Failed to remove item from cart')
     } finally {
       setLoading(false)
     }
@@ -462,259 +212,54 @@ export const CartProvider = ({ children }) => {
   // Clear cart
   const clearCart = async () => {
     try {
-      // console.log('Clearing cart...')
       setLoading(true)
-      setError(null)
       
       if (isAuthenticated) {
-        // For authenticated users, make a single API call to clear all items
-        // This requires a backend endpoint that can clear the entire cart
-        // If such endpoint doesn't exist, we can use a more efficient approach
-        
-        // Option 1: If there's a dedicated clear cart endpoint
-        try {
-          // Assuming there's an endpoint to clear the entire cart
-          // If this endpoint doesn't exist, this will throw an error and we'll use Option 2
-          const response = await axios.delete('/cart')
-          if (response.data.success) {
-            setCart([])
-            localStorage.removeItem('cart')
-          }
-        } catch (clearError) {
-          // console.log('No clear cart endpoint, removing items individually')
-          // Option 2: More efficient individual removal
-          // Instead of awaiting each removal, we can use Promise.all to remove items in parallel
-          const removalPromises = cart.map(item => 
-            axios.delete(`/cart/${item._id}`).catch(e => console.error(`Failed to remove item ${item._id}:`, e))
-          )
-          
-          // Wait for all removals to complete
-          await Promise.all(removalPromises)
-          // console.log('Cart cleared from backend')
-          setCart([])
-          localStorage.removeItem('cart')
-        }
-      } else {
-        // For guest users, check if we have a guest session ID
-        const guestSessionId = localStorage.getItem('guestSessionId')
-        
-        if (guestSessionId) {
-          // Try to clear the guest cart with a single API call
-          try {
-            const response = await axios.delete(`/cart/guest/${guestSessionId}`)
-            if (response.data.success) {
-              setCart([])
-              localStorage.removeItem('cart')
-            }
-          } catch (clearError) {
-            // console.log('No clear guest cart endpoint, removing items individually')
-            // More efficient individual removal for guest cart
-            const removalPromises = cart.map(item => 
-              axios.delete(`/cart/guest/${guestSessionId}/${item._id}`).catch(e => console.error(`Failed to remove guest item ${item._id}:`, e))
-            )
-            
-            // Wait for all removals to complete
-            await Promise.all(removalPromises)
-            setCart([])
-            localStorage.removeItem('cart')
-          }
-        } else {
-          // For non-authenticated users without guest session ID, simply clear localStorage
-          setCart([])
-          localStorage.removeItem('cart')
-        }
+        // Clear in backend
+        await api.delete('/cart')
       }
       
-     
-    } catch (error) {
-      // console.error('Error clearing cart:', error)
-      setError(error.message || 'Failed to clear cart')
-      // Failed to clear cart
+      setCart([])
+      setCouponCode('')
+      setCouponDiscount(0)
+      setCouponError(null)
+      
+      if (!isAuthenticated) {
+        localStorage.removeItem('cart')
+      }
+    } catch (err) {
+      console.error('Error clearing cart:', err)
+      setError('Failed to clear cart')
     } finally {
       setLoading(false)
     }
   }
   
-  // Get cart total
-  const getCartTotal = () => {
-    // Use the updated getCartSubtotal function to ensure consistency
-    const subtotal = getCartSubtotal()
-    
-    // Calculate shipping cost (free over ₹1000)
-    // Ensure proper number comparison
-    const shippingCost = Number(subtotal) > 1000 ? 0 : 100
-    
-    // Calculate tax based on each product's GST rate
-    const tax = cart.reduce((totalTax, item) => {
-      // Always use MRP instead of price
-      const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price) || 0
-      // Ensure quantity is a number
-      const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
-      // Get GST rate from item or use 5% as default if not available
-      const gstRate = typeof item.gstRate === 'number' ? item.gstRate : parseFloat(item.gstRate || 5) || 5
-      // Calculate tax for this item and ensure it's not NaN
-      const itemTax = (price * quantity * gstRate) / 100
-      return totalTax + (isNaN(itemTax) ? 0 : itemTax)
-    }, 0)
-    
-    // Apply coupon discount if available and add shipping cost and tax
-    // Ensure all values are treated as numbers
-    const total = Number(subtotal) - Number(couponDiscount) + Number(shippingCost) + Number(tax)
-    
-    // Return as a number, not a string
-    return Number(total)
-  }
-  
-  // Get cart subtotal (without discount)
-  const getCartSubtotal = () => {
-    // Ensure we're working with valid numbers throughout the calculation
-    const subtotal = cart.reduce((total, item) => {
-      // Always use MRP instead of price, ensure it's a valid number
-      const price = typeof item.mrp === 'number' ? item.mrp : parseFloat(item.mrp || item.price || 0)
-      // Ensure quantity is a number
-      const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0
-      // Calculate item total and ensure it's not NaN
-      const itemTotal = price * quantity
-      // Ensure we don't add NaN to the total
-      return total + (isNaN(itemTotal) ? 0 : itemTotal)
-    }, 0)
-    
-    // Return as a number, not a string
-    return Number(subtotal)
-  }
-  
-  // Get cart item count
-  const getCartItemCount = () => {
-    return cart.reduce((count, item) => count + item.quantity, 0)
-  }
-  
-  // Apply coupon code
+  // Apply coupon
   const applyCoupon = async (code) => {
     try {
-      setCouponError(null)
       setLoading(true)
+      setCouponError(null)
       
-      if (!code) {
-        setCouponError('Please enter a coupon code')
-        return { success: false, error: 'Please enter a coupon code' }
-      }
-      
-      // Verify coupon with backend
-      const response = await axios.post('/promotions/verify-coupon', { couponCode: code })
-      
-      if (response.data.success) {
-        const { discountType, discountValue, minimumPurchase } = response.data.data
+      if (isAuthenticated) {
+        // Apply coupon in backend
+        const response = await api.post('/cart/coupon', { code })
         
-        // Check minimum purchase requirement
-        // Calculate subtotal properly to ensure accurate comparison
-        const subtotal = getCartSubtotal()
-        console.log('Cart Subtotal:', subtotal, 'Minimum Purchase:', minimumPurchase)
-        
-        // Fix: Ensure proper number comparison by converting both to numbers and using toFixed(2) to handle precision issues
-        const subtotalNum = parseFloat(parseFloat(subtotal).toFixed(2))
-        const minPurchaseNum = parseFloat(parseFloat(minimumPurchase).toFixed(2))
-        
-        // Add detailed debugging
-        console.log('Subtotal (parsed):', subtotalNum, 'Min Purchase (parsed):', minPurchaseNum, 'Comparison result:', subtotalNum < minPurchaseNum)
-        
-        // The coupon is invalid if the subtotal is less than the minimum purchase
-        // Add a larger epsilon (0.1) to account for potential floating-point precision issues
-        // OR use direct comparison with <= to ensure coupon applies when subtotal equals minimum purchase
-        if (minPurchaseNum && subtotalNum < minPurchaseNum) {
-          setCouponError(`Minimum purchase of ₹${parseInt(minPurchaseNum)} required for this coupon`)
-          setCouponCode('')
-          setCouponDiscount(0)
-          return { 
-            success: false,   
-            error: `Minimum purchase of ₹${parseInt(minPurchaseNum)} required for this coupon` 
-          }
-        }
-        
-        // Calculate discount
-        let discount = 0
-        if (discountType === 'percentage') {
-          discount = (subtotal * discountValue) / 100
-        } else { // fixed amount
-          discount = discountValue
-        }
-        
-        // Ensure discount doesn't exceed the total
-        if (discount > subtotal) {
-          discount = subtotal
-        }
-        
-        setCouponCode(code)
-        setCouponDiscount(discount)
-        
-        // Apply coupon to backend cart if user is authenticated or has a guest session
-        let backendResponse;
-        if (isAuthenticated) {
-          backendResponse = await axios.post('/cart/apply-coupon', { code: code })
+        if (response.data.success) {
+          setCouponCode(code)
+          setCouponDiscount(response.data.data.couponDiscount || 0)
         } else {
-          const guestSessionId = localStorage.getItem('guestSessionId')
-          if (guestSessionId) {
-            backendResponse = await axios.post(`/cart/guest/${guestSessionId}/apply-coupon`, { code: code })
-          }
-        }
-        
-        // Check if backend application was successful
-        if (!backendResponse?.data?.success) {
-          // If backend rejected the coupon, reset local state
-          setCouponCode('')
-          setCouponDiscount(0)
-          
-          // Extract error message
-          let errorMessage = 'Failed to apply coupon';
-          if (backendResponse?.data?.error?.message) {
-            errorMessage = backendResponse.data.error.message;
-          } else if (backendResponse?.data?.message) {
-            errorMessage = backendResponse.data.message;
-          } else if (backendResponse?.data?.error) {
-            errorMessage = backendResponse.data.error;
-          }
-          
-          setCouponError(errorMessage);
-          return { success: false, error: errorMessage };
-        }
-        
-        // Coupon applied successfully
-        
-        return { 
-          success: true, 
-          data: { 
-            couponCode: code, 
-            discount, 
-            discountType, 
-            discountValue 
-          } 
+          setCouponError(response.data.message || 'Invalid coupon')
         }
       } else {
-        setCouponError(response.data.error || 'Invalid coupon code')
-        setCouponCode('')
-        setCouponDiscount(0)
-        return { success: false, error: response.data.error || 'Invalid coupon code' }
+        // For non-authenticated users, just set the coupon code
+        // In a real app, you would validate the coupon on the frontend
+        setCouponCode(code)
+        setCouponDiscount(0) // Set a default discount or calculate based on cart total
       }
     } catch (err) {
-      // Handle error object or string appropriately
-      let errorMessage = 'Failed to apply coupon'
-      
-      if (err.response?.data?.error) {
-        // If error is an object with code and message properties
-        if (typeof err.response.data.error === 'object' && err.response.data.error.message) {
-          errorMessage = err.response.data.error.message
-        } else {
-          errorMessage = err.response.data.error
-        }
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
-      setCouponError(errorMessage)
-      setCouponCode('')
-      setCouponDiscount(0)
-      return { success: false, error: errorMessage }
+      console.error('Error applying coupon:', err)
+      setCouponError(err.response?.data?.message || 'Failed to apply coupon')
     } finally {
       setLoading(false)
     }
@@ -723,171 +268,44 @@ export const CartProvider = ({ children }) => {
   // Remove coupon
   const removeCoupon = async () => {
     try {
-      // Remove coupon from backend cart if user is authenticated or has a guest session
-      if (isAuthenticated) {
-        await axios.post('/cart/remove-coupon')
-      } else {
-        const guestSessionId = localStorage.getItem('guestSessionId')
-        if (guestSessionId) {
-          await axios.post(`/cart/guest/${guestSessionId}/remove-coupon`)
-        }
-      }
-      
-      // Update local state
-      setCouponCode('')
-      setCouponDiscount(0)
-      setCouponError(null)
-      
-      // Coupon removed
-      
-      return { success: true }
-    } catch (error) {
-      // Still update local state even if backend call fails
-      setCouponCode('')
-      setCouponDiscount(0)
-      setCouponError(null)
-      
-      // Coupon removed
-      
-      return { success: true }
-    }
-  }
-
-  // Get orders for guest user
-  const getGuestOrders = async () => {
-    try {
-      // Check if we have a guest session ID in localStorage
-      const guestSessionId = localStorage.getItem('guestSessionId');
-      
-      if (!guestSessionId) {
-        return { success: false, error: 'No guest session found' };
-      }
-      
-      setLoading(true);
-      setError(null);
-      
-      const response = await axios.get(`/orders/guest/${guestSessionId}`);
-      
-      if (response.data.success) {
-        return { success: true, data: response.data.data.orders };
-      } else {
-        throw new Error(response.data.error || 'Failed to fetch guest orders');
-      }
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to fetch guest orders';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Checkout function
-  const checkout = async (orderData) => {
-    try {
       setLoading(true)
-      setError(null)
       
-      // Validate cart items
-      if (!cart || cart.length === 0) {
-        setError('Your cart is empty. Please add items to your cart before checkout.')
-        // Cart is empty
-        return { success: false, error: 'Cart is empty' }
+      if (isAuthenticated) {
+        // Remove coupon in backend
+        await api.delete('/cart/coupon')
       }
       
-      // Calculate subtotal and total
-      const subtotal = getCartSubtotal()
-      const total = getCartTotal()
-      
-      // Prepare order items from cart
-      const validatedItems = cart.map(item => {
-        // Ensure we have a valid variantSku
-        let variantSku = item.variantSku || item.sku;
-        
-        // If still no variantSku, try to get it from variant object
-        if (!variantSku && item.variant) {
-          variantSku = item.variant.sku;
-        }
-        
-        // If still no variantSku, generate a fallback
-        if (!variantSku) {
-          // Generate a fallback SKU using product ID and size/color if available
-          // Include size and color in the SKU to help backend find the right variant
-          const size = item.size || 'default';
-          const color = item.color || 'default';
-          variantSku = `${item.id || item._id}-${size}-${color}`;
-        }
-        
-        // Always use MRP instead of price if available
-        const price = item.mrp || item.price;
-        
-        return {
-          productId: item.id || item._id,
-          qty: item.quantity,
-          variantSku: variantSku,
-          price: price,
-          size: item.size || null,
-          color: item.color || null 
-        };
-      });
-      
-      // Prepare final order payload
-      let finalOrderData = {
-        ...orderData, 
-        items: validatedItems,
-        couponCode: couponCode || null,
-        subtotal,
-        total
-      };
-      
-      // Generate a guest session ID if user is not authenticated
-      if (!isAuthenticated) {
-        // Check if we already have a guest session ID in localStorage
-        let guestSessionId = localStorage.getItem('guestSessionId');
-        
-        // If not, create a new one
-        if (!guestSessionId) {
-          guestSessionId = 'guest-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);
-          localStorage.setItem('guestSessionId', guestSessionId);
-        }
-        
-        // Add guest session ID to order data for guest users only
-        finalOrderData.guestSessionId = guestSessionId;
-      }
-      
-      // Determine which endpoint to use based on authentication status
-      const endpoint = isAuthenticated ? '/orders' : '/orders/guest';
-      
-      // Create order payload and send to backend
-      const response = await axios.post(endpoint, finalOrderData)
-      
-      if (response.data.success) {
-        // Only clear cart for non-Cashfree payment methods
-        // For Cashfree, cart will be cleared after payment confirmation
-        if (orderData.payment.method !== 'CASHFREE') {
-          await clearCart()
-          
-          // Order placed successfully
-        } else {
-          // For Cashfree, just store the order ID in localStorage
-          const orderId = response.data.data.orderId || (response.data.data.order && response.data.data.order._id) || response.data.data._id;
-          if (orderId) {
-            localStorage.setItem('pendingOrderId', orderId);
-          }
-        }
-        
-        return { success: true, data: response.data.data }
-      } else {
-        throw new Error(response.data.error || 'Failed to complete checkout')
-      }
+      setCouponCode('')
+      setCouponDiscount(0)
+      setCouponError(null)
     } catch (err) {
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to complete checkout. Please try again.'
-      setError(errorMessage)
-      // Checkout error
-      return { success: false, error: errorMessage }
+      console.error('Error removing coupon:', err)
+      setError('Failed to remove coupon')
     } finally {
       setLoading(false)
     }
+  }
+  
+  // Calculate cart subtotal
+  const getCartSubtotal = () => {
+    return cart.reduce((total, item) => {
+      // Use selling price (price) for calculations, not MRP
+      return total + (item.price * item.quantity)
+    }, 0)
+  }
+  
+  // Calculate cart total with discounts
+  const getCartTotal = () => {
+    const subtotal = getCartSubtotal()
+    const discount = couponDiscount || 0
+    
+    // Apply discount
+    return Math.max(0, subtotal - discount)
+  }
+  
+  // Get total number of items in cart
+  const getCartItemCount = () => {
+    return cart.reduce((count, item) => count + item.quantity, 0)
   }
   
   return (
@@ -896,31 +314,18 @@ export const CartProvider = ({ children }) => {
         cart,
         loading,
         error,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        getCartTotal,
-        getCartSubtotal,
-        getCartItemCount,
-        checkout,
         couponCode,
         couponDiscount,
         couponError,
+        addToCart,
+        updateQuantity,
+        removeFromCart,
+        clearCart,
         applyCoupon,
         removeCoupon,
-        getGuestOrders,
-        // Debug function to check cart state
-        debugCart: () => {
-          return { cart, localStorage: localStorage.getItem('cart') }
-        },
-        // Force sync cart with backend
-        syncCartWithBackend: async () => {
-          // Clear the localStorage check to force backend fetch
-          localStorage.removeItem('cart')
-          // Trigger backend fetch
-          window.location.reload()
-        }
+        getCartSubtotal,
+        getCartTotal,
+        getCartItemCount
       }}
     >
       {children}

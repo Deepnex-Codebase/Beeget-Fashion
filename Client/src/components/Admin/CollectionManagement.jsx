@@ -182,7 +182,7 @@ const CollectionManagement = () => {
     ],
     queryFn: async () => {
       try {
-        let url = "/collections";
+        let url = "collections";
         const params = new URLSearchParams();
 
         // Search and filter params
@@ -259,7 +259,7 @@ const CollectionManagement = () => {
         params.append("page", productPage);
         params.append("limit", productItemsPerPage);
 
-        const url = `/products?${params.toString()}`;
+        const url = `products?${params.toString()}`;
         const response = await axios.get(url);
 
         // Transform the API response to match expected format
@@ -288,7 +288,7 @@ const CollectionManagement = () => {
     mutationFn: async (id) => {
       try {
         // console.log(`Deleting collection with id: ${id}`);
-        const response = await axios.delete(`/collections/${id}`);
+        const response = await axios.delete(`collections/${id}`);
         // console.log("Delete collection response:", response);
         return response.data;
       } catch (error) {
@@ -359,7 +359,7 @@ const CollectionManagement = () => {
             formData.append("image", imageFile);
 
             const uploadResponse = await axios.post(
-              "/api/products",
+              "products",
               formData,
               {
                 headers: {
@@ -396,7 +396,7 @@ const CollectionManagement = () => {
         }
 
         // Create the collection
-        const response = await axios.post("/collections", collectionData);
+        const response = await axios.post("collections", collectionData);
         // console.log("Create collection response:", response);
 
         // If products were selected, add them to the collection
@@ -408,7 +408,7 @@ const CollectionManagement = () => {
         ) {
           try {
             const productsResponse = await axios.post(
-              `/collections/${response.data.data._id}/products`,
+              `collections/${response.data.data._id}/products`,
               {
                 productIds: selectedProducts,
               }
@@ -519,7 +519,7 @@ const CollectionManagement = () => {
             formData.append("image", imageFile);
 
             const uploadResponse = await axios.post(
-              "/api/products",
+              "products",
               formData,
               {
                 headers: {
@@ -562,7 +562,7 @@ const CollectionManagement = () => {
         }
         
         // Update the collection
-        const response = await axios.put(`/collections/${id}`, data);
+        const response = await axios.put(`collections/${id}`, data);
         // console.log("Update collection response:", response);
 
         // If products were selected, update them in the collection
@@ -570,7 +570,7 @@ const CollectionManagement = () => {
           // Handle both adding and removing products
           try {
             const productsResponse = await axios.post(
-              `/collections/${id}/products`,
+              `collections/${id}/products`,
               {
                 productIds: selectedProducts,
               }

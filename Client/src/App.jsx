@@ -35,6 +35,7 @@ const Contact = lazy(() => import('./pages/Contact'))
 const Shipping = lazy(() => import('./pages/Shipping'))
 const FAQ = lazy(() => import('./pages/FAQ'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('./pages/TermsOfService'))
 const Collections = lazy(() => import('./pages/Collections'))
 const CollectionDetail = lazy(() => import('./pages/CollectionDetail'))
 const PlusSize = lazy(() => import('./pages/PlusSize'))
@@ -77,6 +78,9 @@ function App() {
               <Route path="shipping" element={<Shipping />} />
               <Route path="faq" element={<FAQ />} />
               <Route path="privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="privacy" element={<PrivacyPolicy />} />
+              <Route path="terms-of-service" element={<TermsOfService />} />
+              <Route path="terms" element={<TermsOfService />} />
               <Route path="collections" element={<Collections />} />
               <Route path="collections/:id" element={<CollectionDetail />} />
               <Route path="plus-size" element={<PlusSize />} />
