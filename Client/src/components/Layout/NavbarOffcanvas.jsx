@@ -97,8 +97,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-          />
-          
+          />          
           {/* Navbar panel */}
           <motion.div
             className="fixed bottom-0 h-[85vh] sm:h-full sm:top-0 sm:left-0 w-full sm:w-80 bg-white shadow-lg z-50 flex flex-col rounded-t-3xl sm:rounded-none"
@@ -138,8 +137,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                 <XMarkIcon className="h-6 w-6" />
               </motion.button>
               </div>
-            </motion.div>
-            
+            </motion.div>           
             {/* Navigation Links */}
             <motion.div className="flex-grow overflow-y-auto py-4 px-4">
               <motion.nav 
@@ -181,7 +179,6 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       Home
                     </NavLink>
                   </motion.div>
-                  
                   <motion.div
                     variants={{
                       hidden: { x: -20, opacity: 0 },
@@ -199,8 +196,7 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       <ShoppingBagIcon className="h-5 w-5 mr-3" />
                       Shop
                     </NavLink>
-                  </motion.div>
-                  
+                  </motion.div>    
                   {/* Plus Size Section */}
                   <motion.div
                     variants={{
@@ -220,7 +216,6 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       Plus Size
                     </NavLink>
                   </motion.div>
-                  
                   {/* New Arrivals Section */}
                   <motion.div
                     variants={{
@@ -240,7 +235,6 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       New Arrivals
                     </NavLink>
                   </motion.div>
-                  
                   {/* Collection Section */}
                   <motion.div
                     variants={{

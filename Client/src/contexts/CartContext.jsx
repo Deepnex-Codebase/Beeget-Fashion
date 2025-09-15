@@ -348,7 +348,8 @@ export const CartProvider = ({ children }) => {
       // Calculate GST for each item individually
       cart.forEach(item => {
         const itemPrice = (item.sellingPrice || item.price || 0) * item.quantity
-        const itemGstRate = item.gstRate || gstConfig.TOTAL_GST_RATE * 100 // Default to config rate if not specified
+        // Use item-specific GST rate if available, otherwise use the configured rate
+        const itemGstRate = item.gstRate !== undefined ? item.gstRate : gstConfig.TOTAL_GST_RATE * 100
         totalGst += (itemPrice * itemGstRate) / 100
       })
       

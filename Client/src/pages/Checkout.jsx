@@ -10,6 +10,7 @@ import axios from '../utils/api'
 import { toast } from 'react-toastify'
 import { FiCheck, FiX, FiPlus, FiMail } from 'react-icons/fi'
 import { sendGuestOTP, verifyGuestOTP, checkEmailVerification } from '../utils/guestVerification'
+import gstConfig from '../config/gstConfig'
 
 // Form validation schema
 const schema = yup.object().shape({
@@ -453,12 +454,10 @@ const Checkout = () => {
   
   // Calculate order summary using CartContext functions
   const subtotal = getCartSubtotal()
-  const shippingCost = subtotal > 1000 ? 0 : 100 // Free shipping over ₹1000
-  
-
+  const shippingCost = 0 // Free shipping for all orders
   
   // Calculate total with shipping if not already included in getCartTotal()
-  const total = getCartTotal() + (subtotal > 1000 ? 0 : shippingCost)
+  const total = getCartTotal() + shippingCost
   
   // Initialize Cashfree payment
   const initializeCashfreePayment = (orderToken, orderId) => {
@@ -578,12 +577,12 @@ const Checkout = () => {
           variantSku: item.variantSku || (item.variant && item.variant.sku) || `${item.productId || item.id || item._id}-${item.size || 'default'}-${item.color || 'default'}`,
           qty: item.quantity,
           price: item.sellingPrice || item.price || 0, // Send selling price to server
-          gstRate: item.gstRate || 5 // Send GST rate to server (default 5%)
+          gstRate: item.gstRate || gstConfig.TOTAL_GST_RATE * 100 // Send GST rate to server (dynamic from config)
         })),
         shipping: {
           address: shippingAddress,
           method: 'Standard',
-          cost: shippingCost
+          cost: 0 // Always free shipping
         },
         payment: {
           method: data.paymentMethod === 'cashfree' ? 'CASHFREE' : data.paymentMethod === 'cod' ? 'COD' : data.paymentMethod.toUpperCase(),
@@ -1222,7 +1221,7 @@ const Checkout = () => {
                     <div className="mt-4 p-4 border border-gray-200 rounded-md bg-gray-50 text-center">
                       <p className="text-sm text-gray-600 mb-2">You will be redirected to Cashfree to complete your payment securely.</p>
                       <p className="text-sm text-gray-600 mb-2">Cashfree supports Credit/Debit Cards, UPI, Netbanking, and Wallets.</p>
-                      <img src="https://www.cashfree.com/images/v3/Cashfree-Payments-Logo.svg" alt="Cashfree" className="h-8 mx-auto mt-2" />
+                      <img src="/images.png" alt="Cashfree" className="h-10 mx-auto mt-2" />
                     </div>
                   )}
                 </div>
@@ -1344,15 +1343,13 @@ const Checkout = () => {
                 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium">
-                    {getCartSubtotal() >= 1000 ? 'Free' : `₹${parseInt(shippingCost)}`}
-                  </span>
+                  <span className="font-medium">Free</span>
                 </div>
                 
 
                 
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">GST (5%)</span>
+                  <span className="text-gray-600">GST</span>
                   <span className="font-medium">Included</span>
                 </div>
                 
@@ -1361,10 +1358,7 @@ const Checkout = () => {
                     <span>Total</span>
                     <span>₹{parseInt(total)}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Price inclusive of 5% GST</p>
-                  {getCartSubtotal() < 1000 && (
-                    <p className="text-xs text-gray-500 mt-1">Add ₹{parseInt(1000 - getCartSubtotal())} more to get free shipping</p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-1">Price inclusive of {gstConfig.DISPLAY.TOTAL_GST_RATE} GST</p>
                 </div>
               </div>
             </div>
