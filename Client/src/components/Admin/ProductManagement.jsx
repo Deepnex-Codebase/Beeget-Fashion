@@ -39,7 +39,7 @@ const ProductManagement = () => {
     variants: [
       {
         sku: '',
-        price: '',
+        sellingPrice: '',
         stock: '',
         attributes: {},
         images: [] // Variant-specific images
@@ -93,7 +93,7 @@ const ProductManagement = () => {
   
   // State for price synchronization checkbox
   const [syncPrices, setSyncPrices] = useState(false);
-  const [masterPrice, setMasterPrice] = useState({ price: '', wrongDefectivePrice: '', mrp: '' });
+  const [masterPrice, setMasterPrice] = useState({ sellingPrice: '', wrongDefectivePrice: '', mrp: '' });
   
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
@@ -811,7 +811,7 @@ const ProductManagement = () => {
         return {
           ...variant,
           sku: variant.sku || generatedSku, // Use existing SKU if available, otherwise generate a new one
-          price: variant.price || '',
+          sellingPrice: variant.sellingPrice || '',
           wrongDefectivePrice: variant.wrongDefectivePrice || '',
           mrp: variant.mrp || '',
           bustSize: variant.bustSize || '',
@@ -825,7 +825,7 @@ const ProductManagement = () => {
       }) || [
         {
           sku: generatedSku,
-          price: '',
+          sellingPrice: '',
           stock: '',
           wrongDefectivePrice: '',
           mrp: '',
@@ -900,7 +900,9 @@ const ProductManagement = () => {
     // Convert numeric values for all variants
     for (let i = 0; i < formData.variants.length; i++) {
       const variant = formData.variants[i];
-      variant.price = Number(variant.price);
+      variant.sellingPrice = Number(variant.sellingPrice);
+      if (variant.mrp) variant.mrp = Number(variant.mrp);
+      if (variant.wrongDefectivePrice) variant.wrongDefectivePrice = Number(variant.wrongDefectivePrice);
       variant.stock = Number(variant.stock);
     }
     
@@ -3315,7 +3317,7 @@ const ProductManagement = () => {
                       placeholder="Add new sleeve styling"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                       value={newSleeveStylingOption || ''}
-                      onChange={(e) => setNewSleeveStylingOption(e.target.value)}
+                      onChange={(e) => setnewSleeveStylingOption(e.target.value)}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && newSleeveStylingOption && newSleeveStylingOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
@@ -3827,7 +3829,7 @@ const ProductManagement = () => {
                           
                           // Convert empty string values to appropriate types for number fields
                           let processedValue = value;
-                          if (field === 'price' || field === 'mrp' || field === 'stock' || 
+                          if (field === 'price' || field === 'sellingPrice' || field === 'mrp' || field === 'stock' || 
                               field === 'bustSize' || field === 'shoulderSize' || field === 'kurtaWaistSize' || 
                               field === 'kurtaLengthSize' || field === 'kurtaHipSize' || field === 'bottomWaistSize' || 
                               field === 'bottomLengthSize' || field === 'bottomHipSize' || field === 'duppattaLengthSize' || 
@@ -3870,6 +3872,7 @@ const ProductManagement = () => {
                           const newVariant = { 
                             sku: generatedSku, // Always use a generated SKU for new variants
                             price: 0, 
+                            sellingPrice: 0, // Add sellingPrice field
                             stock: 0, 
           
                             wrongDefectivePrice: 0,
@@ -3911,8 +3914,8 @@ const ProductManagement = () => {
                               </div>
                               <input
                                 type="text"
-                                value={variant.price !== undefined && variant.price !== null ? variant.price : ''}
-                                onChange={(e) => updateVariant('price', e.target.value)}
+                                value={variant.sellingPrice !== undefined && variant.sellingPrice !== null ? variant.sellingPrice : ''}
+                                onChange={(e) => updateVariant('sellingPrice', e.target.value)}
                                 placeholder="0.00"
                                 className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />
