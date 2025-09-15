@@ -112,7 +112,7 @@ export const CartProvider = ({ children }) => {
         
         if (isAuthenticated) {
           // Update in backend
-          await api.put(`/cart/item/${updatedCart[existingItemIndex].id}`, {
+          await api.patch(`/cart/${updatedCart[existingItemIndex].id}`, {
             quantity: updatedCart[existingItemIndex].quantity
           })
         }
