@@ -27,40 +27,57 @@ const addItemToCart = async (cart, productId, quantity, size, color, req) => {
     cart.items[existingItemIndex].quantity += parseInt(quantity);
   } else {
     // Add new item
+    // Get the variant SKU from the request or find it based on attributes
+    let variantSku = req && req.body && req.body.variantSku;
+    let selectedVariant = null;
+    
+    // If no variantSku provided, try to find the matching variant
+    if (product.variants && product.variants.length > 0) {
+      if (variantSku) {
+        selectedVariant = product.variants.find(v => v.sku === variantSku);
+      }
+      
+      if (!selectedVariant) {
+        selectedVariant = product.variants.find(v => 
+          (!size || (v.attributes && v.attributes.get('size') === size)) && 
+          (!color || (v.attributes && v.attributes.get('color') === color))
+        );
+      }
+      
+      if (!selectedVariant) {
+        // Use the first variant as fallback
+        selectedVariant = product.variants[0];
+      }
+    }
+    
+    // Calculate prices based on selected variant or product
+    const price = selectedVariant ? 
+      (isNaN(parseFloat(selectedVariant.price)) ? 0 : parseFloat(selectedVariant.price)) : 
+      (isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price));
+      
+    const sellingPrice = selectedVariant ? 
+      (isNaN(parseFloat(selectedVariant.sellingPrice)) ? price : parseFloat(selectedVariant.sellingPrice)) : 
+      (isNaN(parseFloat(product.sellingPrice)) ? price : parseFloat(product.sellingPrice));
+      
+    const mrp = selectedVariant ? 
+      (isNaN(parseFloat(selectedVariant.mrp)) ? price : parseFloat(selectedVariant.mrp)) : 
+      (isNaN(parseFloat(product.mrp)) ? price : parseFloat(product.mrp));
+    
     const productDetails = {
       title: product.title,
-      price: product.variants && product.variants.length > 0 ? 
-        (isNaN(parseFloat(product.variants[0].sellingPrice)) ? 0 : parseFloat(product.variants[0].sellingPrice)) : 
-        (isNaN(parseFloat(product.sellingPrice)) ? 0 : parseFloat(product.sellingPrice)),
-      mrp: product.variants && product.variants.length > 0 ? 
-        (isNaN(parseFloat(product.variants[0].mrp)) ? 
-          (isNaN(parseFloat(product.variants[0].price)) ? 0 : parseFloat(product.variants[0].price)) : 
-          parseFloat(product.variants[0].mrp)) : 
-        (isNaN(parseFloat(product.mrp)) ? 
-          (isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price)) : 
-          parseFloat(product.mrp)),
+      price: price,
+      sellingPrice: sellingPrice,
+      mrp: mrp,
       image: product.images && product.images.length > 0 ? product.images[0] : null,
       slug: product.slug,
       gstRate: product.gstRate || 0 // Add GST rate to product details
     };
     
-    // Get the variant SKU from the request or find it based on attributes
-    let variantSku = req && req.body && req.body.variantSku;
-    
-    // If no variantSku provided, try to find the matching variant
-    if (!variantSku && product.variants && product.variants.length > 0) {
-      const matchingVariant = product.variants.find(v => 
-        (!size || (v.attributes && v.attributes.get('size') === size)) && 
-        (!color || (v.attributes && v.attributes.get('color') === color))
-      );
-      
-      if (matchingVariant) {
-        variantSku = matchingVariant.sku;
-      } else {
-        // Use the first variant as fallback
-        variantSku = product.variants[0].sku;
-      }
+    if (!variantSku && selectedVariant) {
+      variantSku = selectedVariant.sku;
     }
+    
+    // variantSku is already handled above
     
     cart.items.push({
       productId,
@@ -102,15 +119,47 @@ const updateCartItemHelper = async (cart, itemId, quantity) => {
     // Update the GST rate
     cartItem.gstRate = product.gstRate || 0;
     
-    // Update the stored product details with the latest price and GST rate
+    // Find the matching variant based on SKU or attributes
+    let selectedVariant = null;
     if (product.variants && product.variants.length > 0) {
-      cartItem.productDetails.price = isNaN(parseFloat(product.variants[0].price)) ? 0 : parseFloat(product.variants[0].price);
-    } else if (product.price) {
-      cartItem.productDetails.price = isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price);
+      if (cartItem.variantSku) {
+        selectedVariant = product.variants.find(v => v.sku === cartItem.variantSku);
+      }
+      
+      if (!selectedVariant) {
+        selectedVariant = product.variants.find(v => 
+          (!cartItem.size || (v.attributes && v.attributes.get('size') === cartItem.size)) && 
+          (!cartItem.color || (v.attributes && v.attributes.get('color') === cartItem.color))
+        );
+      }
+      
+      if (!selectedVariant) {
+        // Use the first variant as fallback
+        selectedVariant = product.variants[0];
+      }
     }
     
-    // Update the GST rate in product details
+    // Calculate prices based on selected variant or product
+    const price = selectedVariant ? 
+      (isNaN(parseFloat(selectedVariant.price)) ? 0 : parseFloat(selectedVariant.price)) : 
+      (isNaN(parseFloat(product.price)) ? 0 : parseFloat(product.price));
+      
+    const sellingPrice = selectedVariant ? 
+      (isNaN(parseFloat(selectedVariant.sellingPrice)) ? price : parseFloat(selectedVariant.sellingPrice)) : 
+      (isNaN(parseFloat(product.sellingPrice)) ? price : parseFloat(product.sellingPrice));
+      
+    const mrp = selectedVariant ? 
+      (isNaN(parseFloat(selectedVariant.mrp)) ? price : parseFloat(selectedVariant.mrp)) : 
+      (isNaN(parseFloat(product.mrp)) ? price : parseFloat(product.mrp));
+    
+    // Update the stored product details with the latest prices and GST rate
+    cartItem.productDetails.price = price;
+    cartItem.productDetails.sellingPrice = sellingPrice;
+    cartItem.productDetails.mrp = mrp;
     cartItem.productDetails.gstRate = product.gstRate || 0;
+    
+    // Update the GST rate in the cart item
+    cartItem.gstRate = product.gstRate || 0;
   }
   
   await cart.save();
@@ -482,8 +531,8 @@ export const applyCoupon = async (req, res, next) => {
     // Calculate cart subtotal for coupon validation
     let subtotal = 0;
     for (const item of cart.items) {
-      // Use MRP instead of price to match frontend calculation
-      const itemPrice = item.productDetails.mrp || item.productDetails.price || 0;
+      // Use sellingPrice for consistency with frontend calculation
+      const itemPrice = item.productDetails.sellingPrice || item.productDetails.price || 0;
       subtotal += itemPrice * item.quantity;
     }
     
@@ -617,8 +666,8 @@ export const applyGuestCoupon = async (req, res, next) => {
     // Calculate cart subtotal for coupon validation
     let subtotal = 0;
     for (const item of cart.items) {
-      // Use MRP instead of price to match frontend calculation
-      const itemPrice = item.productDetails.mrp || item.productDetails.price || 0;
+      // Use sellingPrice for consistency with frontend calculation
+      const itemPrice = item.productDetails.sellingPrice || item.productDetails.price || 0;
       subtotal += itemPrice * item.quantity;
     }
     

@@ -37,8 +37,8 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
   const cartValues = useMemo(() => {
     const subtotal = getCartSubtotal()
     
-    // Calculate GST amount (5% of pre-tax value)
-    const gstAmount = (subtotal * 5) / 100
+    // Get GST amount from CartContext (now uses item-specific GST rates)
+    const gstAmount = getCartTotal() - getCartSubtotal()
     
     // Calculate shipping cost (free over ₹1000)
     const shippingCost = 0
@@ -157,8 +157,9 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                       {/* Price */}
                       <div className="text-right">
                         <p className="font-medium">₹{(() => {
-                          // Use selling price instead of MRP
-                          const price = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
+                          // Use sellingPrice instead of price for consistency
+                          const price = typeof item.sellingPrice === 'number' ? item.sellingPrice : 
+                                       (typeof item.price === 'number' ? item.price : parseFloat(item.sellingPrice || item.price || 0));
                           // Ensure quantity is a valid number and at least 1
                           const quantity = typeof item.quantity === 'number' ? Math.max(1, item.quantity) : Math.max(1, parseInt(item.quantity || 1));
                           // Calculate and return the total price
@@ -180,7 +181,7 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                   <span className="font-medium text-java-800">₹{Math.round(cartValues.subtotal) || 0}</span>
                 </div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-java-800 text-xs">GST (5%):</span>
+                  <span className="text-java-800 text-xs">GST:</span>
                   <span className="font-medium text-java-800 text-xs">₹{Math.round(cartValues.gstAmount) || 0}</span>
                 </div>
                 <div className="flex justify-between mb-2">
@@ -193,7 +194,7 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                   <span className="text-java-800 font-medium">Total:</span>
                   <span className="font-medium text-java-800">₹{Math.round(cartValues.total) || 0}</span>
                 </div>
-                <p className="text-xs text-gray-500 mb-4">Price inclusive of 5% GST.</p>
+                <p className="text-xs text-gray-500 mb-4">Price inclusive of GST.</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Link to="/cart" onClick={onClose}>
                     <Button variant="secondary" fullWidth className="border-java-500 text-java-700 hover:bg-java-50">View Cart</Button>

@@ -29,23 +29,26 @@ export const CartProvider = ({ children }) => {
             const backendCart = response.data.data.items.map(item => {
               if (!item || !item.productId) return null; // Skip null items
               
-              // Get product details
-              const product = item.productId
+              // Get product details from the stored productDetails
+              const productDetails = item.productDetails || {};
+              const product = item.productId;
               
               // Create cart item with all necessary properties
               return {
                 id: item._id || '',
                 productId: product._id || '', // Ensure productId is always set correctly
-                name: product.title || '',
-                title: product.title || '',
-                price: product.sellingPrice || 0,
-                mrp: product.mrp || product.sellingPrice || 0, // Use MRP or fallback to price
-                image: product.images && product.images.length > 0 ? product.images[0] : '',
+                name: productDetails.title || product.title || '',
+                title: productDetails.title || product.title || '',
+                price: productDetails.price || 0,
+                sellingPrice: productDetails.sellingPrice || productDetails.price || 0,
+                mrp: productDetails.mrp || productDetails.price || 0,
+                image: productDetails.image || (product.images && product.images.length > 0 ? product.images[0] : ''),
                 quantity: item.quantity || 1,
                 size: item.size || null,
                 color: item.color || null,
-                slug: product.slug || '',
-                variantSku: item.variantSku || null
+                slug: productDetails.slug || product.slug || '',
+                variantSku: item.variantSku || null,
+                gstRate: item.gstRate || productDetails.gstRate || 0
               }
             }).filter(item => item !== null) // Remove any null items
             
@@ -90,7 +93,7 @@ export const CartProvider = ({ children }) => {
   
   // Add item to cart
   const addToCart = async (product, quantity = 1, size = null, color = null) => {
-    if (!product || !product.id) {
+    if (!product || (!product.id && !product._id)) {
       setError('Invalid product')
       return
     }
@@ -98,9 +101,11 @@ export const CartProvider = ({ children }) => {
     try {
       setLoading(true)
       
+      const productId = product._id || product.id
+      
       // Check if item already exists in cart
       const existingItemIndex = cart.findIndex(item => 
-        (item.productId === product._id || item.productId === product.id) && 
+        item.productId === productId && 
         item.size === size && 
         item.color === color
       )
@@ -121,19 +126,26 @@ export const CartProvider = ({ children }) => {
       } else {
         // Add new item
         const newItem = {
-          ...product,
-          productId: product._id || product.id, // Ensure productId is always set
+          id: '', // Will be set from backend response if authenticated
+          productId: productId,
+          name: product.title || product.name || '',
+          title: product.title || product.name || '',
+          price: product.price || 0,
+          sellingPrice: product.sellingPrice || product.price || 0,
+          mrp: product.mrp || product.price || 0,
+          image: product.image || (product.images && product.images.length > 0 ? product.images[0] : ''),
           quantity,
           size,
           color,
-          sellingPrice: product.sellingPrice || product.price, // Ensure sellingPrice is set
-          gstRate: product.gstRate || 5 // Ensure GST rate is set (default 5%)
+          slug: product.slug || '',
+          variantSku: product.variantSku || null,
+          gstRate: product.gstRate || 0
         }
         
         if (isAuthenticated) {
           // Add to backend
           const response = await api.post('/cart', {
-            productId: product._id || product.id,
+            productId: productId,
             quantity,
             size,
             color,
@@ -141,15 +153,24 @@ export const CartProvider = ({ children }) => {
           })
           
           if (response.data.success) {
-            // Use the returned item from backend which includes the item ID
-            const backendItem = response.data.data.items.find(item => 
-              item.productId._id === product.id && 
+            // Find the newly added item in the response
+            const items = response.data.data.items || []
+            const backendItem = items.find(item => 
+              (item.productId._id === productId || item._id === items[items.length - 1]._id) && 
               item.size === size && 
               item.color === color
             )
             
             if (backendItem) {
               newItem.id = backendItem._id
+              
+              // Update with product details from backend if available
+              if (backendItem.productDetails) {
+                newItem.price = backendItem.productDetails.price || newItem.price
+                newItem.sellingPrice = backendItem.productDetails.sellingPrice || newItem.sellingPrice
+                newItem.mrp = backendItem.productDetails.mrp || newItem.mrp
+                newItem.gstRate = backendItem.gstRate || backendItem.productDetails.gstRate || newItem.gstRate
+              }
             }
           }
         }
@@ -180,7 +201,21 @@ export const CartProvider = ({ children }) => {
       
       if (isAuthenticated) {
         // Update in backend
-        await api.patch(`/cart/${itemId}`, { quantity })
+        const response = await api.patch(`/cart/${itemId}`, { quantity })
+        
+        // Update item with latest product details from backend if available
+        if (response.data && response.data.success && response.data.data) {
+          const updatedItem = response.data.data.items.find(item => item._id === itemId)
+          if (updatedItem && updatedItem.productDetails) {
+            const itemIndex = updatedCart.findIndex(item => item.id === itemId)
+            if (itemIndex !== -1) {
+              updatedCart[itemIndex].price = updatedItem.productDetails.price || updatedCart[itemIndex].price
+              updatedCart[itemIndex].sellingPrice = updatedItem.productDetails.sellingPrice || updatedCart[itemIndex].sellingPrice
+              updatedCart[itemIndex].mrp = updatedItem.productDetails.mrp || updatedCart[itemIndex].mrp
+              updatedCart[itemIndex].gstRate = updatedItem.gstRate || updatedItem.productDetails.gstRate || updatedCart[itemIndex].gstRate
+            }
+          }
+        }
       }
       
       setCart(updatedCart)
@@ -293,20 +328,41 @@ export const CartProvider = ({ children }) => {
   // Calculate cart subtotal
   const getCartSubtotal = () => {
     return cart.reduce((total, item) => {
-      // Use selling price for calculations, not MRP
+      // Use sellingPrice for consistency with backend
       const price = item.sellingPrice || item.price || 0;
       return total + (price * item.quantity)
     }, 0)
   }
   
-  // Calculate GST amount (using gstConfig)
+  // Calculate GST amount (using item-specific GST rates)
   const getGstAmount = () => {
     const subtotal = getCartSubtotal()
     const discount = couponDiscount || 0
     const discountedAmount = Math.max(0, subtotal - discount)
     
-    // Calculate GST using the configured rate (default 5%)
-    return discountedAmount * gstConfig.TOTAL_GST_RATE
+    // Calculate GST based on each item's GST rate
+    let totalGst = 0
+    
+    // If we have item-specific GST rates, use them
+    if (cart.length > 0 && cart.some(item => item.gstRate)) {
+      // Calculate GST for each item individually
+      cart.forEach(item => {
+        const itemPrice = (item.sellingPrice || item.price || 0) * item.quantity
+        const itemGstRate = item.gstRate || gstConfig.TOTAL_GST_RATE * 100 // Default to config rate if not specified
+        totalGst += (itemPrice * itemGstRate) / 100
+      })
+      
+      // Apply discount proportionally to GST
+      if (discount > 0 && subtotal > 0) {
+        const discountRatio = discount / subtotal
+        totalGst = totalGst * (1 - discountRatio)
+      }
+      
+      return totalGst
+    } else {
+      // Fallback to configured GST rate
+      return discountedAmount * gstConfig.TOTAL_GST_RATE
+    }
   }
   
   // Calculate cart total with discounts and GST

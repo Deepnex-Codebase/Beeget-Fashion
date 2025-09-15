@@ -32,9 +32,11 @@ const CartItemSchema = new mongoose.Schema({
   productDetails: {
     title: String,
     price: Number,
+    sellingPrice: Number, // Added sellingPrice for consistency
     mrp: Number,
     image: String,
-    slug: String
+    slug: String,
+    gstRate: Number // Added gstRate to ensure it's stored with product details
   }
 }, { timestamps: true });
 

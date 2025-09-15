@@ -9,7 +9,7 @@ import useCart from '../hooks/useCart'
 
 const Cart = () => {
   // Use cart context instead of static data
-  const { cart, loading, error, removeFromCart, updateQuantity, clearCart, getCartTotal, getCartSubtotal, applyCoupon, removeCoupon, couponCode, couponDiscount, couponError } = useCart()
+  const { cart, loading, error, removeFromCart, updateQuantity, clearCart, getCartTotal, getCartSubtotal, getGstAmount, applyCoupon, removeCoupon, couponCode, couponDiscount, couponError } = useCart()
   const { isAuthenticated } = useAuth()
   const [couponInput, setCouponInput] = useState('')
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
@@ -58,12 +58,12 @@ const Cart = () => {
     }
   }
 
-  // Calculate shipping cost (free shipping over ₹1000)
+  // Calculate shipping cost (free shipping over ₹499)
   const subtotal = getCartSubtotal()
-  const shippingCost = subtotal > 1000 ? 0 : 100 // Free shipping over ₹1000
+  const shippingCost = 0
   
-  // Calculate total with shipping if not already included in getCartTotal()
-  const total = getCartTotal() + (subtotal > 1000 ? 0 : shippingCost)
+  // Calculate total with shipping
+  const total = getCartTotal() + shippingCost
   
   // Empty cart view
   if (loading) {
@@ -162,8 +162,8 @@ const Cart = () => {
                   <div className="col-span-2 text-center">
                     <span className="sm:hidden inline-block font-medium mr-2">Price:</span>
                     <div>
-                      <span className="font-medium">₹{parseInt(parseFloat(item.price) || 0) || 0}</span>
-                      {item.mrp && parseFloat(item.mrp) > parseFloat(item.price) && (
+                      <span className="font-medium">₹{parseInt(parseFloat(item.sellingPrice || item.price) || 0) || 0}</span>
+                      {item.mrp && parseFloat(item.mrp) > parseFloat(item.sellingPrice || item.price) && (
                         <span className="text-xs text-gray-500 line-through ml-2">₹{parseInt(parseFloat(item.mrp) || 0) || 0}</span>
                       )}
                     </div>
@@ -184,11 +184,11 @@ const Cart = () => {
                         </svg>
                       </button>
                       <input 
-                        type="number" 
+                        type="text" 
                         min="1" 
                         value={item.quantity} 
                         onChange={(e) => handleQuantityChange(item.id || item._id, parseInt(e.target.value), item.size, item.color)}
-                        className="w-10 h-8 text-center text-sm border-x-0 border-gray-300 focus:ring-0 focus:border-gray-300"
+                        className="w-11 h-8 text-center text-sm border-x-0 border-gray-300 focus:ring-0 focus:border-gray-300"
                       />
                       <button 
                         type="button" 
@@ -205,7 +205,7 @@ const Cart = () => {
                   {/* Total */}
                   <div className="col-span-2 text-center font-medium">
                     <span className="sm:hidden inline-block font-medium mr-2">Total:</span>
-                    ₹{parseInt((parseFloat(item.price) || 0) * (typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0)) || 0}
+                    ₹{parseInt((parseFloat(item.sellingPrice || item.price) || 0) * (typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0)) || 0}
                   </div>
                 </div>
               ))}
@@ -311,8 +311,8 @@ const Cart = () => {
                 )}
                 
                 <div className="flex justify-between">
-                  <span className="text-gray-600">GST (5%)</span>
-                  <span className="font-medium">Included</span>
+                  <span className="text-gray-600">GST</span>
+                  <span className="font-medium">₹{isNaN(getGstAmount()) ? 0 : parseInt(getGstAmount())}</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -327,7 +327,7 @@ const Cart = () => {
                     <span>Total</span>
                     <span>₹{isNaN(total) ? 0 : parseInt(total)}</span>
                   </div>
-                  <p className="text-gray-500 text-xs mt-1">Price inclusive of 5% GST</p>
+                  <p className="text-gray-500 text-xs mt-1">Price inclusive of GST</p>
                 </div>
               </div>
               
