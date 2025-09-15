@@ -4,7 +4,7 @@ export const PRODUCT_CONFIG = {
   // Required variant fields configuration
   VARIANT_FIELDS: {
     REQUIRED: [
-      'sellingPrice',
+      'price',
       'mrp', 
       'stock',
       'bustSize',
@@ -29,7 +29,7 @@ export const PRODUCT_CONFIG = {
 
   // Field validation rules
   VALIDATION_RULES: {
-    sellingPrice: {
+    price: {
       type: 'number',
       min: 0.01,
       required: true,
