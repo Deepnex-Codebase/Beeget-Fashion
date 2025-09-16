@@ -1,6 +1,17 @@
 import { AppError } from './error.middleware.js';
 
 /**
+ * Middleware to check if user is an admin
+ * Must be used after verifyToken middleware
+ */
+export const isAdmin = (req, res, next) => {
+  if (!req.user || !req.user.roles || !req.user.roles.includes('admin')) {
+    return next(new AppError('Admin access required', 'FORBIDDEN', 403));
+  }
+  next();
+};
+
+/**
  * Middleware to authorize users based on roles
  * Must be used after authenticate middleware
  * @param {string|string[]} roles - Role or array of roles allowed to access the route

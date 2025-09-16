@@ -267,22 +267,22 @@ class ShippingService {
         order_items: order_items.map(item => ({
           name: item.name || 'Product',
           sku: item.sku || '',
-          units: item.units || 1,
-          selling_price: item.selling_price || item.sellingPrice || 0, // Support both formats
-          discount: item.discount || 0,
-          tax: item.tax || 0,
+          units: parseInt(item.units || 1),
+          selling_price: Math.round(item.selling_price || item.sellingPrice || 0), // Support both formats
+          discount: Math.round(item.discount || 0),
+          tax: Math.round(item.tax || 0),
           hsn: item.hsn || ''
         })),
         payment_method,
-        shipping_charges: shipping_charges || 0,
-        giftwrap_charges: giftwrap_charges || 0,
-        transaction_charges: transaction_charges || 0,
-        total_discount: total_discount || 0,
-        sub_total: sub_total || 0,
-        length: length || 10,
-        breadth: breadth || 10,
-        height: height || 10,
-        weight: weight || 0.5
+        shipping_charges: Math.round(shipping_charges || 0),
+        giftwrap_charges: Math.round(giftwrap_charges || 0),
+        transaction_charges: Math.round(transaction_charges || 0),
+        total_discount: Math.round(total_discount || 0),
+        sub_total: Math.round(sub_total || 0),
+        length: parseInt(length || 10),
+        breadth: parseInt(breadth || 10),
+        height: parseInt(height || 10),
+        weight: parseFloat(weight || 0.5).toFixed(2)
       };
 
       const headers = {

@@ -148,21 +148,21 @@ export const createOrder = async (req, res, next) => {
       const sellingPrice = item.price || variant.price || variant.mrp;
       // Use client-provided GST rate if available, otherwise use product GST rate
       const gstRate = item.gstRate || product.gstRate;
-      const gstAmount = (sellingPrice * gstRate) / 100;
+      const gstAmount = Math.round((sellingPrice * gstRate) / 100);
       const totalGSTForItem = gstAmount * qty;
       // Calculate item price without GST
       const itemSubtotal = sellingPrice * qty;
       // Calculate total price including GST
-      const totalPrice = itemSubtotal + totalGSTForItem;
+      const totalPrice = Math.round(itemSubtotal + totalGSTForItem);
 
       // Add to processed items
       processedItems.push({
         productId: productId,
         variantSku: variantSku,
         qty,
-        mrp: mrp,
-        selling_price: sellingPrice, // Using snake_case for Shiprocket compatibility
-        sellingPrice: sellingPrice, // Keep for backward compatibility
+        mrp: Math.round(mrp),
+        selling_price: Math.round(sellingPrice), // Using snake_case for Shiprocket compatibility
+        sellingPrice: Math.round(sellingPrice), // Keep for backward compatibility
         gstRate: gstRate, // Use the calculated GST rate (from client or product)
         gstAmount: gstAmount,
         totalPrice,
@@ -194,14 +194,14 @@ export const createOrder = async (req, res, next) => {
 
       // Calculate discount
       if (coupon.discountType === "percent") {
-        discount = (subtotal * coupon.value) / 100;
+        discount = Math.round((subtotal * coupon.value) / 100);
       } else {
-        discount = coupon.value;
+        discount = Math.round(coupon.value);
       }
 
       // Ensure discount doesn't exceed subtotal
       if (discount > subtotal) {
-        discount = subtotal;
+        discount = Math.round(subtotal);
       }
 
       // Update coupon usage
@@ -211,13 +211,21 @@ export const createOrder = async (req, res, next) => {
       appliedCoupon = {
         code: coupon.code,
         discountType: coupon.discountType === 'percent' ? 'PERCENTAGE' : 'FLAT',
-        value: coupon.value,
+        value: Math.round(coupon.value),
         discount,
       };
+      
+      // Recalculate GST after applying discount
+      if (discount > 0) {
+        // Calculate discount ratio
+        const discountRatio = discount / subtotal;
+        // Apply discount proportionally to GST
+        totalGST = Math.round(totalGST * (1 - discountRatio));
+      }
     }
 
     // Calculate total (including GST)
-    const total = subtotal - discount + totalGST;
+    const total = Math.round(subtotal - discount + totalGST);
 
     // Generate unique order ID
     const order_id = await generateOrderId();
@@ -529,17 +537,17 @@ export const createOrder = async (req, res, next) => {
             name: item.name || (item.productId && item.productId.title) || 'Product',
             sku: item.sku || item.variantSku,
             units: item.units || item.qty,
-            selling_price: item.selling_price || item.sellingPrice,
-            discount: item.discount || 0,
-            tax: item.tax || item.gstAmount || 0,
+            selling_price: Math.round(item.selling_price || item.sellingPrice || 0),
+            discount: Math.round(item.discount || 0),
+            tax: Math.round(item.tax || item.gstAmount || 0),
             hsn: item.hsn
           })),
           payment_method: order.payment.method === 'COD' ? 'COD' : 'Prepaid',
-          shipping_charges: order.shipping_charges || 0,
-          giftwrap_charges: order.giftwrap_charges || 0,
-          transaction_charges: order.transaction_charges || 0,
-          total_discount: order.discount || 0,
-          sub_total: order.total,
+          shipping_charges: Math.round(order.shipping_charges || 0),
+          giftwrap_charges: Math.round(order.giftwrap_charges || 0),
+          transaction_charges: Math.round(order.transaction_charges || 0),
+          total_discount: Math.round(order.discount || 0),
+          sub_total: Math.round(order.total || 0),
           length: order.length || 0,
           breadth: order.breadth || 0,
           height: order.height || 0,

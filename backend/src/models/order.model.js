@@ -358,6 +358,17 @@ OrderSchema.pre("save", function (next) {
   next();
 });
 
+// Post-save hook to process GST data
+OrderSchema.post('save', async function(doc) {
+  try {
+    // Import GSTService dynamically to avoid circular dependency
+    const { default: GSTService } = await import('../services/gst.service.js');
+    await GSTService.processOrder(doc);
+  } catch (error) {
+    console.error('Error processing GST data for order:', error);
+  }
+});
+
 const Order = mongoose.model("Order", OrderSchema);
 
 export default Order;

@@ -72,6 +72,18 @@ export const CartProvider = ({ children }) => {
               localStorage.removeItem('cart')
             }
           }
+          
+          // Load coupon information from localStorage
+          const storedCoupon = localStorage.getItem('cartCoupon')
+          if (storedCoupon) {
+            try {
+              const couponData = JSON.parse(storedCoupon)
+              setCouponCode(couponData.code || '')
+              setCouponDiscount(couponData.discount || 0)
+            } catch (err) {
+              console.error('Error parsing coupon from localStorage:', err)
+            }
+          }
         }
       } catch (err) {
         console.error('Error fetching cart:', err)
@@ -86,10 +98,17 @@ export const CartProvider = ({ children }) => {
   
   // Save cart to localStorage whenever it changes (for non-authenticated users)
   useEffect(() => {
-    if (!isAuthenticated && cart.length > 0) {
-      localStorage.setItem('cart', JSON.stringify(cart))
+    if (!isAuthenticated) {
+      if (cart.length > 0) {
+        localStorage.setItem('cart', JSON.stringify(cart))
+      }
+      // Save coupon information to localStorage
+      localStorage.setItem('cartCoupon', JSON.stringify({
+        code: couponCode,
+        discount: couponDiscount
+      }))
     }
-  }, [cart, isAuthenticated])
+  }, [cart, couponCode, couponDiscount, isAuthenticated])
   
   // Add item to cart
   const addToCart = async (product, quantity = 1, size = null, color = null) => {
@@ -282,13 +301,22 @@ export const CartProvider = ({ children }) => {
       
       if (isAuthenticated) {
         // Apply coupon in backend
-        const response = await api.post('/cart/coupon', { code })
-        
-        if (response.data.success) {
-          setCouponCode(code)
-          setCouponDiscount(response.data.data.couponDiscount || 0)
-        } else {
-          setCouponError(response.data.message || 'Invalid coupon')
+        try {
+          const response = await api.post('/cart/apply-coupon', { code })
+          
+          if (response.data.success) {
+            setCouponCode(code)
+            const discount = response.data.data.couponDetails?.discount || 0
+            setCouponDiscount(discount)
+            return { success: true, data: response.data.data }
+          } else {
+            setCouponError(response.data.message || 'Invalid coupon')
+            return { success: false, error: response.data.message || 'Invalid coupon' }
+          }
+        } catch (error) {
+          console.error('Error applying coupon:', error)
+          setCouponError(error.response?.data?.message || 'Failed to apply coupon')
+          return { success: false, error: error.response?.data?.message || 'Failed to apply coupon' }
         }
       } else {
         // For non-authenticated users, just set the coupon code
@@ -311,15 +339,30 @@ export const CartProvider = ({ children }) => {
       
       if (isAuthenticated) {
         // Remove coupon in backend
-        await api.delete('/cart/coupon')
+        const response = await api.post('/cart/remove-coupon')
+        if (response.data.success) {
+          setCouponCode('')
+          setCouponDiscount(0)
+          setCouponError(null)
+          return { success: true }
+        }
+        return { success: false, error: response.data.message || 'Failed to remove coupon' }
+      } else {
+        // For guest users, update state and localStorage
+        setCouponCode('')
+        setCouponDiscount(0)
+        setCouponError(null)
+        // Clear coupon data in localStorage
+        localStorage.setItem('cartCoupon', JSON.stringify({
+          code: '',
+          discount: 0
+        }))
+        return { success: true }
       }
-      
-      setCouponCode('')
-      setCouponDiscount(0)
-      setCouponError(null)
-    } catch (err) {
-      console.error('Error removing coupon:', err)
+    } catch (error) {
+      console.error('Error removing coupon:', error)
       setError('Failed to remove coupon')
+      return { success: false, error: error.message || 'Failed to remove coupon' }
     } finally {
       setLoading(false)
     }
@@ -327,17 +370,17 @@ export const CartProvider = ({ children }) => {
   
   // Calculate cart subtotal
   const getCartSubtotal = () => {
-    return cart.reduce((total, item) => {
+    return Math.round(cart.reduce((total, item) => {
       // Use sellingPrice for consistency with backend
       const price = item.sellingPrice || item.price || 0;
       return total + (price * item.quantity)
-    }, 0)
+    }, 0))
   }
   
   // Calculate GST amount (using item-specific GST rates)
   const getGstAmount = () => {
     const subtotal = getCartSubtotal()
-    const discount = couponDiscount || 0
+    const discount = Math.round(couponDiscount || 0)
     const discountedAmount = Math.max(0, subtotal - discount)
     
     // Calculate GST based on each item's GST rate
@@ -345,36 +388,35 @@ export const CartProvider = ({ children }) => {
     
     // If we have item-specific GST rates, use them
     if (cart.length > 0 && cart.some(item => item.gstRate)) {
-      // Calculate GST for each item individually
+      // First apply discount proportionally to all items
+      const discountRatio = discount > 0 && subtotal > 0 ? discount / subtotal : 0
+      
+      // Calculate GST for each item individually after applying discount
       cart.forEach(item => {
         const itemPrice = (item.sellingPrice || item.price || 0) * item.quantity
+        // Apply proportional discount to this item
+        const discountedItemPrice = itemPrice * (1 - discountRatio)
         // Use item-specific GST rate if available, otherwise use the configured rate
         const itemGstRate = item.gstRate !== undefined ? item.gstRate : gstConfig.TOTAL_GST_RATE * 100
-        totalGst += (itemPrice * itemGstRate) / 100
+        totalGst += (discountedItemPrice * itemGstRate) / 100
       })
       
-      // Apply discount proportionally to GST
-      if (discount > 0 && subtotal > 0) {
-        const discountRatio = discount / subtotal
-        totalGst = totalGst * (1 - discountRatio)
-      }
-      
-      return totalGst
+      return Math.round(totalGst)
     } else {
-      // Fallback to configured GST rate
-      return discountedAmount * gstConfig.TOTAL_GST_RATE
+      // Fallback to configured GST rate - applied to already discounted amount
+      return Math.round(discountedAmount * gstConfig.TOTAL_GST_RATE)
     }
   }
   
   // Calculate cart total with discounts and GST
   const getCartTotal = () => {
     const subtotal = getCartSubtotal()
-    const discount = couponDiscount || 0
+    const discount = Math.round(couponDiscount || 0)
     const discountedAmount = Math.max(0, subtotal - discount)
     const gstAmount = getGstAmount()
     
     // Apply discount and add GST
-    return discountedAmount + gstAmount
+    return Math.round(discountedAmount + gstAmount)
   }
   
   // Get total number of items in cart

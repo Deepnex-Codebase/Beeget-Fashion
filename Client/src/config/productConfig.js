@@ -128,7 +128,7 @@ export const PRODUCT_CONFIG = {
   // Required variant fields configuration
   VARIANT_FIELDS: {
     REQUIRED: [
-      'price',
+      'sellingPrice',
       'mrp', 
       'stock',
       'bustSize',
@@ -168,7 +168,7 @@ export const PRODUCT_CONFIG = {
       message: 'GST rate is required'
     },
     // Variant level fields
-    price: {
+    sellingPrice: {
       type: 'number',
       min: 0.01,
       required: true,
@@ -232,7 +232,7 @@ export const PRODUCT_CONFIG = {
 
   // Field labels for display
   FIELD_LABELS: {
-    price: 'Selling Price',
+    sellingPrice: 'Selling Price',
     wrongDefectivePrice: 'Return Price',
     mrp: 'MRP',
     stock: 'Inventory',

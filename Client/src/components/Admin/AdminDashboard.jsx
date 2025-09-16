@@ -28,6 +28,29 @@ import jsPDF from 'jspdf';
 import gstConfig from '../../config/gstConfig';
 
 const AdminDashboard = () => {
+  // Fetch GST data
+  const {
+    data: gstData,
+    isLoading: gstLoading,
+    error: gstError
+  } = useQuery({
+    queryKey: ["gst-summary"],
+    queryFn: async () => {
+      try {
+        const response = await axios.get("/gst-reports/summary");
+        return response.data.data;
+      } catch (error) {
+        console.error("Error fetching GST data:", error);
+        return {
+          totalGST: 0,
+          taxableAmount: 0,
+          cgst: 0,
+          sgst: 0,
+          monthlyReport: []
+        };
+      }
+    }
+  });
   // Initialize activeTab from localStorage or default to 'overview'
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('adminActiveTab') || 'overview';
@@ -2012,18 +2035,9 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-md shadow-sm p-4 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-base font-medium text-gray-700">GST Reports</h2>
-            <button 
-              onClick={() => navigate('/admin/gst-reports')}
-              className="text-gray-500 hover:text-gray-700 text-xs font-medium flex items-center"
-            >
-              View Full Reports
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
           
-          {statsLoading ? (
+          {gstLoading || statsLoading ? (
             // Loading skeleton for GST reports
             <div className="animate-pulse">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2037,26 +2051,31 @@ const AdminDashboard = () => {
             <div>
               {/* GST Summary Cards */}
               {(() => {
-                // Calculate GST data
-                const gstData = calculateTotalGST();
+                // Use dynamic GST data from API
+                const gstSummary = gstData || {
+                  totalGST: 0,
+                  taxableAmount: 0,
+                  cgst: 0,
+                  sgst: 0
+                };
                 
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <h3 className="text-sm font-medium text-gray-700 mb-1">Total GST Collected</h3>
-                      <p className="text-xl font-semibold text-java-600">₹{gstData.totalGST.toLocaleString()}</p>
-                      <div className="text-xs text-gray-500 mt-1">{gstConfig.DISPLAY.TOTAL_GST_PERCENTAGE} of taxable amount ₹{gstData.taxableAmount.toLocaleString()}</div>
+                      <p className="text-xl font-semibold text-java-600">₹{gstSummary.totalGST.toLocaleString()}</p>
+                      <div className="text-xs text-gray-500 mt-1">of taxable amount ₹{gstSummary.taxableAmount.toLocaleString()}</div>
                     </div>
                     
                     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <h3 className="text-sm font-medium text-gray-700 mb-1">CGST {gstConfig.DISPLAY.CGST_PERCENTAGE}</h3>
-                      <p className="text-xl font-semibold text-java-600">₹{gstData.cgst.toLocaleString()}</p>
+                      <p className="text-xl font-semibold text-java-600">₹{gstSummary.cgst.toLocaleString()}</p>
                       <div className="text-xs text-gray-500 mt-1">Central Goods & Services Tax</div>
                     </div>
                     
                     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <h3 className="text-sm font-medium text-gray-700 mb-1">SGST {gstConfig.DISPLAY.SGST_PERCENTAGE}</h3>
-                      <p className="text-xl font-semibold text-java-600">₹{gstData.sgst.toLocaleString()}</p>
+                      <p className="text-xl font-semibold text-java-600">₹{gstSummary.sgst.toLocaleString()}</p>
                       <div className="text-xs text-gray-500 mt-1">State Goods & Services Tax</div>
                     </div>
                   </div>
@@ -2096,9 +2115,39 @@ const AdminDashboard = () => {
                     </thead>
                     <tbody>
                       {(() => {
-                        const gstData = getGSTDataByTimeframe();  
+                        // Use API data if available, otherwise fall back to calculated data
+                        const monthlyData = gstData?.monthlyReport || [];
+                        let displayData = monthlyData.length > 0 ? monthlyData : getGSTDataByTimeframe();
                         
-                        if (gstData.length === 0) {
+                        // Handle yearly view - group by year when salesTimeframe is 'yearly'
+                        if (salesTimeframe === 'yearly' && displayData.length > 0) {
+                          // Group data by year
+                          const yearlyData = {};
+                          
+                          displayData.forEach(item => {
+                            const year = item.year || new Date().getFullYear().toString();
+                            
+                            if (!yearlyData[year]) {
+                              yearlyData[year] = {
+                                year: year,
+                                taxableAmount: 0,
+                                cgst: 0,
+                                sgst: 0,
+                                totalGST: 0
+                              };
+                            }
+                            
+                            yearlyData[year].taxableAmount += Number(item.taxableAmount || 0);
+                            yearlyData[year].cgst += Number(item.cgst || 0);
+                            yearlyData[year].sgst += Number(item.sgst || 0);
+                            yearlyData[year].totalGST += Number(item.totalGST || 0);
+                          });
+                          
+                          // Convert back to array
+                          displayData = Object.values(yearlyData);
+                        }
+
+                        if (displayData.length === 0) {
                           return (
                             <tr className="bg-white">
                               <td colSpan="5" className="px-4 py-4 text-center text-gray-500">
@@ -2108,17 +2157,17 @@ const AdminDashboard = () => {
                           );
                         }
                         
-                        return gstData.map((item, index) => {
+                        return displayData.map((item, index) => {
                           const timeKey = salesTimeframe === 'monthly' ? 'month' : 'year';
                           const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                           
                           return (
                             <tr key={index} className={`${bgClass} border-b`}>
                               <td className="px-4 py-2 font-medium">{item[timeKey]}</td>
-                              <td className="px-4 py-2">₹{item.taxableAmount.toLocaleString()}</td>
-                              <td className="px-4 py-2">₹{item.cgst.toLocaleString()}</td>
-                              <td className="px-4 py-2">₹{item.sgst.toLocaleString()}</td>
-                              <td className="px-4 py-2 font-medium">₹{item.totalGST.toLocaleString()}</td>
+                              <td className="px-4 py-2">₹{Number(item.taxableAmount || 0).toLocaleString()}</td>
+                              <td className="px-4 py-2">₹{Number(item.cgst || 0).toLocaleString()}</td>
+                              <td className="px-4 py-2">₹{Number(item.sgst || 0).toLocaleString()}</td>
+                              <td className="px-4 py-2 font-medium">₹{Number(item.totalGST || 0).toLocaleString()}</td>
                             </tr>
                           );
                         });

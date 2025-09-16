@@ -632,7 +632,7 @@ const AccountOrders = () => {
             </div>
 
             {/* Tracking Information */}
-            {(orders.find(o => o._id === selectedOrder)?.shipping?.trackingId || orders.find(o => o._id === selectedOrder)?.shipping?.courier) && (
+            {(orders.find(o => o._id === selectedOrder)?.order_id || orders.find(o => o._id === selectedOrder)?.shipping?.courier) && (
               <div className="bg-blue-50 p-4 rounded-lg mb-6">
                 <h3 className="font-medium mb-2">Shipping Information</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -642,13 +642,13 @@ const AccountOrders = () => {
                       <p>{orders.find(o => o._id === selectedOrder)?.shipping.courier}</p>
                     </div>
                   )}
-                  {orders.find(o => o._id === selectedOrder)?.shipping?.trackingId && (
+                  {orders.find(o => o._id === selectedOrder)?.order_id && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-1">Tracking Number</h4>
+                      <h4 className="text-sm font-medium text-gray-500 mb-1">Tracking Your Order</h4>
                       <div className="flex items-center">
-                        <p className="mr-2">{orders.find(o => o._id === selectedOrder)?.shipping.trackingId}</p>
+                        <p className="mr-2">{orders.find(o => o._id === selectedOrder)?.order_id}</p>
                         <a 
-                          href={`https://shiprocket.co/tracking/${orders.find(o => o._id === selectedOrder)?.shipping.trackingId}`} 
+                          href={`https://shiprocket.co/tracking/order/${orders.find(o => o._id === selectedOrder)?.order_id}?company_id=7227137`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:text-blue-800 text-sm underline"

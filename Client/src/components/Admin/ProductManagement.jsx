@@ -39,7 +39,7 @@ const ProductManagement = () => {
     variants: [
       {
         sku: '',
-        price: '',
+        sellingPrice: '',
         stock: '',
         attributes: {},
         images: [] // Variant-specific images
@@ -93,7 +93,7 @@ const ProductManagement = () => {
   
   // State for price synchronization checkbox
   const [syncPrices, setSyncPrices] = useState(false);
-  const [masterPrice, setMasterPrice] = useState({ price: '', wrongDefectivePrice: '', mrp: '' });
+  const [masterPrice, setMasterPrice] = useState({ sellingPrice: '', wrongDefectivePrice: '', mrp: '' });
   
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
@@ -446,7 +446,7 @@ const ProductManagement = () => {
         ...prev.variants,
         {
           sku: '',
-          price: '',
+          sellingPrice: '',
           stock: 0, // Initialize stock to 0 as per backend requirement
           attributes: {
             color: prev.color || '' // Set color attribute from product's main color field
@@ -811,7 +811,7 @@ const ProductManagement = () => {
         return {
           ...variant,
           sku: variant.sku || generatedSku, // Use existing SKU if available, otherwise generate a new one
-          price: variant.price || '',
+          sellingPrice: variant.sellingPrice || '',
           wrongDefectivePrice: variant.wrongDefectivePrice || '',
           mrp: variant.mrp || '',
           bustSize: variant.bustSize || '',
@@ -825,7 +825,7 @@ const ProductManagement = () => {
       }) || [
         {
           sku: generatedSku,
-          price: '',
+          sellingPrice: '',
           stock: '',
           wrongDefectivePrice: '',
           mrp: '',
@@ -900,7 +900,7 @@ const ProductManagement = () => {
     // Convert numeric values for all variants
     for (let i = 0; i < formData.variants.length; i++) {
       const variant = formData.variants[i];
-      variant.price = Number(variant.price);
+      variant.sellingPrice = Number(variant.sellingPrice);
       variant.stock = Number(variant.stock);
     }
     
@@ -1373,7 +1373,7 @@ const ProductManagement = () => {
                     {product.variants?.slice(0, 3).map((variant, index) => (
                       <div key={variant.sku || index} className="flex items-center space-x-2 mb-1">
                         <span className="text-xs font-medium truncate max-w-[100px]">{variant.sku}</span>
-                        <span className="text-xs text-gray-500">{formatCurrency(variant.mrp || variant.price)}</span>
+                        <span className="text-xs text-gray-500">{formatCurrency(variant.mrp || variant.sellingPrice)}</span>
                       </div>
                     ))}
                     {product.variants?.length > 3 && (
@@ -1490,7 +1490,7 @@ const ProductManagement = () => {
             }
             
             // First, ensure all required fields exist with proper values
-            const numericFields = ['price', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength', 'netWeight', 'hipSize', 'wrongDefectivePrice', 'kurtaWaistSize', 'kurtaLengthSize', 'kurtaHipSize', 'bottomWaistSize', 'bottomLengthSize', 'bottomHipSize', 'duppattaLengthSize', 'weight', 'hsn'];
+            const numericFields = ['sellingPrice', 'mrp', 'stock', 'bustSize', 'shoulderSize', 'waistSize', 'sizeLength', 'netWeight', 'hipSize', 'wrongDefectivePrice', 'kurtaWaistSize', 'kurtaLengthSize', 'kurtaHipSize', 'bottomWaistSize', 'bottomLengthSize', 'bottomHipSize', 'duppattaLengthSize', 'weight', 'hsn'];
             
             // Set default values for all numeric fields
             numericFields.forEach(fieldName => {
@@ -3911,8 +3911,8 @@ const ProductManagement = () => {
                               </div>
                               <input
                                 type="text"
-                                value={variant.price !== undefined && variant.price !== null ? variant.price : ''}
-                                onChange={(e) => updateVariant('price', e.target.value)}
+                                value={variant.sellingPrice !== undefined && variant.sellingPrice !== null ? variant.sellingPrice : ''}
+                                onChange={(e) => updateVariant('sellingPrice', e.target.value)}
                                 placeholder="0.00"
                                 className="w-full border border-gray-300 rounded-md pl-6 pr-2 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                               />

@@ -192,13 +192,6 @@ const AccountAddresses = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Input
-                      label="Address Type (e.g. Home, Office)"
-                      {...register('type')}
-                      error={errors.type?.message}
-                    />
-                  </div>
-                  <div>
-                    <Input
                       label="Full Name"
                       {...register('name')}
                       error={errors.name?.message}
@@ -223,6 +216,13 @@ const AccountAddresses = () => {
                       label="Address Line 2 (Optional)"
                       {...register('line2')}
                       error={errors.line2?.message}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      label="Address Type (e.g. Home, Office)"
+                      {...register('type')}
+                      error={errors.type?.message}
                     />
                   </div>
                   <div>
