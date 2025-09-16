@@ -274,9 +274,46 @@ const NavbarOffcanvas = ({ isOpen, onClose }) => {
                       Best Seller
                     </NavLink>
                   </motion.div>
-                
                   
-                  {/* Contact link removed from upper navigation */}
+                  {/* About Section */}
+                  <motion.div
+                    variants={{
+                      hidden: { x: -20, opacity: 0 },
+                      visible: { x: 0, opacity: 1 }
+                    }}
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <NavLink 
+                      to="/about" 
+                      className={({ isActive }) => 
+                        `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                      }
+                      onClick={onClose}
+                    >
+                      <InformationCircleIcon className="h-5 w-5 mr-3" />
+                      About Us
+                    </NavLink>
+                  </motion.div>
+                  
+                  {/* Contact Section */}
+                  <motion.div
+                    variants={{
+                      hidden: { x: -20, opacity: 0 },
+                      visible: { x: 0, opacity: 1 }
+                    }}
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <NavLink 
+                      to="/contact" 
+                      className={({ isActive }) => 
+                        `flex items-center p-2 rounded-lg ${isActive ? 'bg-java-50 text-java-600' : 'text-java-800 hover:bg-gray-100'}`
+                      }
+                      onClick={onClose}
+                    >
+                      <EnvelopeIcon className="h-5 w-5 mr-3" />
+                      Contact Us
+                    </NavLink>
+                  </motion.div>
                 </motion.div>
                 
                 {/* User Account Section */}
