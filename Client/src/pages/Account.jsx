@@ -270,9 +270,9 @@ const Account = () => {
                           <h3 className="font-medium">Orders</h3>
                         </div>
                         <p className="text-2xl font-semibold">{ordersLoading ? '...' : ordersCount}</p>
-                        <Link to="/account/orders" className="text-sm text-teal-600 hover:text-teal-700 mt-2 inline-block">
+                        <button onClick={() => setActiveTab('orders')} className="text-sm text-teal-600 hover:text-teal-700 mt-2 inline-block">
                           View Orders
-                        </Link>
+                        </button>
                       </div>
                         
                       <div className="bg-gray-50 p-4 rounded-lg">
@@ -283,9 +283,9 @@ const Account = () => {
                           <h3 className="font-medium">Wishlist</h3>
                         </div>
                         <p className="text-2xl font-semibold">{wishlistCount}</p>
-                        <Link to="/account/wishlist" className="text-sm text-teal-600 hover:text-teal-700 mt-2 inline-block">
+                        <button onClick={() => setActiveTab('wishlist')} className="text-sm text-teal-600 hover:text-teal-700 mt-2 inline-block">
                           View Wishlist
-                        </Link>
+                        </button>
                       </div>
                       
                       <div className="bg-gray-50 p-4 rounded-lg">
@@ -297,9 +297,9 @@ const Account = () => {
                           <h3 className="font-medium">Addresses</h3>
                         </div>
                         <p className="text-2xl font-semibold">{addressesLoading ? '...' : addressesCount}</p>
-                        <Link to="/account/addresses" className="text-sm text-teal-600 hover:text-teal-700 mt-2 inline-block">
+                        <button onClick={() => setActiveTab('addresses')} className="text-sm text-teal-600 hover:text-teal-700 mt-2 inline-block">
                           Manage Addresses
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </div>

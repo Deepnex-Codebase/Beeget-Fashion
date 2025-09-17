@@ -64,16 +64,28 @@ const ContactManagement = () => {
   // State to track if email is being sent
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   
-  // Update contact status mutation
+  // Update contact status mutation with email sending
   const updateContactMutation = useMutation({
     mutationFn: async ({ contactId, data }) => {
-      // Use the updateEnquiryStatus function from context
-      // Pass the status and responseMessage to the function
-      setIsSendingEmail(true); // Set email sending state to true before API call
-      return await updateEnquiryStatus(contactId, data.status, data.responseMessage);
+      // Set email sending state to true before API call
+      setIsSendingEmail(true);
+      
+      // The backend automatically sends an email when status is 'replied' and responseMessage exists
+      // Make API call to update status and send email
+      const response = await axios.put(`/site-content/enquiries/${contactId}/status`, {
+        status: 'replied', // Always set to 'replied' to trigger email sending
+        responseMessage: data.responseMessage
+      });
+      
+      return response.data;
     },
-    onSuccess: () => {
-      // Modal will be closed and success message will be shown by the context function
+    onSuccess: (data) => {
+      // Show success message with email confirmation
+      toast.success(data.emailSent 
+        ? 'Response saved and email sent successfully' 
+        : 'Response saved successfully');
+      
+      // Close modal and refresh data
       setShowViewModal(false);
       queryClient.invalidateQueries({ queryKey: ['admin-contacts'] });
     },
@@ -362,6 +374,24 @@ const ContactManagement = () => {
               )}
             </div>
             
+            <div className="mb-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="sendEmail"
+                  className="h-4 w-4 text-teal border-gray-300 rounded focus:ring-teal"
+                  checked={true}
+                  disabled={true}
+                />
+                <label htmlFor="sendEmail" className="ml-2 block text-sm text-gray-700">
+                  Send response to user's email ({currentContact.email})
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 ml-6">
+                Email will be automatically sent when you save the response
+              </p>
+            </div>
+            
             <div className="flex justify-end space-x-4">
               <Button
                 variant="outline"
@@ -374,7 +404,7 @@ const ContactManagement = () => {
                 onClick={handleResponseSubmit}
                 loading={updateContactMutation.isLoading || isSendingEmail}
               >
-                {isSendingEmail ? 'Sending Email...' : 'Save Response'}
+                {isSendingEmail ? 'Sending Email...' : 'Save & Send Response'}
               </Button>
             </div>
             
@@ -383,7 +413,8 @@ const ContactManagement = () => {
               <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10">
                 <div className="text-center">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-teal border-t-transparent mb-2"></div>
-                  <p className="text-teal font-medium">Sending email, please wait...</p>
+                  <p className="text-teal font-medium">Sending email to {currentContact.email}...</p>
+                  <p className="text-sm text-gray-600 mt-1">This may take a few moments</p>
                 </div>
               </div>
             )}
