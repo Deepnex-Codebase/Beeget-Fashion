@@ -31,6 +31,7 @@ import shippingRoutes from './routes/shipping.routes.js';
 import shiprocketRoutes from './routes/shiprocket.routes.js';
 import pincodeRoutes from './routes/pincode.routes.js';
 import gstRoutes from './routes/gst.routes.js';
+import promoBannerRoutes from './routes/promoBanner.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -124,7 +125,8 @@ const apiRoutes = [
   { path: '/api/shipping', router: shippingRoutes },
   { path: '/api/shiprocket', router: shiprocketRoutes },
   { path: '/api/pincodes', router: pincodeRoutes },
-  { path: '/api/gst-reports', router: gstRoutes }
+  { path: '/api/gst-reports', router: gstRoutes },
+  { path: '/api/promo-banners', router: promoBannerRoutes }
 ];
 
 // Register all API routes

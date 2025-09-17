@@ -24,6 +24,7 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
 const Account = lazy(() => import('./pages/Account'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const CityAnalytics = lazy(() => import('./components/Admin/CityAnalytics'))
+const PromoBannerManager = lazy(() => import('./components/Admin/PromoBannerManager'))
 
 const OrderDetails = lazy(() => import('./pages/OrderDetails'))
 const NotFound = lazy(() => import('./pages/NotFound'))
@@ -93,6 +94,7 @@ function App() {
               <Route path="admin" element={<ProtectedRoute adminOnly={true} />}>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="city-analytics" element={<CityAnalytics />} />
+                <Route path="promo-banners" element={<PromoBannerManager />} />
                 <Route path="orders/:orderId" element={<OrderDetails />} />
               </Route>
               

@@ -12,6 +12,7 @@ import ReturnManagement from './ReturnManagement';
 import PromotionManagement from './PromotionManagement';
 import SubAdminManagement from './SubAdminManagement';
 import ReviewManagement from './ReviewManagement';
+import PromoBannerManager from './PromoBannerManager';
 import AdminTabs from './AdminTabs';
 import AdminTabsNew from './AdminTabsNew';
 import Button from '../Common/Button';
@@ -1251,6 +1252,7 @@ const AdminDashboard = () => {
     { id: 'notifications', label: 'Notifications', permission: 'manage_notifications', department: 'User Communication' },
     { id: 'reviews', label: 'Reviews', permission: 'Reviews', department: 'User Communication' },
     { id: 'site-content', label: 'Site Content', permission: 'manage_cms', department: 'Content' },
+    { id: 'promo-banners', label: 'Banner', permission: 'manage_cms', department: 'Content' },
   ];
   
   // Add debug log to show which permissions are being checked
@@ -4009,6 +4011,8 @@ const AdminDashboard = () => {
         return <ReviewManagement />;
       case 'site-content':
         return <SiteContentManagement />;
+      case 'promo-banners':
+        return <PromoBannerManager />;
       default:
         return <ProductManagement />;
     }

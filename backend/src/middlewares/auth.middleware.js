@@ -98,6 +98,24 @@ export const isSubAdmin = (req, res, next) => {
  * Middleware to check if user has admin or subadmin role
  * Must be used after verifyToken middleware
  */
+export const restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(new AppError('Authentication required', 'UNAUTHORIZED', 401));
+    }
+    
+    if (!req.user.roles || !Array.isArray(req.user.roles)) {
+      return next(new AppError('Invalid user roles', 'FORBIDDEN', 403));
+    }
+    
+    if (!roles.some(role => req.user.roles.includes(role))) {
+      return next(new AppError(`Required role: ${roles.join(' or ')}`, 'FORBIDDEN', 403));
+    }
+    
+    next();
+  };
+};
+
 export const isAdminOrSubAdmin = (req, res, next) => {
   if (!req.user) {
     return next(new AppError('Authentication required', 'UNAUTHORIZED', 401));
