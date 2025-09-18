@@ -12,6 +12,7 @@ import { FaHeart, FaRegHeart, FaStar, FaStarHalfAlt, FaRegStar } from 'react-ico
 import FilterSidebar from '../components/Shop/FilterSidebar'
 import api from '../utils/api'
 import Image from '../components/Common/Image'
+import { convertToGSTInclusive, formatPriceDisplay } from '../utils/gstUtils'
 
 const Shop = () => {
   const { isAuthenticated } = useAuth()
@@ -764,15 +765,20 @@ const Shop = () => {
                         
                         {/* Price section with improved styling */}
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-baseline gap-1 xs:gap-1.5">
-                            <p className="text-sm xs:text-base md:text-lg font-bold text-java-700">
-                              ₹{product.price ? parseInt(product.price) : 0}
-                            </p>
-                            {product.mrp && product.mrp > (product.price || 0) && (
-                              <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 line-through">
-                                ₹{parseInt(product.mrp)}
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-baseline gap-1 xs:gap-1.5">
+                              <p className="text-sm xs:text-base md:text-lg font-bold text-java-700">
+                                ₹{product.price ? parseInt(convertToGSTInclusive(product.price)) : 0}
                               </p>
-                            )}
+                              {product.mrp && product.mrp > (product.price || 0) && (
+                                <p className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 line-through">
+                                  ₹{parseInt(convertToGSTInclusive(product.mrp))}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-[8px] xs:text-[9px] text-gray-500">
+                              (GST included)
+                            </p>
                           </div>
                           {/* Discount percentage */}
                           {product.mrp && product.price && product.mrp > product.price && (
