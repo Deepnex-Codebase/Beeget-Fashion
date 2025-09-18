@@ -774,8 +774,8 @@ const ProductManagement = () => {
     setSelectedImageVariant(null);
     
     // Reset price synchronization states
-    setSyncPrices(false);
-    setMasterPrice({ price: '', wrongDefectivePrice: '', mrp: '' });
+  setSyncPrices(false);
+  setMasterPrice({ sellingPrice: '', wrongDefectivePrice: '', mrp: '' });
   };
   
   // Open edit modal with product data
@@ -1079,7 +1079,7 @@ const ProductManagement = () => {
         variants: [
           {
             sku: 'TSHIRT-RED-L',
-            price: 499,
+            sellingPrice: 499,
             stock: 100,
             attributes: {
               Color: 'Red',
@@ -1088,7 +1088,7 @@ const ProductManagement = () => {
           },
           {
             sku: 'TSHIRT-RED-M',
-            price: 499,
+            sellingPrice: 499,
             stock: 150,
             attributes: {
               Color: 'Red',
@@ -1097,7 +1097,7 @@ const ProductManagement = () => {
           },
           {
             sku: 'TSHIRT-BLUE-L',
-            price: 499,
+            sellingPrice: 499,
             stock: 80,
             attributes: {
               Color: 'Blue',
@@ -1106,7 +1106,7 @@ const ProductManagement = () => {
           },
           {
             sku: 'TSHIRT-BLUE-M',
-            price: 499,
+            sellingPrice: 499,
             stock: 120,
             attributes: {
               Color: 'Blue',
@@ -1217,7 +1217,7 @@ const ProductManagement = () => {
   // Price synchronization helper functions
   const handleSyncPricesChange = (checked) => {
     setSyncPrices(checked);
-    if (checked && masterPrice.price) {
+    if (checked && masterPrice.sellingPrice) {
       applyMasterPricesToAll();
     }
   };
@@ -1232,11 +1232,11 @@ const ProductManagement = () => {
   };
 
   const applyMasterPricesToAll = (prices = masterPrice) => {
-    if (!prices.price && !prices.wrongDefectivePrice && !prices.mrp) return;
+    if (!prices.sellingPrice && !prices.wrongDefectivePrice && !prices.mrp) return;
     
     const updatedVariants = formData.variants.map(variant => ({
       ...variant,
-      ...(prices.price && { price: prices.price }),
+      ...(prices.sellingPrice && { sellingPrice: prices.sellingPrice }),
       ...(prices.wrongDefectivePrice && { wrongDefectivePrice: prices.wrongDefectivePrice }),
       ...(prices.mrp && { mrp: prices.mrp })
     }));
@@ -2025,7 +2025,7 @@ const ProductManagement = () => {
                       
                       <button
                         type="button"
-                        className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         onClick={() => {
                           document.getElementById('add-color-input').focus();
                         }}
@@ -2143,7 +2143,7 @@ const ProductManagement = () => {
                     
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       onClick={() => {
                         document.getElementById('add-fabric-input').focus();
                       }}
@@ -2237,7 +2237,7 @@ const ProductManagement = () => {
                     
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       onClick={() => {
                         document.getElementById('add-fit-input').focus();
                       }}
@@ -2329,7 +2329,7 @@ const ProductManagement = () => {
                     
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       onClick={() => {
                         document.getElementById('add-length-input').focus();
                       }}
@@ -2421,7 +2421,7 @@ const ProductManagement = () => {
                     
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       onClick={() => {
                         document.getElementById('add-neck-input').focus();
                       }}
@@ -2877,68 +2877,6 @@ const ProductManagement = () => {
                 {errors.sleeveLength && <p className="text-xs text-red-600 mt-1">{errors.sleeveLength}</p>}
               </div>
               
-              <div className={errors.stitchType ? 'error-field' : ''}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stitch Type *</label>
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center">
-                    <select
-                      name="stitchType"
-                      value={formData.stitchType || ''}
-                      onChange={handleInputChange}
-                      className={`flex-1 px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.stitchType ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                    >
-                      <option value="">Select</option>
-                      {getDropdownOptions('stitchTypes').map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                    
-                    <button
-                      type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      onClick={() => {
-                        document.getElementById('add-stitch-type-input').focus();
-                      }}
-                    >
-                      Add
-                    </button>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      id="add-stitch-type-input"
-                      type="text" 
-                      placeholder="Add new stitch type"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={newStitchTypeOption || ''}
-                      onChange={(e) => setNewStitchTypeOption(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      onClick={() => {
-                        if (newStitchTypeOption && newStitchTypeOption.trim() !== '') {
-                          // Add to PRODUCT_CONFIG in memory
-                          const updatedStitchTypes = [...PRODUCT_CONFIG.STITCHING_TYPES, newStitchTypeOption.trim()];
-                          PRODUCT_CONFIG.STITCHING_TYPES = updatedStitchTypes;
-                          
-                          // Clear the input
-                          setNewStitchTypeOption('');
-                          
-                          // Force re-render
-                          setForceUpdate({});
-                          
-                          toast.success(`Added new stitch type: ${newStitchTypeOption.trim()}`);
-                        }
-                      }}
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-                {errors.stitchType && <p className="text-xs text-red-600 mt-1">{errors.stitchType}</p>}
-              </div>
-              
               <div className={errors.countryOfOrigin ? 'error-field' : ''}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Country of Origin *</label>
                 <div className="flex flex-col space-y-2">
@@ -2957,7 +2895,7 @@ const ProductManagement = () => {
                     
                     <button
                       type="button"
-                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       onClick={() => {
                         document.getElementById('add-country-input').focus();
                       }}
@@ -3278,9 +3216,7 @@ const ProductManagement = () => {
                   </div>
                 </div>
               </div>
-              
 
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sleeve Styling</label>
                 <div className="flex flex-col space-y-2">
@@ -3315,7 +3251,7 @@ const ProductManagement = () => {
                       placeholder="Add new sleeve styling"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                       value={newSleeveStylingOption || ''}
-                      onChange={(e) => setNewSleeveStylingOption(e.target.value)}
+                      onChange={(e) => setnewSleeveStylingOption(e.target.value)}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && newSleeveStylingOption && newSleeveStylingOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
@@ -3329,7 +3265,7 @@ const ProductManagement = () => {
                           }));
                           
                           // Clear the input
-                          setNewSleeveStylingOption('');
+                          setnewSleeveStylingOption('');
                           
                           // Force re-render
                           setForceUpdate({});
@@ -3354,7 +3290,7 @@ const ProductManagement = () => {
                           }));
                           
                           // Clear the input
-                          setNewSleeveStylingOption('');
+                          setnewSleeveStylingOption('');
                           
                           // Force re-render
                           setForceUpdate({});
@@ -3407,8 +3343,8 @@ const ProductManagement = () => {
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && newStitchTypeOtherOption && newStitchTypeOtherOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
-                          const updatedStitchTypes = [...PRODUCT_CONFIG.STITCHING_TYPES, newStitchTypeOtherOption.trim()];
-                          PRODUCT_CONFIG.STITCHING_TYPES = updatedStitchTypes;
+                          const updatedStitchTypes = [...PRODUCT_CONFIG.STITCH_TYPES, newStitchTypeOtherOption.trim()];
+                          PRODUCT_CONFIG.STITCH_TYPES = updatedStitchTypes;
                           
                           // Set formData to use the new value
                           setFormData(prev => ({
@@ -3432,8 +3368,8 @@ const ProductManagement = () => {
                       onClick={() => {
                         if (newStitchTypeOtherOption && newStitchTypeOtherOption.trim() !== '') {
                           // Add to PRODUCT_CONFIG in memory
-                          const updatedStitchTypes = [...PRODUCT_CONFIG.STITCHING_TYPES, newStitchTypeOtherOption.trim()];
-                          PRODUCT_CONFIG.STITCHING_TYPES = updatedStitchTypes;
+                          const updatedStitchTypes = [...PRODUCT_CONFIG.STITCH_TYPES, newStitchTypeOtherOption.trim()];
+                          PRODUCT_CONFIG.STITCH_TYPES = updatedStitchTypes;
                           
                           // Set formData to use the new value
                           setFormData(prev => ({
@@ -3719,8 +3655,8 @@ const ProductManagement = () => {
                             <input
                               type="number"
                               placeholder="Master Price"
-                              value={masterPrice.price || ''}
-                              onChange={(e) => handleMasterPriceChange('price', e.target.value)}
+                              value={masterPrice.sellingPrice || ''}
+                              onChange={(e) => handleMasterPriceChange('sellingPrice', e.target.value)}
                               className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             />
                           )}
