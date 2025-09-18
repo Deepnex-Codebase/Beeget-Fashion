@@ -7,6 +7,16 @@ import Input from '../Common/Input';
 import { toast } from 'react-hot-toast';
 import { FiUpload, FiDownload, FiSave } from 'react-icons/fi';
 import { PRODUCT_CONFIG, validateField, getFieldLabel, getDropdownOptions } from '../../config/productConfig';
+import { 
+  convertToGSTInclusive, 
+  convertToGSTExclusive, 
+  calculateGSTFromInclusive, 
+  formatPriceDisplay, 
+  isValidPrice,
+  convertVariantToGSTInclusive,
+  convertVariantToGSTExclusive,
+  getPriceDisplayText
+} from '../../utils/gstUtils';
 
 const ProductManagement = () => {
   // Product modals
@@ -409,10 +419,14 @@ const ProductManagement = () => {
   const handleVariantChange = (index, field, value) => {
     setFormData(prev => {
       const updatedVariants = [...prev.variants];
+      
+      // For price fields, store the GST-inclusive value as entered by user
+      // The backend conversion will happen during submission
       updatedVariants[index] = {
         ...updatedVariants[index],
         [field]: value
       };
+      
       return {
         ...prev,
         variants: updatedVariants
@@ -808,12 +822,15 @@ const ProductManagement = () => {
         // Ensure SKU is not empty
         const generatedSku = `${title.slice(0, 3).toUpperCase()}-${variant.attributes?.size || 'SIZE'}-${timestamp}`;
         
+        // Convert GST-exclusive prices from API to GST-inclusive for display
+        const gstRate = product.gstRate || 18;
+        
         return {
           ...variant,
           sku: variant.sku || generatedSku, // Use existing SKU if available, otherwise generate a new one
-          sellingPrice: variant.sellingPrice || '',
-          wrongDefectivePrice: variant.wrongDefectivePrice || '',
-          mrp: variant.mrp || '',
+          sellingPrice: variant.sellingPrice ? convertToGSTInclusive(variant.sellingPrice, gstRate) : '',
+          wrongDefectivePrice: variant.wrongDefectivePrice ? convertToGSTInclusive(variant.wrongDefectivePrice, gstRate) : '',
+          mrp: variant.mrp ? convertToGSTInclusive(variant.mrp, gstRate) : '',
           bustSize: variant.bustSize || '',
           shoulderSize: variant.shoulderSize || '',
           waistSize: variant.waistSize || '',
@@ -897,12 +914,19 @@ const ProductManagement = () => {
     // The validateForm function in renderProductForm now handles validation
     // This function is now primarily focused on submission
     
-    // Convert numeric values for all variants
-    for (let i = 0; i < formData.variants.length; i++) {
-      const variant = formData.variants[i];
-      variant.sellingPrice = Number(variant.sellingPrice);
-      variant.stock = Number(variant.stock);
-    }
+    // Convert GST-inclusive prices to GST-exclusive and numeric values for all variants
+    const processedFormData = {
+      ...formData,
+      variants: formData.variants.map(variant => ({
+        ...variant,
+        // Convert GST-inclusive prices to GST-exclusive for API
+        sellingPrice: variant.sellingPrice ? convertToGSTExclusive(Number(variant.sellingPrice), variant.gstRate || 5) : 0,
+        mrp: variant.mrp ? convertToGSTExclusive(Number(variant.mrp), variant.gstRate || 5) : 0,
+        wrongDefectivePrice: variant.wrongDefectivePrice ? convertToGSTExclusive(Number(variant.wrongDefectivePrice), variant.gstRate || 5) : 0,
+        stock: Number(variant.stock),
+        gstRate: Number(variant.gstRate) || 5
+      }))
+    };
     
     // Show loading toast
     const loadingToastId = toast.loading(currentProduct ? 'Updating product...' : 'Creating product...');
@@ -910,7 +934,7 @@ const ProductManagement = () => {
     try {
       if (currentProduct) {
         // Update existing product
-        updateProductMutation.mutate({ id: currentProduct._id, data: formData }, {
+        updateProductMutation.mutate({ id: currentProduct._id, data: processedFormData }, {
           onSuccess: () => {
             toast.dismiss(loadingToastId);
             toast.success('Product updated successfully');
@@ -924,7 +948,7 @@ const ProductManagement = () => {
         });
       } else {
         // Create new product
-        createProductMutation.mutate(formData, {
+        createProductMutation.mutate(processedFormData, {
           onSuccess: () => {
             toast.dismiss(loadingToastId);
             toast.success('Product created successfully');
@@ -1223,6 +1247,8 @@ const ProductManagement = () => {
   };
 
   const handleMasterPriceChange = (field, value) => {
+    // Master prices are now GST-inclusive values entered by the user
+    // These will be converted to GST-exclusive during API submission
     const newMasterPrice = { ...masterPrice, [field]: value };
     setMasterPrice(newMasterPrice);
     
@@ -1370,12 +1396,19 @@ const ProductManagement = () => {
                 </td>
                 <td className="px-4 py-4 text-sm">
                   <div className="max-h-20 overflow-y-auto pr-2 scrollbar-thin">
-                    {product.variants?.slice(0, 3).map((variant, index) => (
-                      <div key={variant.sku || index} className="flex items-center space-x-2 mb-1">
-                        <span className="text-xs font-medium truncate max-w-[100px]">{variant.sku}</span>
-                        <span className="text-xs text-gray-500">{formatCurrency(variant.mrp || variant.sellingPrice)}</span>
-                      </div>
-                    ))}
+                    {product.variants?.slice(0, 3).map((variant, index) => {
+                      // Convert GST-exclusive price to GST-inclusive for display
+                      const gstRate = product.gstRate || 18;
+                      const displayPrice = variant.mrp || variant.sellingPrice;
+                      const gstInclusivePrice = displayPrice ? convertToGSTInclusive(displayPrice, gstRate) : 0;
+                      
+                      return (
+                        <div key={variant.sku || index} className="flex items-center space-x-2 mb-1">
+                          <span className="text-xs font-medium truncate max-w-[100px]">{variant.sku}</span>
+                          <span className="text-xs text-gray-500">{formatCurrency(gstInclusivePrice)}</span>
+                        </div>
+                      );
+                    })}
                     {product.variants?.length > 3 && (
                       <div className="text-xs text-gray-500 italic">+{product.variants.length - 3} more variants</div>
                     )}
@@ -5120,10 +5153,15 @@ const ProductManagement = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {currentProduct.variants?.map((variant, index) => (
-                        <tr key={variant.sku || index} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{variant.sku}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-medium">{formatCurrency(variant.mrp)}</td>
+                      {currentProduct.variants?.map((variant, index) => {
+                        // Convert GST-exclusive price to GST-inclusive for display
+                        const gstRate = currentProduct.gstRate || 18;
+                        const gstInclusivePrice = variant.mrp ? convertToGSTInclusive(variant.mrp, gstRate) : 0;
+                        
+                        return (
+                          <tr key={variant.sku || index} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{variant.sku}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-medium">{formatCurrency(gstInclusivePrice)}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm">
                             <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${variant.stock > 10 ? 'bg-green-100 text-green-800' : variant.stock > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                               {variant.stock > 0 ? `${variant.stock} in stock` : 'Out of stock'}
@@ -5144,7 +5182,8 @@ const ProductManagement = () => {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                       
                       {(!currentProduct.variants || currentProduct.variants.length === 0) && (
                         <tr>

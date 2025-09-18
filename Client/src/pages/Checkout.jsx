@@ -11,6 +11,7 @@ import { toast } from 'react-toastify'
 import { FiCheck, FiX, FiPlus, FiMail } from 'react-icons/fi'
 import { sendGuestOTP, verifyGuestOTP, checkEmailVerification } from '../utils/guestVerification'
 import gstConfig from '../config/gstConfig'
+import { convertToGSTInclusive, formatPriceDisplay } from '../utils/gstUtils'
 
 // Form validation schema
 const schema = yup.object().shape({
@@ -103,6 +104,8 @@ const Checkout = () => {
     cart, 
     clearCart, 
     getCartSubtotal, 
+    getCartSubtotalInclusive,
+    getDiscountAmount,
     getCartTotal, 
     applyCoupon, 
     removeCoupon,
@@ -453,10 +456,10 @@ const Checkout = () => {
   }, [selectedAddressId, useExistingAddress, addresses, setValue]);
   
   // Calculate order summary using CartContext functions
-  const subtotal = getCartSubtotal()
+  const subtotal = getCartSubtotalInclusive()
   const shippingCost = 0 // Free shipping for all orders
   
-  // Calculate total with shipping if not already included in getCartTotal()
+  // Calculate total with shipping (getCartTotal already includes discount)
   const total = getCartTotal() + shippingCost
   
   // Initialize Cashfree payment
@@ -1330,14 +1333,14 @@ const Checkout = () => {
               {/* Summary Details */}
               <div className="border-t border-gray-200 pt-4 space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">₹{parseInt(getCartSubtotal())}</span>
+                  <span className="text-gray-600">Subtotal (incl. taxes)</span>
+                  <span className="font-medium">₹{parseInt(getCartSubtotalInclusive())}</span>
                 </div>
                 
-                {couponDiscount > 0 && (
+                {getDiscountAmount() > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span className="font-medium">-₹{parseInt(couponDiscount)}</span>
+                    <span className="font-medium">-₹{parseInt(getDiscountAmount())}</span>
                   </div>
                 )}
                 
@@ -1346,19 +1349,12 @@ const Checkout = () => {
                   <span className="font-medium">Free</span>
                 </div>
                 
-
-                
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">GST</span>
-                  <span className="font-medium">Included</span>
-                </div>
-                
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
                     <span>₹{parseInt(total)}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Price inclusive of {gstConfig.DISPLAY.TOTAL_GST_RATE} GST</p>
+                  <p className="text-xs text-gray-500 mt-1">Price inclusive of taxes</p>
                 </div>
               </div>
             </div>

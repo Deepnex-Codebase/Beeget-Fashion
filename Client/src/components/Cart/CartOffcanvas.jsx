@@ -4,6 +4,7 @@ import { XMarkIcon, ShoppingBagIcon, PlusIcon, MinusIcon, TrashIcon } from '@her
 import { motion, AnimatePresence } from 'framer-motion'
 import Button from '../Common/Button'
 import { CartContext } from '../../contexts/CartContext'
+import { convertToGSTInclusive } from '../../utils/gstUtils'
 
 const CartOffcanvas = ({ isOpen, onClose }) => {
   const { cart, updateQuantity, removeFromCart, getCartTotal, getCartSubtotal } = useContext(CartContext)
@@ -162,8 +163,9 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
                                        (typeof item.price === 'number' ? item.price : parseFloat(item.sellingPrice || item.price || 0));
                           // Ensure quantity is a valid number and at least 1
                           const quantity = typeof item.quantity === 'number' ? Math.max(1, item.quantity) : Math.max(1, parseInt(item.quantity || 1));
-                          // Calculate and return the total price
-                          const itemTotal = price * quantity;
+                          // Convert to GST-inclusive price and calculate total
+                          const gstInclusivePrice = convertToGSTInclusive(price);
+                          const itemTotal = gstInclusivePrice * quantity;
                           return isNaN(itemTotal) ? 0 : Math.round(itemTotal);
                         })()}</p>
                       </div>
@@ -177,24 +179,18 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
             {cart.length > 0 && (
               <div className="border-t border-java-100 p-4 bg-java-50">
                 <div className="flex justify-between mb-2">
-                  <span className="text-java-800">Subtotal:</span>
-                  <span className="font-medium text-java-800">₹{Math.round(cartValues.subtotal) || 0}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-java-800 text-xs">GST:</span>
-                  <span className="font-medium text-java-800 text-xs">₹{Math.round(cartValues.gstAmount) || 0}</span>
+                  <span className="text-java-800">Subtotal (incl. taxes):</span>
+                  <span className="font-medium text-java-800">₹{Math.round(cartValues.total) || 0}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-java-800 text-xs">Shipping:</span>
-                  <span className="font-medium text-java-800 text-xs">
-                    {cartValues.shippingCost >= 0 ? 'Free' : 'Free'}
-                  </span>
+                  <span className="font-medium text-java-800 text-xs">Free</span>
                 </div>
                 <div className="flex justify-between mb-2 pt-2 border-t border-java-100">
                   <span className="text-java-800 font-medium">Total:</span>
                   <span className="font-medium text-java-800">₹{Math.round(cartValues.total) || 0}</span>
                 </div>
-                <p className="text-xs text-gray-500 mb-4">Price inclusive of GST.</p>
+                <p className="text-xs text-gray-500 mb-4">Price inclusive of taxes.</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Link to="/cart" onClick={onClose}>
                     <Button variant="secondary" fullWidth className="border-java-500 text-java-700 hover:bg-java-50">View Cart</Button>

@@ -4,12 +4,13 @@ import { motion } from 'framer-motion'
 import Button from '../components/Common/Button'
 import useAuth from '../hooks/useAuth'
 import useCart from '../hooks/useCart'
+import { convertToGSTInclusive, formatPriceDisplay } from '../utils/gstUtils'
 // Toast import removed
 // import { toast } from 'react-toastify'
 
 const Cart = () => {
   // Use cart context instead of static data
-  const { cart, loading, error, removeFromCart, updateQuantity, clearCart, getCartTotal, getCartSubtotal, getGstAmount, applyCoupon, removeCoupon, couponCode, couponDiscount, couponError } = useCart()
+  const { cart, loading, error, removeFromCart, updateQuantity, clearCart, getCartTotal, getCartSubtotal, getCartSubtotalInclusive, getDiscountAmount, getGstAmount, applyCoupon, removeCoupon, couponCode, couponDiscount, couponError } = useCart()
   const { isAuthenticated } = useAuth()
   const [couponInput, setCouponInput] = useState('')
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
@@ -59,10 +60,10 @@ const Cart = () => {
   }
 
   // Calculate shipping cost (free shipping over ₹499)
-  const subtotal = getCartSubtotal()
+  const subtotal = getCartSubtotalInclusive()
   const shippingCost = 0
   
-  // Calculate total with shipping
+  // Calculate total with shipping (getCartTotal already includes discount)
   const total = getCartTotal() + shippingCost
   
   // Empty cart view
@@ -161,11 +162,14 @@ const Cart = () => {
                   {/* Price */}
                   <div className="col-span-2 text-center">
                     <span className="sm:hidden inline-block font-medium mr-2">Price:</span>
-                    <div>
-                      <span className="font-medium">₹{parseInt(parseFloat(item.sellingPrice || item.price) || 0) || 0}</span>
-                      {item.mrp && parseFloat(item.mrp) > parseFloat(item.sellingPrice || item.price) && (
-                        <span className="text-xs text-gray-500 line-through ml-2">₹{parseInt(parseFloat(item.mrp) || 0) || 0}</span>
-                      )}
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div>
+                        <span className="font-medium">₹{parseInt(convertToGSTInclusive(parseFloat(item.sellingPrice || item.price) || 0)) || 0}</span>
+                        {item.mrp && parseFloat(item.mrp) > parseFloat(item.sellingPrice || item.price) && (
+                          <span className="text-xs text-gray-500 line-through ml-2">₹{parseInt(convertToGSTInclusive(parseFloat(item.mrp) || 0)) || 0}</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-gray-500">(Included)</span>
                     </div>
                   </div>
                   
@@ -205,7 +209,10 @@ const Cart = () => {
                   {/* Total */}
                   <div className="col-span-2 text-center font-medium">
                     <span className="sm:hidden inline-block font-medium mr-2">Total:</span>
-                    ₹{parseInt((parseFloat(item.sellingPrice || item.price) || 0) * (typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0)) || 0}
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span>₹{parseInt(convertToGSTInclusive(parseFloat(item.sellingPrice || item.price) || 0) * (typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 0)) || 0}</span>
+                      <span className="text-[10px] text-gray-500">(Included)</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -299,21 +306,16 @@ const Cart = () => {
               {/* Summary Details */}
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">₹{isNaN(subtotal) ? 0 : parseInt(subtotal)}</span>
+                  <span className="text-gray-600">Subtotal (incl. taxes)</span>
+                  <span className="font-medium">₹{isNaN(getCartSubtotalInclusive()) ? 0 : parseInt(getCartSubtotalInclusive())}</span>
                 </div>
                 
-                {couponDiscount > 0 && (
+                {getDiscountAmount() > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span>-₹{isNaN(couponDiscount) ? 0 : parseInt(couponDiscount)}</span>
+                    <span>-₹{isNaN(getDiscountAmount()) ? 0 : parseInt(getDiscountAmount())}</span>
                   </div>
                 )}
-                
-                <div className="flex justify-between">
-                  <span className="text-gray-600">GST</span>
-                  <span className="font-medium">₹{isNaN(getGstAmount()) ? 0 : parseInt(getGstAmount())}</span>
-                </div>
                 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
@@ -325,9 +327,9 @@ const Cart = () => {
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span>₹{isNaN(total) ? 0 : parseInt(total)}</span>
+                    <span>₹{isNaN(getCartTotal()) ? 0 : parseInt(getCartTotal())}</span>
                   </div>
-                  <p className="text-gray-500 text-xs mt-1">Price inclusive of GST</p>
+                  <p className="text-gray-500 text-xs mt-1">Price inclusive of taxes</p>
                 </div>
               </div>
               

@@ -159,6 +159,8 @@ export const createOrder = async (req, res, next) => {
       processedItems.push({
         productId: productId,
         variantSku: variantSku,
+        name: product.title || variantSku, // Add product name
+        hsn: variant.hsn || '610910', // Add HSN code from variant with default fallback
         qty,
         mrp: Math.round(mrp),
         selling_price: Math.round(sellingPrice), // Using snake_case for Shiprocket compatibility
@@ -3454,6 +3456,238 @@ export const getCityAnalytics = async (req, res, next) => {
         topCities: detailedCityData,
         allCities: cityAnalytics,
         overallStats
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Convert portal order JSON to Shiprocket order payload
+ * Converts selling_price to GST-exclusive, calculates tax amounts, and formats according to Shiprocket API
+ */
+export const convertToShiprocketOrder = (portalOrder) => {
+  try {
+    // Helper function to calculate GST-exclusive price and tax
+    const calculateGSTExclusive = (totalPrice, gstRate) => {
+      const gstExclusivePrice = totalPrice / (1 + gstRate / 100);
+      const taxAmount = totalPrice - gstExclusivePrice;
+      return {
+        gstExclusivePrice: Math.round(gstExclusivePrice),
+        taxAmount: Math.round(taxAmount)
+      };
+    };
+
+    // Convert order_items to Shiprocket format with GST-exclusive pricing
+    const shiprocketOrderItems = portalOrder.order_items.map(item => {
+      const gstRate = item.gstRate || 18; // Default to 18% if not specified
+      const totalPrice = item.totalPrice || item.sellingPrice || item.selling_price;
+      
+      const { gstExclusivePrice, taxAmount } = calculateGSTExclusive(totalPrice, gstRate);
+
+      return {
+        name: item.name || item.variantSku || 'Product',
+        sku: item.variantSku || item.sku || item.name || 'SKU',
+        units: item.qty || item.units || 1,
+        selling_price: gstExclusivePrice,
+        discount: 0, // Assuming no item-level discount
+        tax: taxAmount,
+        tax_percentage: gstRate,
+        hsn: item.hsn || '610910' // Default HSN for textile products
+      };
+    });
+
+    // Calculate sub_total as sum of GST-exclusive prices
+    const subTotal = Math.round(
+      shiprocketOrderItems.reduce((sum, item) => sum + (item.selling_price * item.units), 0)
+    );
+
+    // Build Shiprocket order payload
+    const shiprocketOrder = {
+      order_id: portalOrder.order_id,
+      order_date: portalOrder.order_date,
+      pickup_location: portalOrder.pickup_location || "Home",
+      channel_id: portalOrder.channel_id || "",
+      
+      // Billing details
+      billing_customer_name: portalOrder.billing?.customer_name || "",
+      billing_last_name: portalOrder.billing?.last_name || "",
+      billing_address: portalOrder.billing?.address || "",
+      billing_address_2: portalOrder.billing?.address_2 || "",
+      billing_city: portalOrder.billing?.city || "",
+      billing_pincode: portalOrder.billing?.pincode || "",
+      billing_state: portalOrder.billing?.state || "",
+      billing_country: portalOrder.billing?.country || "India",
+      billing_email: portalOrder.billing?.email || "",
+      billing_phone: portalOrder.billing?.phone || "",
+      
+      // Shipping details
+      shipping_is_billing: portalOrder.shipping_is_billing !== false,
+      
+      // Order items
+      order_items: shiprocketOrderItems,
+      
+      // Payment method
+      payment_method: portalOrder.payment?.method || "COD",
+      
+      // Totals
+      sub_total: subTotal,
+      
+      // Package dimensions
+      length: portalOrder.length || 10,
+      breadth: portalOrder.breadth || 10,
+      height: portalOrder.height || 2,
+      weight: portalOrder.weight || 0.5
+    };
+
+    // Add shipping details if not using billing address
+    if (!portalOrder.shipping_is_billing && portalOrder.shipping) {
+      shiprocketOrder.shipping_customer_name = portalOrder.shipping.customer_name || "";
+      shiprocketOrder.shipping_last_name = portalOrder.shipping.last_name || "";
+      shiprocketOrder.shipping_address = portalOrder.shipping.address || "";
+      shiprocketOrder.shipping_address_2 = portalOrder.shipping.address_2 || "";
+      shiprocketOrder.shipping_city = portalOrder.shipping.city || "";
+      shiprocketOrder.shipping_pincode = portalOrder.shipping.pincode || "";
+      shiprocketOrder.shipping_state = portalOrder.shipping.state || "";
+      shiprocketOrder.shipping_country = portalOrder.shipping.country || "India";
+      shiprocketOrder.shipping_email = portalOrder.shipping.email || "";
+      shiprocketOrder.shipping_phone = portalOrder.shipping.phone || "";
+    }
+
+    return shiprocketOrder;
+  } catch (error) {
+    logger.error('Error converting order to Shiprocket format:', error);
+    throw new AppError('Failed to convert order to Shiprocket format', 500);
+  }
+};
+
+/**
+ * API endpoint to convert an existing order to Shiprocket format
+ */
+export const convertOrderToShiprocket = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    // Find the order
+    const order = await Order.findOne({ 
+      $or: [
+        { _id: mongoose.Types.ObjectId.isValid(orderId) ? orderId : null },
+        { order_id: orderId }
+      ]
+    });
+
+    if (!order) {
+      throw new AppError("Order not found", 404);
+    }
+
+    // Convert to Shiprocket format
+    const shiprocketOrder = convertToShiprocketOrder(order.toObject());
+
+    res.status(200).json({
+      success: true,
+      message: "Order converted to Shiprocket format successfully",
+      data: {
+        originalOrder: {
+          _id: order._id,
+          order_id: order.order_id,
+          status: order.status
+        },
+        shiprocketOrder
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Test endpoint to demonstrate conversion with sample data
+ */
+export const testShiprocketConversion = async (req, res, next) => {
+  try {
+    // Sample portal order data for testing
+    const samplePortalOrder = {
+      _id: "60f1b2b3c4d5e6f7g8h9i0j1",
+      order_id: "BG167022",
+      order_date: "2025-01-18 12:34",
+      pickup_location: "Home",
+      channel_id: "7849903",
+      order_items: [
+        {
+          productId: "60f1b2b3c4d5e6f7g8h9i0j1",
+          variantSku: "BG010-S",
+          name: "BG010-S",
+          hsn: "610910",
+          qty: 1,
+          mrp: 800,
+          sellingPrice: 700,
+          gstRate: 5,
+          gstAmount: 33.33,
+          totalPrice: 700
+        },
+        {
+          productId: "60f1b2b3c4d5e6f7g8h9i0j2",
+          variantSku: "BG011-M",
+          name: "BG011-M",
+          qty: 2,
+          mrp: 1000,
+          sellingPrice: 900,
+          gstRate: 18,
+          gstAmount: 162,
+          totalPrice: 1800
+        }
+      ],
+      billing: {
+        customer_name: "Divyesh",
+        last_name: "Yadav",
+        address: "Dindoli",
+        city: "surat",
+        pincode: "394210",
+        state: "Gujarat",
+        country: "India",
+        email: "divyeshy.work@gmail.com",
+        phone: "9157288986"
+      },
+      shipping_is_billing: true,
+      payment: {
+        method: "COD"
+      },
+      subtotal: 2500,
+      totalGST: 195.33,
+      total: 2695.33,
+      length: 10,
+      breadth: 10,
+      height: 2,
+      weight: 0.5,
+      __v: 0,
+      statusHistory: [
+        {
+          status: "CREATED",
+          timestamp: "2025-01-18T12:34:00.000Z"
+        }
+      ]
+    };
+
+    // Convert to Shiprocket format
+    const shiprocketOrder = convertToShiprocketOrder(samplePortalOrder);
+
+    res.status(200).json({
+      success: true,
+      message: "Sample order converted to Shiprocket format successfully",
+      data: {
+        originalPortalOrder: samplePortalOrder,
+        shiprocketOrder,
+        conversionNotes: {
+          gstExclusiveCalculation: "selling_price = totalPrice / (1 + gstRate/100)",
+          taxCalculation: "tax = totalPrice - gstExclusivePrice",
+          fieldsRemoved: ["_id", "__v", "subtotal", "totalGST", "total", "statusHistory"],
+          fieldsRenamed: {
+            "billing.customer_name": "billing_customer_name",
+            "billing.address": "billing_address",
+            "payment.method": "payment_method"
+          }
+        }
       }
     });
   } catch (error) {

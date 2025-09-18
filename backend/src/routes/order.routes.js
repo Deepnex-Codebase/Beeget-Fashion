@@ -20,7 +20,9 @@ import {
   markOrderOutForDelivery,
   createPaymentForOrder,
   getOrdersByGuestSession,
-  createShipRocketOrderManually
+  createShipRocketOrderManually,
+  convertOrderToShiprocket,
+  testShiprocketConversion
 } from '../controllers/order.controller.js';
 
 const router = express.Router();
@@ -73,5 +75,7 @@ router.get('/stats/cities', logMiddleware, hasDepartmentPermission('orders', 'ma
 
 // ShipRocket integration routes
 router.post('/:orderId/shiprocket', logMiddleware, hasDepartmentPermission('orders', 'manage_orders'), createShipRocketOrderManually);
+router.get('/:orderId/shiprocket-format', convertOrderToShiprocket);
+router.get('/test/shiprocket-conversion', testShiprocketConversion);
 
 export default router;

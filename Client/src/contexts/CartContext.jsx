@@ -2,6 +2,7 @@ import { createContext, useState, useEffect, useContext } from 'react'
 import { AuthContext } from './AuthContext'
 import api from '../utils/api'
 import gstConfig from '../config/gstConfig'
+import { convertToGSTInclusive } from '../utils/gstUtils'
 
 export const CartContext = createContext()
 
@@ -368,7 +369,7 @@ export const CartProvider = ({ children }) => {
     }
   }
   
-  // Calculate cart subtotal
+  // Calculate cart subtotal (GST-exclusive)
   const getCartSubtotal = () => {
     return Math.round(cart.reduce((total, item) => {
       // Use sellingPrice for consistency with backend
@@ -377,46 +378,64 @@ export const CartProvider = ({ children }) => {
     }, 0))
   }
   
-  // Calculate GST amount (using item-specific GST rates)
+  // Calculate cart subtotal with GST-inclusive prices (this is the display subtotal)
+  const getCartSubtotalInclusive = () => {
+    return Math.round(cart.reduce((total, item) => {
+      // Use sellingPrice for consistency with backend
+      const price = item.sellingPrice || item.price || 0;
+      const gstRate = item.gstRate !== undefined ? item.gstRate : 5; // Default 5% GST
+      const inclusivePrice = convertToGSTInclusive(price, gstRate);
+      return total + (inclusivePrice * item.quantity)
+    }, 0))
+  }
+  
+  // Get the discount amount (this is what gets subtracted from subtotal)
+  const getDiscountAmount = () => {
+    return Math.round(couponDiscount || 0)
+  }
+  
+  // Calculate GST amount from the final total (after discount)
   const getGstAmount = () => {
-    const subtotal = getCartSubtotal()
-    const discount = Math.round(couponDiscount || 0)
-    const discountedAmount = Math.max(0, subtotal - discount)
+    const finalTotal = getCartTotal()
     
-    // Calculate GST based on each item's GST rate
+    // Calculate GST from the final total amount
     let totalGst = 0
     
-    // If we have item-specific GST rates, use them
+    // If we have item-specific GST rates, calculate proportionally
     if (cart.length > 0 && cart.some(item => item.gstRate)) {
-      // First apply discount proportionally to all items
-      const discountRatio = discount > 0 && subtotal > 0 ? discount / subtotal : 0
+      const subtotalInclusive = getCartSubtotalInclusive()
+      const discountRatio = subtotalInclusive > 0 ? finalTotal / subtotalInclusive : 1
       
-      // Calculate GST for each item individually after applying discount
+      // Calculate GST for each item proportionally
       cart.forEach(item => {
-        const itemPrice = (item.sellingPrice || item.price || 0) * item.quantity
-        // Apply proportional discount to this item
-        const discountedItemPrice = itemPrice * (1 - discountRatio)
-        // Use item-specific GST rate if available, otherwise use the configured rate
-        const itemGstRate = item.gstRate !== undefined ? item.gstRate : gstConfig.TOTAL_GST_RATE * 100
-        totalGst += (discountedItemPrice * itemGstRate) / 100
+        const price = item.sellingPrice || item.price || 0;
+        const gstRate = item.gstRate !== undefined ? item.gstRate : 5;
+        const inclusivePrice = convertToGSTInclusive(price, gstRate);
+        const itemTotal = inclusivePrice * item.quantity;
+        
+        // Apply the same ratio as the final total
+        const proportionalItemTotal = itemTotal * discountRatio
+        
+        // Calculate GST from the proportional GST-inclusive price
+        const itemGstAmount = (proportionalItemTotal * gstRate) / (100 + gstRate)
+        totalGst += itemGstAmount
       })
       
       return Math.round(totalGst)
     } else {
-      // Fallback to configured GST rate - applied to already discounted amount
-      return Math.round(discountedAmount * gstConfig.TOTAL_GST_RATE)
+      // Fallback to configured GST rate
+      const gstRate = 5; // Default 5% GST
+      return Math.round((finalTotal * gstRate) / (100 + gstRate))
     }
   }
   
-  // Calculate cart total with discounts and GST
+  // Calculate cart total (subtotal minus discount)
   const getCartTotal = () => {
-    const subtotal = getCartSubtotal()
-    const discount = Math.round(couponDiscount || 0)
-    const discountedAmount = Math.max(0, subtotal - discount)
-    const gstAmount = getGstAmount()
+    const subtotalInclusive = getCartSubtotalInclusive()
+    const discount = getDiscountAmount()
     
-    // Apply discount and add GST
-    return Math.round(discountedAmount + gstAmount)
+    // Standard e-commerce: Total = Subtotal - Discount
+    return Math.round(Math.max(0, subtotalInclusive - discount))
   }
   
   // Get total number of items in cart
@@ -463,6 +482,8 @@ export const CartProvider = ({ children }) => {
         applyCoupon,
         removeCoupon,
         getCartSubtotal,
+        getCartSubtotalInclusive,
+        getDiscountAmount,
         getGstAmount,
         getCartTotal,
         getCartItemCount,

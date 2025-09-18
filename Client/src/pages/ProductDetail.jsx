@@ -8,6 +8,7 @@ import Button from '../components/Common/Button'
 import api from '../utils/api'
 import Image from '../components/Common/Image'
 import { toast } from 'react-toastify'
+import { convertToGSTInclusive, formatPriceDisplay } from '../utils/gstUtils'
 
 const ProductDetail = () => {
   const { slug } = useParams()
@@ -1101,7 +1102,7 @@ const ProductDetail = () => {
                 </div>
                 
                 {/* Price */}
-                <div className="flex flex-wrap items-baseline mb-3 sm:mb-4">
+                <div className="flex flex-col mb-3 sm:mb-4">
                   {product.variants && product.variants.length > 0 ? (
                     <>
                       {/* Force re-render with key based on forceUpdate */}
@@ -1110,10 +1111,10 @@ const ProductDetail = () => {
                          parseFloat(getSelectedVariant().mrp) > parseFloat(getSelectedVariant().price) ? (
                           <div className="flex flex-wrap items-center">
                             <span className="text-xl sm:text-2xl font-semibold text-java-600 mr-2">
-                              ₹{parseInt(parseFloat(getSelectedVariant().price) * quantity)}
+                              ₹{convertToGSTInclusive(parseFloat(getSelectedVariant().price) * quantity)}
                             </span>
                             <span className="text-sm text-gray-500 line-through mr-2">
-                              MRP: ₹{parseInt(parseFloat(getSelectedVariant().mrp) * quantity)}
+                              MRP: ₹{convertToGSTInclusive(parseFloat(getSelectedVariant().mrp) * quantity)}
                             </span>
                             <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
                               {Math.round(((parseFloat(getSelectedVariant().mrp) - parseFloat(getSelectedVariant().price)) / parseFloat(getSelectedVariant().mrp)) * 100)}% OFF
@@ -1123,12 +1124,12 @@ const ProductDetail = () => {
                           <div className="flex flex-wrap items-center">
                             <span className="text-xl sm:text-2xl font-semibold text-java-600 mr-2">
                               ₹{getSelectedVariant() && getSelectedVariant().sellingPrice 
-                                ? parseInt(parseFloat(getSelectedVariant().sellingPrice) * quantity)
+                                ? convertToGSTInclusive(parseFloat(getSelectedVariant().sellingPrice) * quantity)
                                 : '0'}
                             </span>
                             {getSelectedVariant() && getSelectedVariant().mrp && (
                               <span className="text-sm text-gray-500 line-through mr-2">
-                                MRP: ₹{parseInt(parseFloat(getSelectedVariant().mrp) * quantity)}
+                                MRP: ₹{convertToGSTInclusive(parseFloat(getSelectedVariant().mrp) * quantity)}
                               </span>
                             )}
                           </div>
@@ -1138,10 +1139,8 @@ const ProductDetail = () => {
                   ) : (
                     <span className="text-xl sm:text-2xl font-semibold text-gray-900">₹0</span>
                   )}
+                  <div className="text-xs text-green-600 font-medium mt-1">(GST included)</div>
                 </div>
-                
-                {/* Inclusive of all taxes */}
-                <div className="text-xs text-gray-500 mb-4">Inclusive of all taxes</div>
                 
                 {/* Stock Status */}
                 <div className="mb-4">
