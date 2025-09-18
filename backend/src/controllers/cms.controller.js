@@ -274,6 +274,11 @@ const createDefaultFooter = async () => {
         platform: 'LinkedIn',
         url: 'https://www.linkedin.com/company/beeget-fashion/',
         icon: 'linkedin'
+      },
+      {
+        platform: 'Pinterest',
+        url: 'https://pinterest.com/beegetfashion',
+        icon: 'pinterest'
       }
     ],
     quickLinksTitle: 'Quick Links',

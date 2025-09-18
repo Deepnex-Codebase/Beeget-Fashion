@@ -350,16 +350,25 @@ const CollectionManagement = () => {
           throw new Error("Validation failed");
         }
 
-        // Handle file upload if present with better error handling
+        // Create the collection with or without image
+        let response;
         if (imageFile) {
+          // Create collection with image upload
           try {
             setIsUploading(true);
             setUploadProgress(0);
             const formData = new FormData();
             formData.append("image", imageFile);
+            
+            // Add other collection data to the same FormData
+            Object.keys(collectionData).forEach(key => {
+              if (collectionData[key] !== undefined && collectionData[key] !== null) {
+                formData.append(key, collectionData[key]);
+              }
+            });
 
-            const uploadResponse = await axios.post(
-              "products",
+            response = await axios.post(
+              "collections",
               formData,
               {
                 headers: {
@@ -375,16 +384,6 @@ const CollectionManagement = () => {
               }
             );
 
-            if (uploadResponse.data && uploadResponse.data.data && uploadResponse.data.data.product && uploadResponse.data.data.product.images && uploadResponse.data.data.product.images.length > 0) {
-              collectionData.image = uploadResponse.data.data.product.images[0];
-              // console.log(
-              //   "Image uploaded successfully:",
-              //   collectionData.image
-              // );
-            } else {
-              throw new Error("Invalid response from image upload server");
-            }
-
             setIsUploading(false);
             setUploadProgress(100);
           } catch (uploadError) {
@@ -393,10 +392,10 @@ const CollectionManagement = () => {
             // console.error("Image upload error:", uploadError);
             throw new Error("Failed to upload image. Please try again.");
           }
+        } else {
+          // Create collection without image
+          response = await axios.post("collections", collectionData);
         }
-
-        // Create the collection
-        const response = await axios.post("collections", collectionData);
         // console.log("Create collection response:", response);
 
         // If products were selected, add them to the collection
@@ -510,16 +509,31 @@ const CollectionManagement = () => {
           throw new Error("Validation failed");
         }
 
-        // Handle file upload if present with better error handling
+        // Validate ID before making the API call
+        if (!id || id === 'undefined') {
+          // console.error('Invalid collection ID:', id);
+          throw new Error('Invalid collection ID');
+        }
+
+        // Update the collection with or without image
+        let response;
         if (imageFile) {
+          // Update collection with image upload
           try {
             setIsUploading(true);
             setUploadProgress(0);
             const formData = new FormData();
             formData.append("image", imageFile);
+            
+            // Add other collection data to the same FormData
+            Object.keys(data).forEach(key => {
+              if (data[key] !== undefined && data[key] !== null) {
+                formData.append(key, data[key]);
+              }
+            });
 
-            const uploadResponse = await axios.post(
-              "products",
+            response = await axios.put(
+              `collections/${id}`,
               formData,
               {
                 headers: {
@@ -535,16 +549,6 @@ const CollectionManagement = () => {
               }
             );
 
-            if (uploadResponse.data && uploadResponse.data.data && uploadResponse.data.data.product && uploadResponse.data.data.product.images && uploadResponse.data.data.product.images.length > 0) {
-              data.image = uploadResponse.data.data.product.images[0];
-              // console.log(
-              //   "Image uploaded successfully:",
-              //   data.image
-              // );
-            } else {
-              throw new Error("Invalid response from image upload server");
-            }
-
             setIsUploading(false);
             setUploadProgress(100);
           } catch (uploadError) {
@@ -553,16 +557,10 @@ const CollectionManagement = () => {
             // console.error("Image upload error:", uploadError);
             throw new Error("Failed to upload image. Please try again.");
           }
+        } else {
+          // Update collection without image
+          response = await axios.put(`collections/${id}`, data);
         }
-
-        // Validate ID before making the API call
-        if (!id || id === 'undefined') {
-          // console.error('Invalid collection ID:', id);
-          throw new Error('Invalid collection ID');
-        }
-        
-        // Update the collection
-        const response = await axios.put(`collections/${id}`, data);
         // console.log("Update collection response:", response);
 
         // If products were selected, update them in the collection

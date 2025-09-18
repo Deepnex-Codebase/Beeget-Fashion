@@ -1061,18 +1061,23 @@ const createDefaultContactPage = async () => {
         links: [
           {
             platform: 'Facebook',
-            url: 'https://facebook.com/beegetfashion',
+            url: 'https://www.facebook.com/share/16yorjMnQi/',
             icon: 'facebook'
           },
           {
             platform: 'Instagram',
-            url: 'https://instagram.com/beegetfashion',
+            url: 'https://www.instagram.com/beegetfashion?igsh=YWc5MGM0eGdrbzly',
             icon: 'instagram'
           },
           {
-            platform: 'Twitter',
-            url: 'https://twitter.com/beegetfashion',
-            icon: 'twitter'
+            platform: 'YouTube',
+            url: 'https://youtube.com/@beegetfashion?si=EhstRf4mrsg8_jmJ',
+            icon: 'youtube'
+          },
+          {
+            platform: 'LinkedIn',
+            url: 'https://www.linkedin.com/company/beeget-fashion/',
+            icon: 'linkedin'
           },
           {
             platform: 'Pinterest',

@@ -6,7 +6,7 @@ import { connectToRedis } from './config/redis.js';
 
 // Environment variables with defaults
 const PORT = process.env.PORT || 5000;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const NODE_ENV = process.env.NODE_ENV || 'production';
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Database connections
