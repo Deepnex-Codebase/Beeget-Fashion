@@ -796,7 +796,7 @@ const Shop = () => {
                               )}
                             </div>
                             <p className="text-[8px] xs:text-[9px] text-gray-500">
-                              (GST included)
+                              (Price inclusive of taxes)
                             </p>
                           </div>
                           {/* Discount percentage */}

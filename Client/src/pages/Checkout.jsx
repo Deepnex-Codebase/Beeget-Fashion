@@ -1332,30 +1332,68 @@ const Checkout = () => {
               
               {/* Summary Details */}
               <div className="border-t border-gray-200 pt-4 space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal (incl. taxes)</span>
-                  <span className="font-medium">₹{parseInt(getCartSubtotalInclusive())}</span>
-                </div>
-                
-                {getDiscountAmount() > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount</span>
-                    <span className="font-medium">-₹{parseInt(getDiscountAmount())}</span>
-                  </div>
-                )}
-                
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium">Free</span>
-                </div>
-                
-                <div className="border-t border-gray-200 pt-3 mt-3">
-                  <div className="flex justify-between font-semibold text-lg">
-                    <span>Total</span>
-                    <span>₹{parseInt(total)}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Price inclusive of taxes</p>
-                </div>
+                {/* Calculate MRP, discount, and coupon values */}
+                {(() => {
+                  // Calculate total MRP (original price)
+                  const totalMRP = cart.reduce((sum, item) => {
+                    const originalPrice = item.originalPrice || item.mrp || item.sellingPrice || item.price || 0;
+                    const quantity = typeof item.quantity === 'number' ? Math.max(1, item.quantity) : Math.max(1, parseInt(item.quantity || 1));
+                    const itemMRP = convertToGSTInclusive(parseFloat(originalPrice)) * quantity;
+                    return sum + itemMRP;
+                  }, 0);
+                  
+                  // Calculate total selling price
+                  const totalSellingPrice = cart.reduce((sum, item) => {
+                    const sellingPrice = item.sellingPrice || item.price || 0;
+                    const quantity = typeof item.quantity === 'number' ? Math.max(1, item.quantity) : Math.max(1, parseInt(item.quantity || 1));
+                    const itemPrice = convertToGSTInclusive(parseFloat(sellingPrice)) * quantity;
+                    return sum + itemPrice;
+                  }, 0);
+                  
+                  // Calculate discount (MRP - Selling Price)
+                  const discount = Math.max(0, totalMRP - totalSellingPrice);
+                  
+                  // Final payable amount (rounded to integer)
+                  const finalTotal = Math.round(totalSellingPrice - couponDiscount);
+                  
+                  return (
+                    <>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-gray-600">MRP (Incl. GST):</span>
+                        <span className="font-medium">₹{parseInt(totalMRP)}</span>
+                      </div>
+                      
+                      {discount > 0 && (
+                        <div className="flex justify-between mb-2 text-green-600">
+                          <span>Discount:</span>
+                          <span>-₹{parseInt(discount)}</span>
+                        </div>
+                      )}
+                      
+                      {couponDiscount > 0 && (
+                        <div className="flex justify-between mb-2 text-green-600">
+                          <span>Coupon {couponCode ? `(${couponCode})` : ''}:</span>
+                          <span>-₹{parseInt(couponDiscount)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between mb-2">
+                        <span className="text-gray-600">Shipping:</span>
+                        <span className="font-medium">
+                          {shippingCost === 0 ? 'Free' : `₹${parseInt(shippingCost)}`}
+                        </span>
+                      </div>
+                      
+                      <div className="border-t border-gray-200 pt-3 mt-3">
+                        <div className="flex justify-between font-semibold text-lg">
+                          <span>Total Payable:</span>
+                          <span>₹{parseInt(finalTotal)}</span>
+                        </div>
+                        <p className="text-gray-500 text-xs mt-1">Price inclusive of all taxes</p>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

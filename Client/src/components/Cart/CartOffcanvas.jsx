@@ -7,7 +7,7 @@ import { CartContext } from '../../contexts/CartContext'
 import { convertToGSTInclusive } from '../../utils/gstUtils'
 
 const CartOffcanvas = ({ isOpen, onClose }) => {
-  const { cart, updateQuantity, removeFromCart, getCartTotal, getCartSubtotal } = useContext(CartContext)
+  const { cart, updateQuantity, removeFromCart, getCartTotal, getCartSubtotal, couponCode, couponDiscount } = useContext(CartContext)
   
   // Close cart when pressing escape key
   useEffect(() => {
@@ -178,18 +178,66 @@ const CartOffcanvas = ({ isOpen, onClose }) => {
             {/* Footer */}
             {cart.length > 0 && (
               <div className="border-t border-java-100 p-4 bg-java-50">
-                <div className="flex justify-between mb-2">
-                  <span className="text-java-800">Subtotal (incl. taxes):</span>
-                  <span className="font-medium text-java-800">₹{Math.round(cartValues.total) || 0}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-java-800 text-xs">Shipping:</span>
-                  <span className="font-medium text-java-800 text-xs">Free</span>
-                </div>
-                <div className="flex justify-between mb-2 pt-2 border-t border-java-100">
-                  <span className="text-java-800 font-medium">Total:</span>
-                  <span className="font-medium text-java-800">₹{Math.round(cartValues.total) || 0}</span>
-                </div>
+                {/* Calculate MRP, discount, and coupon values */}
+                {(() => {
+                  // Calculate total MRP (original price)
+                  const totalMRP = cart.reduce((sum, item) => {
+                    const originalPrice = item.originalPrice || item.mrp || item.sellingPrice || item.price || 0;
+                    const quantity = typeof item.quantity === 'number' ? Math.max(1, item.quantity) : Math.max(1, parseInt(item.quantity || 1));
+                    const itemMRP = convertToGSTInclusive(parseFloat(originalPrice)) * quantity;
+                    return sum + itemMRP;
+                  }, 0);
+                  
+                  // Calculate total selling price
+                  const totalSellingPrice = cart.reduce((sum, item) => {
+                    const sellingPrice = item.sellingPrice || item.price || 0;
+                    const quantity = typeof item.quantity === 'number' ? Math.max(1, item.quantity) : Math.max(1, parseInt(item.quantity || 1));
+                    const itemPrice = convertToGSTInclusive(parseFloat(sellingPrice)) * quantity;
+                    return sum + itemPrice;
+                  }, 0);
+                  
+                  // Calculate discount (MRP - Selling Price)
+                  const discount = Math.max(0, totalMRP - totalSellingPrice);
+                  
+                  // Use coupon discount and code from CartContext
+                  // No need to use cartValues for coupon information as we're getting it directly from context
+                  
+                  // Final payable amount (rounded to 2 decimal places)
+                  const finalTotal = Math.round((totalSellingPrice - couponDiscount) * 100) / 100;
+                  
+                  return (
+                    <>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-java-800">MRP (Incl. GST):</span>
+                        <span className="font-medium text-java-800">₹{parseInt(totalMRP)}</span>
+                      </div>
+                      
+                      {discount > 0 && (
+                        <div className="flex justify-between mb-2">
+                          <span className="text-java-800">Discount:</span>
+                          <span className="font-medium text-green-600">-₹{parseInt(discount)}</span>
+                        </div>
+                      )}
+                      
+                      {couponDiscount > 0 && (
+                        <div className="flex justify-between mb-2">
+                          <span className="text-java-800">Coupon {couponCode ? `(${couponCode})` : ''}:</span>
+                          <span className="font-medium text-green-600">-₹{parseInt(couponDiscount)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between mb-2">
+                        <span className="text-java-800 text-xs">Shipping:</span>
+                        <span className="font-medium text-java-800 text-xs">Free</span>
+                      </div>
+                      
+                      <div className="flex justify-between mb-2 pt-2 border-t border-java-100">
+                        <span className="text-java-800 font-medium">Total Payable:</span>
+                        <span className="font-medium text-java-800">₹{parseInt(finalTotal)}</span>
+                      </div>
+                    </>
+                  );
+                })()}
                 <p className="text-xs text-gray-500 mb-4">Price inclusive of taxes.</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Link to="/cart" onClick={onClose}>

@@ -552,7 +552,7 @@ const OrderManagement = () => {
                         <span>{formatCurrency(orderDetails.shippingCost || 0)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Tax (GST)</span>
+                        <span>Tax</span>
                         <span>{formatCurrency(orderDetails.taxAmount || 0)}</span>
                       </div>
                       <div className="flex justify-between text-sm font-medium pt-2 border-t border-gray-200">

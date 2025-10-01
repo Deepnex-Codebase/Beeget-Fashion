@@ -52,7 +52,7 @@ const Shipping = () => {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Standard Shipping</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">5-7 business days</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₹399 (Free on orders over ₹5000)</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Free on all orders</td>
                     </tr>
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Express Shipping</td>
@@ -110,7 +110,7 @@ const Shipping = () => {
             <div>
               <h3 className="text-xl font-medium mb-3">Return Policy</h3>
               <p className="text-gray-600 mb-3">
-                We want you to be completely satisfied with your purchase. If you're not happy with your order, we accept returns within 30 days of delivery for a full refund or exchange.
+                We want you to be completely satisfied with your purchase. If you're not happy with your order, we accept returns within 3 days of delivery for a full refund or exchange.
               </p>
               <p className="text-gray-600">
                 To be eligible for a return, your item must be unused and in the same condition that you received it. It must also be in the original packaging with all tags attached.

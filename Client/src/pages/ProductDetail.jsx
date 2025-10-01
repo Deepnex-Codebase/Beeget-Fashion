@@ -1139,7 +1139,7 @@ const ProductDetail = () => {
                   ) : (
                     <span className="text-xl sm:text-2xl font-semibold text-gray-900">₹0</span>
                   )}
-                  <div className="text-xs text-green-600 font-medium mt-1">(GST included)</div>
+                  <div className="text-xs text-green-600 font-medium mt-1">(Price inclusive of taxes)</div>
                 </div>
                 
                 {/* Stock Status */}

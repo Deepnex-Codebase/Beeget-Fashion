@@ -239,7 +239,7 @@ const AccountReturns = () => {
     const currentDate = new Date();
     const daysDifference = Math.floor((currentDate - orderDate) / (1000 * 60 * 60 * 24));
     
-    return daysDifference <= 30; // 30-day return window
+    return daysDifference <= 3; // 3-day return window
   };
 
   // Filter eligible orders for returns

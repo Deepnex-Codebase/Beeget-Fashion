@@ -34,7 +34,7 @@ const FAQ = () => {
         {
           id: 'shipping-cost',
           question: 'How much does shipping cost?',
-          answer: 'Standard shipping is ₹399, but free on orders over ₹5000. Express shipping is ₹899, and Next Day Delivery is ₹1499. International shipping rates vary by country. You can view all shipping options and costs during checkout.'
+          answer: 'We offer free standard shipping on all orders. Express shipping is ₹899, and Next Day Delivery is ₹1499. International shipping rates vary by country. You can view all shipping options and costs during checkout.'
         },
         {
           id: 'international-shipping',
@@ -50,7 +50,7 @@ const FAQ = () => {
         {
           id: 'return-policy',
           question: 'What is your return policy?',
-          answer: 'We accept returns within 30 days of delivery for a full refund or exchange. Items must be unused, in the same condition you received them, and in the original packaging with all tags attached.'
+          answer: 'We accept returns within 3 days of delivery for a full refund or exchange. Items must be unused, in the same condition you received them, and in the original packaging with all tags attached.'
         },
         {
           id: 'return-process',

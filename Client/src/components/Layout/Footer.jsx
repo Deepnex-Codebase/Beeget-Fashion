@@ -209,7 +209,7 @@ const Footer = () => {
               <FaTruck className="text-java-500 text-2xl" />
               <div>
                 <p className="font-medium text-white">Free Shipping</p>
-                <p className="text-sm text-gray-300">On orders over ₹500</p>
+          <p className="text-sm text-gray-300">On all orders</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -223,7 +223,7 @@ const Footer = () => {
               <FaCreditCard className="text-java-500 text-2xl" />
               <div>
                 <p className="font-medium text-white">Easy Returns</p>
-                <p className="text-sm text-gray-300">30-day return policy</p>
+                <p className="text-sm text-gray-300">3-day return policy</p>
               </div>
             </div>
           </div>
